@@ -7,7 +7,7 @@ The Microsoft Agents Framework delivers a platform for Agent development across 
 | General     |[agents Repository]               | [Official Agents Documentation]   |
 | C# /.NET    |[agents-for-net Repository]       | [.NET Documentation]             |
 | JavaScript  |[agents-for-js Repository]        | [JavaScript Documentation]       |
-| Python      |[agents-for-python Repository]    | [Python Documentation]           |
+| Python      |Coming Soon    | Coming Soon           |
 
 ## Contributing
 
@@ -40,7 +40,3 @@ Any use of third-party trademarks or logos are subject to those third-party's po
 [.NET Documentation]: https://aka.ms/Agents-net-docs
 [JavaScript Documentation]: https://aka.ms/agents-js-docs
 [Python Documentation]: https://aka.ms/agents-python-docs
-
-[.NET Packages]: https://azure.github.io/azure-sdk/releases/latest/dotnet.html
-[JavaScript Packages]: https://azure.github.io/azure-sdk/releases/latest/js.html
-[Python Packages]: https://azure.github.io/azure-sdk/releases/latest/python.html
