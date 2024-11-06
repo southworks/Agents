@@ -1,14 +1,13 @@
-# Project
+# Agnets Framework
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+The Microsoft Agents Framework delivers a platform for development of Agents across the wide variety of Microsoft services in their language of choice. The source for the client libraries exists for the most part in repositories for each language. This repository is meant to be a jumping off point into those language specific repositories. Issues related to a specific language should be opened in the corresponding repository but cross cutting issues can be opened in this repository.
 
-As the maintainer of this project, please make a few updates:
-
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+| Language    | Repo                             | Documentation                    |
+|:------------|:--------------------------------:|:--------------------------------:|
+| General     |[agents Repository]               | [Official Agents Documentation]   |
+| C# /.NET    |[agents-for-net Repository]       | [.NET Documentation]             |
+| JavaScript  |[agents-js Repository]            | [JavaScript Documentation]       |
+| Python      |[agents-for-python Repository]    | [Python Documentation]           |
 
 ## Contributing
 
@@ -31,3 +30,17 @@ trademarks or logos is subject to and must follow
 [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
 Any use of third-party trademarks or logos are subject to those third-party's policies.
+
+[agents Repository]: https://github.com/Microsoft/Agents
+[agents-for-net Repository]: https://github.com/Microsoft/Agents-for-net
+[agents-for-js Repository]: https://github.com/Microsoft/Agents-for-js
+[agents-for-python Repository]: https://github.com/Microsoft/Agents-for-python
+
+[Official Agents Documentation]: https://aka.ms/AgentsFramework
+[.NET Documentation]: https://aka.ms/Agents-net-docs
+[JavaScript Documentation]: https://aka.ms/agents-js-docs
+[Python Documentation]: https://aka.ms/agents-python-docs
+
+[.NET Packages]: https://azure.github.io/azure-sdk/releases/latest/dotnet.html
+[JavaScript Packages]: https://azure.github.io/azure-sdk/releases/latest/js.html
+[Python Packages]: https://azure.github.io/azure-sdk/releases/latest/python.html
