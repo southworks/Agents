@@ -1,6 +1,6 @@
-# Agnets Framework
+# Agents Framework
 
-The Microsoft Agents Framework delivers a platform for development of Agents across the wide variety of Microsoft services in their language of choice. The source for the client libraries exists for the most part in repositories for each language. This repository is meant to be a jumping off point into those language specific repositories. Issues related to a specific language should be opened in the corresponding repository but cross cutting issues can be opened in this repository.
+The Microsoft Agents Framework delivers a platform for Agent development across the wide variety of Microsoft services. The source for the client libraries exists for the most part in repositories for each language. This repository is meant to be a jumping off point into those language specific repositories. Issues related to a specific language should be opened in the corresponding repository but cross cutting issues can be opened in this repository.
 
 | Language    | Repo                             | Documentation                    |
 |:------------|:--------------------------------:|:--------------------------------:|
