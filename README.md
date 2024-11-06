@@ -6,7 +6,7 @@ The Microsoft Agents Framework delivers a platform for development of Agents acr
 |:------------|:--------------------------------:|:--------------------------------:|
 | General     |[agents Repository]               | [Official Agents Documentation]   |
 | C# /.NET    |[agents-for-net Repository]       | [.NET Documentation]             |
-| JavaScript  |[agents-js Repository]            | [JavaScript Documentation]       |
+| JavaScript  |[agents-for-js Repository]        | [JavaScript Documentation]       |
 | Python      |[agents-for-python Repository]    | [Python Documentation]           |
 
 ## Contributing
