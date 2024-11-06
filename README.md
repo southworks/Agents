@@ -1,6 +1,16 @@
 # Agents Framework
 
-The Microsoft Agents Framework delivers a platform for Agent development across the wide variety of Microsoft services. The source for the client libraries exists for the most part in repositories for each language. This repository is meant to be a jumping off point into those language specific repositories. Issues related to a specific language should be opened in the corresponding repository but cross cutting issues can be opened in this repository.
+The Microsoft Agent Framework simplifies building full stack, multichannel, trusted agents. It's a comprehensive framework for building enterprise-grade agents, enabling developers to leverage key components from the Azure AI Foundry SDK, Semantic Kernel, Copilot Studio, as well as AI components from other vendors. It provides developers with the building blocks to create agents that handle user interactions, orchestrate requests, reason responses, and collaborate with other agents. These agents can operate across platforms like Teams, Microsoft 365, Slack, Messenger, Web, and more.
+
+* **Agent Framework SDK**. Provides agent composition and user experience capabilities. Developers can deploy agents to channels for human interaction. This component handles conversation management and enables the agent to access orchestration and core agent backend functionality. In addition, this component enables agents to access functionality from Copilot Studio agents and the Copilot trust layer.
+
+* **Semantic Kernel SDK**. Provides orchestration capabilities for single and multi-agent developments. It acts as middleware, enabling developers to automate business processes by combining AI prompts with existing APIs.
+
+* **Azure AI Foundry SDK**. Provides the core backend agent functionality, providing reasoning, retrieval augmentation, observability, among other core functions. Developers can leverage the Azure AI Agent Service or build their agent functionality with individual components from this SDK. 
+
+The Agents Framework brings together core components to allow for developers to create, manage and utilize various AI Services and third-party SDKs to power orchestration and develop custom agent logic functionality.
+
+The source for the client libraries exists for the most part in repositories for each language. This repository is meant to be a jumping off point into those language specific repositories. Issues related to a specific language should be opened in the corresponding repository but cross cutting issues can be opened in this repository.
 
 | Language    | Repo                             | Documentation                    |
 |:------------|:--------------------------------:|:--------------------------------:|
