@@ -1,6 +1,6 @@
-# Microsoft M365 Agents SDK
+# Microsoft 365 Agents SDK
 
-The Microsoft M365 Agent SDK simplifies building full stack, multichannel, trusted agents for platforms including M365, Teams, Copilot Studio, and Webchat. We also offer integrations with 3rd parties such as Slack, Twilio [,,,]. It provides developers with the building blocks to create agents that handle user interactions, orchestrate requests, reason responses, and collaborate with other agents
+The Microsoft 365 Agent SDK simplifies building full stack, multichannel, trusted agents for platforms including M365, Teams, Copilot Studio, and Webchat. We also offer integrations with 3rd parties such as Slack, Twilio [,,,]. It provides developers with the building blocks to create agents that handle user interactions, orchestrate requests, reason responses, and collaborate with other agents
 
 It's a comprehensive framework for building enterprise-grade agents, enabling developers to integrate components from the Azure AI Foundry SDK, Semantic Kernel, as well as AI components from other vendors.  
  
