@@ -24,7 +24,7 @@ in just a [few lines of code](https://learn.microsoft.com/en-us/semantic-kernel/
 
 The Agents Framework brings together core components to allow for developers to create, manage and utilize various AI Services and third-party SDKs to power orchestration and develop custom agent logic functionality.
 
-* **Links**
+## Links
 The source for the client libraries exists for the most part in repositories for each language. This repository is meant to be a jumping off point into those language specific repositories. Issues related to a specific language should be opened in the corresponding repository but cross cutting issues can be opened in this repository.
 
 | Language    | Repo                             | Documentation                    |
