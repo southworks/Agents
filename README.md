@@ -1,8 +1,14 @@
 # Microsoft M365 Agents SDK
 
-The Microsoft Agents Framework simplifies building full stack, multichannel, trusted agents. It's a comprehensive framework for building enterprise-grade agents, enabling developers to leverage key components from the Azure AI Foundry SDK, Semantic Kernel, Copilot Studio, as well as AI components from other vendors. It provides developers with the building blocks to create agents that handle user interactions, orchestrate requests, reason responses, and collaborate with other agents. These agents can operate across platforms like Teams, Microsoft 365, Slack, Messenger, Web, and more.
+The Microsoft M365 Agent SDK simplifies building full stack, multichannel, trusted agents for platforms including M365, Teams, Copilot Studio, and Webchat. We aslso offer integrations with 3rd parties such as Slack, Twilio, [...].
 
-* **Agents Framework SDK**. Provides agent composition and user experience capabilities. Developers can deploy agents to channels for human interaction. This component handles conversation management and enables the agent to access orchestration and core agent backend functionality. In addition, this component enables agents to access functionality from Copilot Studio agents and the Copilot trust layer.
+It's a comprehensive framework for building enterprise-grade agents, enabling developers to leverage key components from the Azure AI Foundry SDK, Semantic Kernel, as well as AI components from other vendors. It provides developers with the building blocks to create agents that handle user interactions, orchestrate requests, reason responses, and collaborate with other agents. 
+ 
+* **M365 Agents SDK Overview**. Provides agent composition and user experience capabilities. Developers can deploy agents to channels for human interaction. This component handles conversation management and enables the agent to access orchestration and core agent backend functionality. In addition, this component enables agents to access functionality from Copilot Studio agents and the Copilot trust layer.
+* **Copilot Studio** ...
+* **Microsoft Teams** ...
+
+## Related SDKs
 
 * **Semantic Kernel**. [Semantic Kernel](https://learn.microsoft.com/en-us/semantic-kernel/overview/)
 is an SDK that integrates Large Language Models (LLMs) like
@@ -13,7 +19,6 @@ with conventional programming languages like C#, Python, and Java. Semantic Kern
 by allowing you to define [plugins](https://learn.microsoft.com/en-us/semantic-kernel/concepts/plugins)
 that can be chained together
 in just a [few lines of code](https://learn.microsoft.com/en-us/semantic-kernel/ai-orchestration/chaining-functions?tabs=Csharp#using-the-runasync-method-to-simplify-your-code).
-
 
 * **Azure AI Foundry SDK**. Provides the core backend agent functionality, providing reasoning, retrieval augmentation, observability, among other core functions. Developers can leverage the Azure AI Agent Service or build their agent functionality with individual components from this SDK. 
 
@@ -27,6 +32,11 @@ The source for the client libraries exists for the most part in repositories for
 | C# /.NET    |[agents-for-net Repository]       | [.NET Documentation]             |
 | JavaScript  |[agents-for-js Repository]        | [JavaScript Documentation]       |
 | Python      |Coming Soon    | Coming Soon           |
+
+## Evolution of Bot Framework
+
+
+
 
 ## Contributing
 
