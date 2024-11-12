@@ -22,7 +22,7 @@ in just a [few lines of code](https://learn.microsoft.com/en-us/semantic-kernel/
 
 * **Azure AI Foundry SDK**. Provides the core backend agent functionality, providing reasoning, retrieval augmentation, observability, among other core functions. Developers can leverage the Azure AI Agent Service or build their agent functionality with individual components from this SDK. 
 
-The Agents Framework brings together core components to allow for developers to create, manage and utilize various AI Services and third-party SDKs to power orchestration and develop custom agent logic functionality.
+The M365 Agents SDK brings together core components to allow for developers to create, manage and utilize various AI Services and third-party SDKs to power orchestration and develop custom agent logic functionality.
 
 ## Links
 The source for the client libraries exists for the most part in repositories for each language. This repository is meant to be a jumping off point into those language specific repositories. Issues related to a specific language should be opened in the corresponding repository but cross cutting issues can be opened in this repository.
