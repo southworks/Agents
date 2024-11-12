@@ -1,4 +1,4 @@
-# Agents Framework
+# Microsoft M365 Agents SDK
 
 The Microsoft Agents Framework simplifies building full stack, multichannel, trusted agents. It's a comprehensive framework for building enterprise-grade agents, enabling developers to leverage key components from the Azure AI Foundry SDK, Semantic Kernel, Copilot Studio, as well as AI components from other vendors. It provides developers with the building blocks to create agents that handle user interactions, orchestrate requests, reason responses, and collaborate with other agents. These agents can operate across platforms like Teams, Microsoft 365, Slack, Messenger, Web, and more.
 
