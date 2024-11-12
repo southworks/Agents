@@ -6,7 +6,7 @@ The M365 Agent SDK is a comprehensive framework for building enterprise-grade ag
  
 * **Microsoft 365 Agents SDK Overview**. Provides agent composition and user experience capabilities. Developers can deploy agents to channels for human interaction. This component handles conversation management and enables the agent to access orchestration and core agent backend functionality. In addition, this component enables agents to access functionality from Copilot Studio agents and the Copilot trust layer.
 * **Copilot Studio**. Copilot Studio is an end-to-end conversational AI platform that empowers the creation of agents using natural language or a graphical interface. With Copilot Studio, you can easily design, test, and publish agents that suit your needs for internal or external scenarios across your industry, department, or role.
-* **Microsoft Teams**. Microsoft Teams offers a collection of apps that are provided by Microsoft or external services. Teams apps can be tabs, bots, or message extensions or any combination of the capabilities. You can extend Teams apps to work on Outlook and Microsoft 365 App, too. These apps expand the value of the Teams collaborative experience for users.
+* **Microsoft Teams**. Microsoft Teams offers a collection of apps that are provided by Microsoft or external services. Teams apps can be tabs, bots, or message extensions or any combination of the capabilities. You can [extend Teams](https://learn.microsoft.com/en-us/microsoftteams/platform/overview) apps to work on Outlook and Microsoft 365 App, too. These apps expand the value of the Teams collaborative experience for users.
 
 ## Related SDKs
 
