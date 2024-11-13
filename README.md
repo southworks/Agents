@@ -35,6 +35,9 @@ The source for the client libraries exists for the most part in repositories for
 | Python      |Coming Soon    | Coming Soon           |
 
 ## Evolution of Bot Framework
+The Microsoft 365 Agent SDK is the evolution of the Bot Framework. The Bot Framework was previously how a developer can build bots where the primary focus in Conversational AI was around topics, dialogs and messages. The industry has evolved to be driven by Generative AI functionality, grounding on knowledge that is located across the enterprise, and there is the need for companies to be able to orchastrate actions, in additional to answer questions, from within a conversational experience. The Microsoft 365 Agent SDK provides capabilities for modern agent development, bringing together the creation of conversational agents with conversation management, orchestration, connecting to numerous AI Services and clients, including agents created with third party software or technology.
+
+Please be aware as we move through this evolution, there will be some references to Bot Framework within documentation and in the code. 
 
 ## Contributing
 
