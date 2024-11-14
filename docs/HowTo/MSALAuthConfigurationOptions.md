@@ -63,7 +63,7 @@ These settings are:
 |ClientId     |String    |Null         |ClientId (AppId) to use when creating the Access token.|
 |ClientSecret     |string         |Null         |When AuthType is ClientSecret, Is Secret associated with the client, this should only be used for testing and development purposes.         |
 
-#### Example for ClientSecret for Azure Bot Service
+#### Example for MultiTenant ClientSecret for Azure Bot Service
 
 ```json
   "Connections": {

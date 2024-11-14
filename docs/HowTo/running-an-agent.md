@@ -16,7 +16,6 @@ While this is the simplest way to get started and run your Agent, there are impo
 
 When running in Anonymous mode, your Agent will not be able to create authentication tokens to access other services, Nor can it interact with Azure Bot Services. Therefor, Anonymous Mode is there to support testing basic operational features of the Agent and to work with and test various events that your Agent can process. It should be used only during initial development.
 
-> [!IMPORTANT]
 > A sample is configured, by default, for Anonymous Authentication. Before using this sample with Azure Bot Service, it is necessary to configure authentication.
 
 **- Configured Authentication with Entra ID.**
