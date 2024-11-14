@@ -9,4 +9,4 @@
 - [Creating an Azure Bot - Single Tenant](./HowTo/azurebot-create-single-secret.md) 
 - [Creating an Azure Bot - Managed Identity](./HowTo/azurebot-create-msi.md) 
 - [Configuring OAuth for an Agent](./HowTo/azurebot-user-authentication-fic.md)
-- [MSAL Configuration](/HowTo/MSALAuthConfigurationOptions.md)
+- [DotNet Agents SDK - MSAL Configuration](/HowTo/MSALAuthConfigurationOptions.md)

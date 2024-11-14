@@ -11,6 +11,8 @@ Each access token can be created using one of the following auth types:
 - User Managed Identity
 - System Managed Identity
 
+> Refer to [Configuration in ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-8.0) for recommendations for configuration and secrets best practices.
+
 ### General Configuration
 
 There are several shared configuration options that control general settings for acquiring tokens from Microsoft Entra Identity.
@@ -158,10 +160,12 @@ When using Auth type **SystemManagedIdentity**, Client ID is ignored and the sys
 |AuthType      |Type  |Default Value  |Description  |
 |--------------|------|---------------|-------------|
 |ClientId     |String    |Null         |ClientId (AppId) to use when creating the Access token.|
-|CertSubjectName     |String         |Null         |When AuthType is CertificateSubjectName, this is the subject name that is sought|
-|CertStoreName     |String         |"My"         |When AuthType is either CertificateSubjectName or Certificate, Indicates which certificate store to look in|
+|CertSubjectName     |String         |Null         |This is the subject name that is sought|
+|CertStoreName     |String         |"My"         |Indicates which certificate store to look in|
 |ValidCertificateOnly     |bool         |True         |Requires the certificate to have a valid chain.          |
 |SendX5C     |bool         |False         |Enables certificate auto rotation with appropriate configuration.          |
+
+> Certificates should stored in the **Current User** certificate store.
 
 #### Example for CertificateSubjectName for SN+I
 
