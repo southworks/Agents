@@ -1,5 +1,7 @@
 # Activity Protocol -- Activity
 
+Version: 3.1.13
+
 ## Abstract
 
 The Activity Protocol schema is an application-level representation of conversational actions made by humans and automated software. The schema includes provisions for communicating text, multimedia, and non-content actions like social interactions and typing indicators.

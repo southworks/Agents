@@ -1,5 +1,7 @@
 # Activity Protocol -- Cards
 
+Version: 3.1.13
+
 ## Abstract
 
 The Activity Protocol Cards schema is an application-level representation of interactive cards for use within chat and other applications. The schema includes provisions for controlling the content, layout, and interactive elements of a card.

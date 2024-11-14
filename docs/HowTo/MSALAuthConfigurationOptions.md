@@ -1,4 +1,4 @@
-﻿# MSAL Authentication provider
+﻿# DotNet MSAL Authentication provider
 
 The MSAL authentication provider is a utility aid you on creating access tokens for bot clients and external services from the Microsoft Agents Framework self hosted Agent.
 
@@ -15,7 +15,7 @@ Each access token can be created using one of the following auth types:
 
 ### General Configuration
 
-There are several shared configuration options that control general settings for acquiring tokens from Microsoft Entra Identity.
+There are several shared configuration options that control general settings for acquiring tokens from Microsoft Entra ID.
 
 These settings are:
 
