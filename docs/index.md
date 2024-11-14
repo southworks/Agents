@@ -1,9 +1,5 @@
 # Microsoft 365 Agents Framework
 
-## Specifications
-- [Activity Protocol - Activity](./ActivityDefintion/protocol-activity.md)
-- [Activity Protocol - Cards](./ActivityDefintion/protocol-cards.md)
-
 ## Running and configuring an Agent
 - [Running an Agent](./HowTo/running-an-agent.md) 
 - [Creating an Azure Bot - Single Tenant](./HowTo/azurebot-create-single-secret.md) 
