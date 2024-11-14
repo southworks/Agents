@@ -1,6 +1,6 @@
 # Microsoft 365 Agents Framework
 
-## Activity Protocol Specifications
+## Specifications
 - [Activity Protocol - Activity](./ActivityDefintion/protocol-activity.md)
 - [Activity Protocol - Cards](./ActivityDefintion/protocol-cards.md)
 
