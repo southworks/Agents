@@ -40,7 +40,7 @@ As part of an agent, developers will want to add orchestration services such as 
 
 ### How to build a copilot with the Agents SDK
 
-You can start using the Agent Framework SDK in C#. Python and Node.js are coming soon. Start with Visual Studio or Visual Studio code.  
+Today, you can start using the Agent Framework SDK in C#. Python and Node.js are coming soon. Start with Visual Studio or Visual Studio code.  
 
 ### Testing 
 
@@ -48,7 +48,7 @@ Once you have planned and built your agent, you can test it locally and then tes
 
 Agents can have many different parts working together. There are several ways to test copilots before they're released for use, including:
 
-- Unauthenticated testing using the Agent Framework SDK Emulator. Supports limited scenarios. 
+- Unauthenticated testing using the Bot Framework SDK Emulator. Supports limited scenarios. 
 
 - Authenticated local testing using the Dev Tunnels 
 
