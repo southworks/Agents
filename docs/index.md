@@ -16,7 +16,7 @@ There is a core set of documentation available that provides more details on the
 
 ## Start here
 - [What is the Agent SDK](./HowTo/what-is-the-agents-sdk.md)
-- [How an Agent Works - link to be added]
+- [Deeper dive on how an agent works](./HowTo/how-the-agents-sdk-works.md)
 - [Echo Agent/Bot Sample Breakdown](./HowTo/echo-agent-sample-breakdown.md)
 
 ## Running and configuring an Agent
