@@ -4,7 +4,7 @@ The Microsoft 365 Agent SDK simplifies building full stack, multichannel, truste
 
 The M365 Agent SDK is a comprehensive framework for building enterprise-grade agents, enabling developers to integrate components from the Azure AI SDK, Semantic Kernel, as well as AI components from other vendors.
 
-Please note, you may find references to Bot Framework throughout the code and the existing documentation, which includes legacy functionality which is being transitioned out of the SDK. We will be updating the documentation over time and will post updated content here (and also on Microsoft Learn) 
+Please note, you may find references to Bot Framework throughout the code and the existing documentation, that includes legacy functionality being transitioned out of the SDK. We will be updating the documentation over time and will post updated content here (and also on Microsoft Learn) 
 
 Below you can find some key documentation to get started with the Agents SDK
 
@@ -17,7 +17,7 @@ There is a core set of documentation available that provides more details on the
 ## Start here
 - [What is the Agent SDK](./HowTo/what-is-the-agents-sdk.md)
 - [How an Agent Works - link to be added]
-- [Deep dive into the Echo Agent/Bot Sample - link to be added]
+- [Echo Agent/Bot Sample Breakdown](./HowTo/echo-agent-sample-breakdown.md)
 
 ## Running and configuring an Agent
 - [Create and test a basic agent - link to be added]
@@ -51,8 +51,8 @@ Samples are the best way to get started with learning about the Agents SDK.
 
 Copilot Studio is the recommended path to explore creating agents easily and quickly, using the Power Platform. It provides the capabilities for using and applying Generative AI experiences, manually authored topics and more. The intention is to continue working on making easier ways for agents to work together, regardless of where or how they are built. There are two ways Copilot Studio can be used with the Agents SDK today: 
 
-- Developers can create their main agent experience using the Agents SDK and refer to other agents, including those built using Copilot Studio. There is a sample on this here to get started 
-- They can use the Agent Framework SDK to create a ‘Skill’ and implement this from within Copilot Studio. A sample is coming soon for this.
+- Developers can create their main agent experience using the Agents SDK and refer to other agents, including those built using Copilot Studio. There is a sample in the repo to get started above called 'Copilot Studio Skill'
+- They can use the Agents SDK to create a ‘Skill’ and implement this from within Copilot Studio. A sample is coming soon for this.
 
 ### Q: Where can I add in my own AI Services to build an AI Agent 
 
