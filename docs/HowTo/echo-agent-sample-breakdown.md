@@ -1,4 +1,4 @@
-## The structure of an Echo Agent 
+# The structure of an Echo Agent 
 
 One of the best and easiest ways to get started with the Microsoft 365 Agents SDK is to use the echobot.cs sample in C#. You can access the sample here. 
 
