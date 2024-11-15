@@ -15,7 +15,7 @@ The Microsoft 365 Agents SDK is currently in public preview, and developers can 
 There is a core set of documentation available that provides more details on the functionality and capabilities of the SDK, and also walks developers through the core components: 
 
 ## Start here
-- [Getting Started - link to be added]
+- [What is the Agent SDK](./HowTo/what-is-the-agents-sdk.md)
 - [How an Agent Works - link to be added]
 - [Deep dive into the Echo Agent/Bot Sample - link to be added]
 
