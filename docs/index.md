@@ -2,11 +2,17 @@
 
 The Microsoft 365 Agent SDK simplifies building full stack, multichannel, trusted agents for platforms including M365, Teams, Copilot Studio, and Webchat. We also offer integrations with 3rd parties such as Facebook Messenger, Slack, or Twilio. The SDK provides developers with the building blocks to create agents that handle user interactions, orchestrate requests, reason responses, and collaborate with other agents.
 
-The M365 Agent SDK is a comprehensive framework for building enterprise-grade agents, enabling developers to integrate components from the Azure AI Foundry SDK, Semantic Kernel, as well as AI components from other vendors.
+The M365 Agent SDK is a comprehensive framework for building enterprise-grade agents, enabling developers to integrate components from the Azure AI SDK, Semantic Kernel, as well as AI components from other vendors.
 
 Please note, you may find references to Bot Framework throughout the code and the existing documentation, which includes legacy functionality which is being transitioned out of the SDK. We will be updating the documentation over time and will post updated content here (and also on Microsoft Learn) 
 
 Below you can find some key documentation to get started with the Agents SDK
+
+## How can developers get started with the Agents SDK?
+
+The Microsoft 365 Agents SDK is currently in public preview, and developers can get started by taking a look at the samples and reading our initial set of docs here.
+
+There is a core set of documentation available that provides more details on the functionality and capabilities of the SDK, and also walks developers through the core components: 
 
 ## Start here
 - [Getting Started - link to be added]
@@ -39,5 +45,25 @@ Samples are the best way to get started with learning about the Agents SDK.
 | 8   | Teams Authentication				| Authentication using OAuthPrompt  | Intermediate | This sample demonstrates user authentication in a Microsoft Teams bot, integrating OAuth tailored for Teams' unique authentication flow. Unlike other channels, Teams uses an Invoke Activity for authentication, which requires forwarding to the dialog with OAuthPrompt. A customizable TeamsActivityHandler, extending ActivityHandler, supports this flow seamlessly. | [Link](src/samples/teams/bot-teams-authentication/)          |
 | 9   | Teams SSO							| SSO & Graph Integration | Advanced     | This sample demonstrates how to integrate Azure AD authentication in Microsoft Teams using a bot with Single Sign-On (SSO) capabilities. Built with the Copilot SDK, it showcases OAuth SSO, Adaptive Cards, and Microsoft Graph API interactions. The sample includes reusable components, like the TeamsActivityHandler, for handling Invoke Activity in Teams. It provides a step-by-step setup guide to authenticate users with identity providers such as Microsoft Entra ID, GitHub, and others. | [Link](src/samples/teams/bot-conversation-sso-quickstart)   |
 
+## Frequently Asked Questions
 
+### Q: How does the Microsoft 365 Agents SDK work with Copilot Studio? 
 
+Copilot Studio is the recommended path to explore creating agents easily and quickly, using the Power Platform. It provides the capabilities for using and applying Generative AI experiences, manually authored topics and more. The intention is to continue working on making easier ways for agents to work together, regardless of where or how they are built. There are two ways Copilot Studio can be used with the Agents SDK today: 
+
+- Developers can create their main agent experience using the Agents SDK and refer to other agents, including those built using Copilot Studio. There is a sample on this here to get started 
+- They can use the Agent Framework SDK to create a ‘Skill’ and implement this from within Copilot Studio. A sample is coming soon for this.
+
+### Q: Where can I add in my own AI Services to build an AI Agent 
+
+By using the Agents SDK, you can additionally bring in other SDKs like the Semantic Kernel. A common requirement is to implement Azure OpenAI Services to create an AI Agent. A sample of that can be found below, which uses Semantic Kernel for orchestration.  
+
+### Q: What is happening to the Microsoft Bot Framework? 
+
+The Agents SDK is the evolution of the Bot Framework v4. The Bot Framework was previously how a developer can-built bots when the primary focus in Conversational AI was around topics, dialogs and messages. The industry has evolved to be driven by a lot of Generative AI functionality, grounding on knowledge that is located all over the enterprise (including outside of it) and orchestrating actions from within a conversational experience. The Agents SDK provides these capabilities for modern day agent development, bringing together the creation of conversational agents and conversation management, orchestration, AI Services and connecting to clients, including the capabilities to bring third party agents into your architecture if required. Developers wanting to use modern SDKs that leverage the latest in the industry should use the Agent Framework and the included SDKs to build their agents. 
+
+### Q: What about the Bot Framework Composer and Emulator? 
+
+The Bot Framework Composer was created to make development on the Bot Framework easier with a UI layer. Using the Agents SDK, there is a modern set of SDKs for developers to build AI Agents using the technology of their choice. Going forward, for those wanting to create agents using an user interface, Copilot Studio is the recommended route to do that, of which agents can be easily integrated to code-first agents or functionally expanded with skills using the Agents SDK.
+
+The Bot Framework Emulator has been updated to support Windows and Linux. It can be used to test locally, in additional to dev tunnels. We are actively working on improving the testing and debugging experience. 
