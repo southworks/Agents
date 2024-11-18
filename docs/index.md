@@ -27,7 +27,7 @@ There is a core set of documentation available that provides more details on the
 ## Additional guidance
 - [Creating an Azure Bot - Single Tenant](./HowTo/azurebot-create-single-secret.md) 
 - [Creating an Azure Bot - Managed Identity](./HowTo/azurebot-create-msi.md) 
-- [DotNet Agents SDK - MSAL Configuration](/HowTo/MSALAuthConfigurationOptions.md)
+- [DotNet Agents SDK - MSAL Configuration](./HowTo/MSALAuthConfigurationOptions.md)
 
 ## Samples
 
