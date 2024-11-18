@@ -29,9 +29,9 @@ The source for the client libraries exists for the most part in repositories for
 
 | Language    | Repo                             | Documentation                    |
 |:------------|:--------------------------------:|:--------------------------------:|
-| General     |[agents Repository]               | [Official Agents Documentation]   |
-| C# /.NET    |[agents-for-net Repository]       | [.NET Documentation]             |
-| JavaScript  |[agents-for-js Repository]        | [JavaScript Documentation]       |
+| General     |[Agents Repository]               | [Official Agents Documentation]   |
+| C# /.NET    |[Agents-for-net Repository]       | [.NET Documentation]             |
+| JavaScript  |[Agents-for-js Repository]        | [JavaScript Documentation]       |
 | Python      |Coming Soon    | Coming Soon           |
 
 [Local Documentation](https://microsoft.github.io/Agents)
