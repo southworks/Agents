@@ -1,8 +1,8 @@
 # Microsoft 365 Agents SDK
 
-The Microsoft 365 Agent SDK simplifies building full stack, multichannel, trusted agents for platforms including M365, Teams, Copilot Studio, and Webchat. We also offer integrations with 3rd parties such as Facebook Messenger, Slack, or Twilio. The SDK provides developers with the building blocks to create agents that handle user interactions, orchestrate requests, reason responses, and collaborate with other agents.
+The Microsoft 365 Agents SDK simplifies building full stack, multichannel, trusted agents for platforms including M365, Teams, Copilot Studio, and Webchat. We also offer integrations with 3rd parties such as Facebook Messenger, Slack, or Twilio. The SDK provides developers with the building blocks to create agents that handle user interactions, orchestrate requests, reason responses, and collaborate with other agents.
 
-The M365 Agent SDK is a comprehensive framework for building enterprise-grade agents, enabling developers to integrate components from the Azure AI, Semantic Kernel, as well as AI components from other vendors.
+The M365 Agents SDK is a comprehensive framework for building enterprise-grade agents, enabling developers to integrate components from the Azure AI, Semantic Kernel, as well as AI components from other vendors.
  
 * **Microsoft 365 Agents SDK Overview**. Provides agent composition and user experience capabilities. Developers can deploy agents to channels for human interaction. This component handles conversation management and enables the agent to access orchestration and core agent backend functionality. In addition, this component enables agents to access functionality from Copilot Studio agents and the Copilot trust layer.
 * **Copilot Studio**. Copilot Studio is an end-to-end conversational AI platform that empowers the creation of agents using natural language or a graphical interface. With Copilot Studio, you can easily design, test, and publish agents that suit your needs for internal or external scenarios across your industry, department, or role.
@@ -37,7 +37,7 @@ The source for the client libraries exists for the most part in repositories for
 [Local Documentation](https://microsoft.github.io/Agents)
 
 ## Evolution of Bot Framework
-The Microsoft 365 Agent SDK is the evolution of the Bot Framework. The Bot Framework was previously how a developer can build bots where the primary focus in Conversational AI was around topics, dialogs and messages. The industry has evolved to be driven by Generative AI functionality, grounding on knowledge that is located across the enterprise, and there is the need for companies to be able to orchastrate actions, in additional to answer questions, from within a conversational experience. The Microsoft 365 Agent SDK provides capabilities for modern agent development, bringing together the creation of conversational agents with conversation management, orchestration, connecting to numerous AI Services and clients, including agents created with third party software or technology.
+The Microsoft 365 Agents SDK is the evolution of the Bot Framework. The Bot Framework was previously how a developer can build bots where the primary focus in Conversational AI was around topics, dialogs and messages. The industry has evolved to be driven by Generative AI functionality, grounding on knowledge that is located across the enterprise, and there is the need for companies to be able to orchastrate actions, in additional to answer questions, from within a conversational experience. The Microsoft 365 Agents SDK provides capabilities for modern agent development, bringing together the creation of conversational agents with conversation management, orchestration, connecting to numerous AI Services and clients, including agents created with third party software or technology.
 
 Please be aware as we move through this evolution, there will be some references to Bot Framework within documentation and in the code. 
 
