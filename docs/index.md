@@ -20,7 +20,6 @@ There is a core set of documentation available that provides more details on the
 - [Echo Agent/Bot Sample Breakdown](./HowTo/echo-agent-sample-breakdown.md)
 
 ## Running and configuring an Agent
-- [Create and test a basic agent - link to be added]
 - [Running an Agent](./HowTo/running-an-agent.md) 
 - [Configuring OAuth for an Agent](./HowTo/azurebot-user-authentication-fic.md)
 
