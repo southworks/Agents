@@ -1,6 +1,6 @@
-﻿# DotNet MSAL Authentication provider
+﻿# MSAL Authentication provider
 
-The MSAL authentication provider is a utility aid you on creating access tokens for bot clients and external services from the Microsoft Agents Framework self hosted Agent.
+The MSAL authentication provider is a utility aid you on creating access tokens for agent clients and external services from the Microsoft Agents Framework self hosted Agent.
 
 This utility has supports multiple distinct profiles that can be used to create access tokens.
 Each access token can be created using one of the following auth types:
@@ -11,11 +11,9 @@ Each access token can be created using one of the following auth types:
 - User Managed Identity
 - System Managed Identity
 
-> Refer to [Configuration in ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-8.0) for recommendations for configuration and secrets best practices.
+## General Configuration
 
-### General Configuration
-
-There are several shared configuration options that control general settings for acquiring tokens from Microsoft Entra ID.
+There are several shared configuration options that control general settings for acquiring tokens from Microsoft Entra Identity.
 
 These settings are:
 
@@ -30,7 +28,7 @@ These settings are intended to be read from an IConfiguration Reader, in from a 
 
 > MSAL Configuration is an optional configuration, if not set or provided, the default configuration for these values are used.
 
-#### An example of this entry in an appsettings.json file is:
+Here is an example of the entry in an `appsettings.json` file:
 
 ```json
 {
@@ -57,15 +55,16 @@ These settings are:
 |AuthType     |AuthTypes Enum (Certificate, CertificateSubjectName, ClientSecret, UserManagedIdentity, SystemManagedIdentity) |ClientSecret        |This is the type of authentication that will be created.|
 |AuthorityEndpoint     |String         |Null         |When present, used as the Authority to request a token from.|
 |TenantId     |String         |Null         |When present and AuthorityEndpoint is null, used to create an Authority to request a token from|
-|Scopes     |String list         |Null         |Default Lists of scopes to request tokens for. Is only used when no scopes are passed from the bot connection request|
+|Scopes     |String list         |Null         |Default Lists of scopes to request tokens for. Is only used when no scopes are passed from the agent connection request|
 
 ### ClientSecret
+
 |Setting Name  |Type  |Default Value  |Description  |
 |--------------|------|---------------|-------------|
 |ClientId     |String    |Null         |ClientId (AppId) to use when creating the Access token.|
 |ClientSecret     |string         |Null         |When AuthType is ClientSecret, Is Secret associated with the client, this should only be used for testing and development purposes.         |
 
-#### Example for MultiTenant ClientSecret for Azure Bot Service
+Here is an example for `ClientSecret` for Azure Bot Service:
 
 ```json
   "Connections": {
@@ -86,7 +85,7 @@ These settings are:
   }
 ```
 
-#### Example for ClientSecret for Azure Bot Service using Single Tenant
+Here is an example for `ClientSecret` for Azure Bot Service using Single Tenant:
 
 ```json
   "Connections": {
@@ -108,13 +107,14 @@ These settings are:
 ```
 
 ### UserManagedIdentity
+
 |Setting Name  |Type  |Default Value  |Description  |
 |--------------|------|---------------|-------------|
 |ClientId     |String    |Null         |Managed Identity ClientId to use when creating the Access token.|
 
 > When using the Managed Identity Types, your host or client must be running with an Azure Service and have set up that service with either a System Assigned Managed identity, or a User Assigned Managed identity.
 
-#### Example for UserManagedIdentity
+Here is an example for `UserManagedIdentity`:
 
 ```json
   "Connections": {
@@ -139,7 +139,22 @@ When using Auth type **SystemManagedIdentity**, Client ID is ignored and the sys
 
 > When using the Managed Identity Types, your host or client must be running with an Azure Service and have set up that service with either a System Assigned Managed identity, or a User Assigned Managed identity.
 
-#### Example for SystemManagedIdentity
+Here is an example for `SystemManagedIdentity` auth type:
+
+```json
+  "Connections": {
+    "BotServiceConnection": {
+      "Assembly": "Microsoft.Agents.Authentication.Msal",
+      "Type": "Microsoft.Agents.Authentication.Msal.MsalAuth",
+      "Settings": {
+        "AuthType": "SystemManagedIdentity",
+        "TenantId": "<<ClientTenantId>>",
+        "Scopes": [
+          "https://api.botframework.com/.default"
+        ]
+      }
+    }
+  }
 
 ```json
   "Connections": {
@@ -157,17 +172,16 @@ When using Auth type **SystemManagedIdentity**, Client ID is ignored and the sys
 ```
 
 ### CertificateSubjectName
+
 |AuthType      |Type  |Default Value  |Description  |
 |--------------|------|---------------|-------------|
 |ClientId     |String    |Null         |ClientId (AppId) to use when creating the Access token.|
-|CertSubjectName     |String         |Null         |This is the subject name that is sought|
-|CertStoreName     |String         |"My"         |Indicates which certificate store to look in|
+|CertSubjectName     |String         |Null         |When AuthType is CertificateSubjectName, this is the subject name that is sought|
+|CertStoreName     |String         |"My"         |When AuthType is either CertificateSubjectName or Certificate, Indicates which certificate store to look in|
 |ValidCertificateOnly     |bool         |True         |Requires the certificate to have a valid chain.          |
 |SendX5C     |bool         |False         |Enables certificate auto rotation with appropriate configuration.          |
 
-> Certificates should stored in the **Current User** certificate store.
-
-#### Example for CertificateSubjectName for SN+I
+Here is an example for `CertificateSubjectName` for SN+I
 
 ```json
   "Connections": {
@@ -190,6 +204,7 @@ When using Auth type **SystemManagedIdentity**, Client ID is ignored and the sys
 ```
 
 ### Certificate
+
 |AuthType      |Type  |Default Value  |Description  |
 |--------------|------|---------------|-------------|
 |ClientId     |String    |Null         |ClientId (AppId) to use when creating the Access token.|
@@ -198,7 +213,7 @@ When using Auth type **SystemManagedIdentity**, Client ID is ignored and the sys
 |ValidCertificateOnly     |bool         |True         |Requires the certificate to have a valid chain.          |
 |SendX5C     |bool         |False         |Enables certificate auto rotation with appropriate configuration.          |
 
-#### Example for CertificateSubjectName using the certificate thumbprint
+Here is an example for `CertificateSubjectName` using the certificate thumbprint:
 
 ```json
   "Connections": {
@@ -219,15 +234,16 @@ When using Auth type **SystemManagedIdentity**, Client ID is ignored and the sys
   },
 ```
 
-#### Default Configuration Provider for MSAL
+#### Default configuration provider for MSAL
 
 To easy setup, we provide a service provider extension to add the default configuration settings for MSAL to your host.
 
-#### An example of this from an Asp.net core host:
+Here is an example of default MSAL configuration provider for an Asp.net core host:
 
-In a Program.cs class.
+In a `Program.cs` class.
+
 ```csharp
-    // Add default bot MsalAuth support
+    // Add default agent MsalAuth support
     builder.Services.AddDefaultMsalAuth(builder.Configuration);
 
     // Add Connections object to access configured token connections.
@@ -244,7 +260,7 @@ The MSAL Authentication system allows for independent logging of authentication 
 
 To enable logging, you would add a entry for :::no-loc text="Microsoft.Agents.Authentication.Msal"::: to your applications app settings to setup an ILogger to report on token operations for your connections, should you have added the MSALEnabledLogPII Option, this will also include PII for your connection.
 
-#### An example of the logging block in this case would be:
+Here is an example of the logging block in this case:
 
 ```json
   "Logging": {
@@ -257,4 +273,4 @@ To enable logging, you would add a entry for :::no-loc text="Microsoft.Agents.Au
   }
 ```
 
-In this case, logging is enabled for several modules include Microsoft.Agents.Authentication.Msal,  where the trace level is "Trace" for MSAL.
+In this case, logging is enabled for several modules include Microsoft.Agents.Authentication.Msal, where the trace level is "Trace" for MSAL.
