@@ -32,7 +32,7 @@ The source for the client libraries exists for the most part in repositories for
 | General     |[Agents Repository]               | [ Agents SDK Documentation ](https://aka.ms/m365sdkdocs)   |
 | C# /.NET    |[Agents-for-net Repository]       | Coming Soon             |
 | JavaScript  |[Agents-for-js Repository]        | Coming Soon       |
-| Python      |Coming Soon    | Coming Soon           |
+| Python      |[Agents-for-python Repository]    | Coming Soon           |
 
 [Local Documentation](https://microsoft.github.io/Agents)
 
@@ -63,10 +63,10 @@ trademarks or logos is subject to and must follow
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
 Any use of third-party trademarks or logos are subject to those third-party's policies.
 
-[agents Repository]: https://github.com/Microsoft/Agents
-[agents-for-net Repository]: https://github.com/Microsoft/Agents-for-net
-[agents-for-js Repository]: https://github.com/Microsoft/Agents-for-js
-[agents-for-python Repository]: https://github.com/Microsoft/Agents-for-python
+[Agents Repository]: https://github.com/Microsoft/Agents
+[Agents-for-net Repository]: https://github.com/Microsoft/Agents-for-net
+[Agents-for-js Repository]: https://github.com/Microsoft/Agents-for-js
+[Agents-for-python Repository]: https://github.com/Microsoft/Agents-for-python
 
 [Official Agents Documentation]: https://aka.ms/AgentsFramework
 [.NET Documentation]: https://aka.ms/Agents-net-docs
