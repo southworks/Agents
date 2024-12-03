@@ -29,9 +29,9 @@ The source for the client libraries exists for the most part in repositories for
 
 | Language    | Repo                             | Documentation                    |
 |:------------|:--------------------------------:|:--------------------------------:|
-| General     |[Agents Repository]               | [Official Agents Documentation]   |
-| C# /.NET    |[Agents-for-net Repository]       | [.NET Documentation]             |
-| JavaScript  |[Agents-for-js Repository]        | [JavaScript Documentation]       |
+| General     |[Agents Repository]               | [ Agents SDK Documentation ](https://aka.ms/m365sdkdocs)   |
+| C# /.NET    |[Agents-for-net Repository]       | Coming Soon             |
+| JavaScript  |[Agents-for-js Repository]        | Coming Soon       |
 | Python      |Coming Soon    | Coming Soon           |
 
 [Local Documentation](https://microsoft.github.io/Agents)
