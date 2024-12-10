@@ -22,6 +22,8 @@ in just a [few lines of code](https://learn.microsoft.com/en-us/semantic-kernel/
 
 * **Azure AI Foundry**. Provides the core backend agent functionality, providing reasoning, retrieval augmentation, observability, among other core functions. Developers can leverage the Azure AI Agent Service or build their agent functionality with individual components from this SDK. 
 
+* **SharePoint Embedded Copilot**. The SharePoint Embedded Copilot SDK provides a React component that allows you to add a copilot agent to your SharePoint Embedded React application. You can dynamically scope the knowledge for the copilot interaction to a single file, folder or a set of containers mapped to the application. The SDK also allows you to configure the agent text, starter prompts and copilot instructions. Click [here](https://github.com/microsoft/SharePoint-Embedded-Samples/blob/main/Copilot/README.md) to learn more.
+
 The M365 Agents SDK brings together core components to allow for developers to create, manage and utilize AI Services and third-party SDKs to power orchestration and develop custom agent logic functionality.
 
 ## Links
