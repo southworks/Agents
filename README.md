@@ -22,6 +22,8 @@ in just a [few lines of code](https://learn.microsoft.com/en-us/semantic-kernel/
 
 * **Azure AI Foundry**. Provides the core backend agent functionality, providing reasoning, retrieval augmentation, observability, among other core functions. Developers can leverage the Azure AI Agent Service or build their agent functionality with individual components from this SDK. 
 
+* **SharePoint Embedded Copilot**. The SharePoint Embedded Copilot SDK provides a React component that allows you to add a copilot agent to your SharePoint Embedded React application. You can dynamically scope the knowledge for the copilot interaction to a single file, folder or a set of containers mapped to the application. The SDK also allows you to configure the agent text, starter prompts and copilot instructions. Click [here](https://github.com/microsoft/SharePoint-Embedded-Samples/blob/main/Copilot/README.md) to learn more.
+
 The M365 Agents SDK brings together core components to allow for developers to create, manage and utilize AI Services and third-party SDKs to power orchestration and develop custom agent logic functionality.
 
 ## Links
@@ -29,10 +31,10 @@ The source for the client libraries exists for the most part in repositories for
 
 | Language    | Repo                             | Documentation                    |
 |:------------|:--------------------------------:|:--------------------------------:|
-| General     |[Agents Repository]               | [Official Agents Documentation]   |
-| C# /.NET    |[Agents-for-net Repository]       | [.NET Documentation]             |
-| JavaScript  |[Agents-for-js Repository]        | [JavaScript Documentation]       |
-| Python      |Coming Soon    | Coming Soon           |
+| General     |[Agents Repository]               | [ Agents SDK Documentation ](https://aka.ms/m365sdkdocs)   |
+| C# /.NET    |[Agents-for-net Repository]       | Coming Soon             |
+| JavaScript  |[Agents-for-js Repository]        | Coming Soon       |
+| Python      |[Agents-for-python Repository]    | Coming Soon           |
 
 [Local Documentation](https://microsoft.github.io/Agents)
 
@@ -63,10 +65,10 @@ trademarks or logos is subject to and must follow
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
 Any use of third-party trademarks or logos are subject to those third-party's policies.
 
-[agents Repository]: https://github.com/Microsoft/Agents
-[agents-for-net Repository]: https://github.com/Microsoft/Agents-for-net
-[agents-for-js Repository]: https://github.com/Microsoft/Agents-for-js
-[agents-for-python Repository]: https://github.com/Microsoft/Agents-for-python
+[Agents Repository]: https://github.com/Microsoft/Agents
+[Agents-for-net Repository]: https://github.com/Microsoft/Agents-for-net
+[Agents-for-js Repository]: https://github.com/Microsoft/Agents-for-js
+[Agents-for-python Repository]: https://github.com/Microsoft/Agents-for-python
 
 [Official Agents Documentation]: https://aka.ms/AgentsFramework
 [.NET Documentation]: https://aka.ms/Agents-net-docs

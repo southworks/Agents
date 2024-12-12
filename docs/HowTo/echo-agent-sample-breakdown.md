@@ -1,22 +1,22 @@
 # The structure of an Echo Agent 
 
-One of the best and easiest ways to get started with the Microsoft 365 Agents SDK is to use the echobot.cs sample in C#. You can access the sample here. 
+One of the best and easiest ways to get started with the Microsoft 365 Agents SDK is to use the EchoBot sample in C#. You can access the sample [here](https://github.com/microsoft/Agents-for-net/tree/main/src/samples/EchoBot). 
 
 Within the sample, the appsettings.json file specifies the configuration information for your bot, such as its app ID. If using certain technologies or using this bot in production, you'll need to add your specific keys or URL to this configuration
 
-The echoBot.csproj file specifies dependencies and their associated versions for your bot. You should have the required files from the Echo Agent sample. Additional dependencies can be installed using NuGet package manager or the dotnet add package command. 
+The EchoBot.csproj file specifies dependencies and their associated versions for your bot. Dependencies can be installed using NuGet package manager or the `dotnet restore` command. 
 
 ### Overview 
 
 The Echo Agent can be broken down into three classes:
 
-- Programstart.cs
+- Program.cs
 
-- Botcontroller.cs
+- BotController.cs
 
-- Echobot.cs
+- MyBot.cs
 
-### Resource Provisioning (program.cs)
+### Resource Provisioning (Program.cs)
 
 Previously where startup.cs was used, program.cs is now used in .NET 5 or later. The program.cs file is where the connected services and any keys from appsettings.json are loaded from when the builder object for the web application is created, configuring how the application is configured using your settings.  
 
@@ -26,7 +26,7 @@ The sample implements a web service with a messaging endpoint. When it receives 
 
 Each incoming request represents the start of a new turn. 
 
-### The agent logic (echobot.cs)
+### The agent logic (MyBot.cs)
 
 The echo bot uses an activity handler and implements handlers for the activity types it recognizes and reacts to. In the sample, these are the conversation update and message activities. 
 

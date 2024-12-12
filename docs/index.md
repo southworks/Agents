@@ -27,6 +27,7 @@ There is a core set of documentation available that provides more details on the
 - [Creating an Azure Bot - Single Tenant](./HowTo/azurebot-create-single-secret.md) 
 - [Creating an Azure Bot - Managed Identity](./HowTo/azurebot-create-msi.md) 
 - [DotNet Agents SDK - MSAL Configuration](./HowTo/MSALAuthConfigurationOptions.md)
+- [Agents in SharePoint Embedded SDK - with React Sample App](https://aka.ms/start-spe-copilot)
 
 ## Samples
 
@@ -44,6 +45,7 @@ Samples are the best way to get started with learning about the Agents SDK. The 
 | 7   | Adaptive Card Actions                | Adaptive Cards                     | Intermediate | This sample demonstrates how to implement different Adaptive Card action types using the Copilot SDK in Microsoft Teams. |
 | 8   | Teams Authentication				| Authentication using OAuthPrompt  | Intermediate | This sample demonstrates user authentication in a Microsoft Teams bot, integrating OAuth tailored for Teams' unique authentication flow. Unlike other channels, Teams uses an Invoke Activity for authentication, which requires forwarding to the dialog with OAuthPrompt. A customizable TeamsActivityHandler, extending ActivityHandler, supports this flow seamlessly. |
 | 9   | Teams SSO							| SSO & Graph Integration | Advanced     | This sample demonstrates how to integrate Azure AD authentication in Microsoft Teams using a bot with Single Sign-On (SSO) capabilities. Built with the Copilot SDK, it showcases OAuth SSO, Adaptive Cards, and Microsoft Graph API interactions. The sample includes reusable components, like the TeamsActivityHandler, for handling Invoke Activity in Teams. It provides a step-by-step setup guide to authenticate users with identity providers such as Microsoft Entra ID, GitHub, and others. |
+| 10 | SharePoint Embedded Agent | SharePoint Embedded agent SDK | Advanced | This SDK provides a React component that allows you to add copilot experience to your SharePoint Embedded React application. This agent offers the following features:<ul><li>Reason over documents in Sharepoint Embedded containers and user-accessible content in Sharepoint Online.<li>Developers can configure the application code to limit the search scope to file, folder, and containers.</li><li>Developers can customize and configure chat control including starter prompts, suggested prompts, colors and more.</li></ul> Click [here](https://aka.ms/start-spe-copilot) to learn more.|
 
 ## Frequently Asked Questions
 
