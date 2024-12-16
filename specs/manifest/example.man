@@ -2,14 +2,14 @@
     "@context": "https://botframework.com/schemas",
     "@type": "manifest",
     "id": "BugFilingBot",
-    "msaAppId": "e7401b5c-c097-4f0c-9d8d-0e94ad9acdab",
+    "msaAppId": "<<ClientId>>",
     "iconUrl": "https://example.com/bots/BugFilingBot/icons.png",
     "authenticationConnections": [
         {
             "id": "bugServiceConnection",
             "serviceProviderId": "bugPlatform",
-            "clientId": "2d4d7f49-efb8-405f-9733-359936922b3b",
-            "clientSecret": "d725482a-ad23-44b4-bb5f-073b5e2d3d7d",
+            "clientId": "<<ClientId>>",
+            "clientSecret": "<<ClientSecret>>",
             "scopes": "bug-read,bug-write",
             "properties": {
                 "signin": "interactive"
