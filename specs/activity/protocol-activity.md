@@ -311,7 +311,7 @@ Activities are frequently sent asynchronously, with separate transport connectio
 
 ### Delivery mode
 
-The `deliveryMode` field contains any one of an enumerated set of values to signal to the recipient alternate delivery paths for the activity or response. The value of the `deliveryMode` field is of type string, with defined values of `normal`, `notification` and `expectReplies`. The default value is `normal`.
+The `deliveryMode` field contains any one of an enumerated set of values to signal to the recipient alternate delivery paths for the activity or response. The value of the `deliveryMode` field is of type string, with defined values of `normal` and `expectReplies`. The default value is `normal`.
 
 Activities with a `deliveryMode` of `expectReplies` differ only in their requirement to return a response payload back to the caller synchronously, as a direct response to the initial request.
  
@@ -328,6 +328,8 @@ Activities with a `deliveryMode` of `expectReplies` differ only in their require
 `A3115`: Senders MUST establish whether a receiver understands `deliveryMode` of `expectReplies` prior to sending activities with that value.
 
 `A3116`: Bots SHOULD NOT send activities with `deliveryMode` of `expectReplies` to channels.  
+
+Delivery mode `notification` has been deprecated and will be handled as `normal`.
 
 
 ## Message activity
@@ -1525,6 +1527,9 @@ The `error` field contains the reason the original [command activity](#command-a
 18. [IETF BCP-47](https://tools.ietf.org/html/bcp47) -- *Language tag*
 
 # Appendix I - Changes
+
+# 2025-02-05 - trboehre@microsoft.com
+* Marked Delivery Mode `notification` as deprecated.
 
 # 2025-01-15 - trboehre@microsoft.com
 * Added Value and Locale to EndOfConversation
