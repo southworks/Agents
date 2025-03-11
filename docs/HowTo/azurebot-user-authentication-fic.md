@@ -5,7 +5,7 @@ The Azure AI Bot Service facilitates the development of agents that can access o
 > [!IMPORTANT]
 > Web Chat and Direct Line considerations: You need to use Direct Line with enhanced authentication enabled to mitigate security risks when connecting to an agent using the Web Chat control. For more information, see [Direct Line enhanced authentication](https://learn.microsoft.com/en-us/azure/bot-service/bot-builder-security-enhanced?view=azure-bot-service-4.0).
 
-To setup OAuth on agent, [register an Azure Bot](azurebot-create.md) if you haven't done so already.
+To setup OAuth on agent, [register an Azure Bot](https://microsoft.github.io/Agents/HowTo/azurebot-create-single-secret.html) if you haven't done so already.
 
 > [!IMPORTANT]
 > Whenever you register an agent in Azure, the agent gets assigned an Microsoft Entra ID application. However, this application secures channel-to-bot access. You need an additional Microsoft Entra ID application for each external secured resource you want the agent to access on behalf of the user.
