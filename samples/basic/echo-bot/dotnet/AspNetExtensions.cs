@@ -19,7 +19,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace EchoBot;
+namespace Microsoft.Agents.Samples;
 
 public static class AspNetExtensions
 {

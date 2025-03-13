@@ -5,7 +5,7 @@ using Microsoft.Agents.BotBuilder.State;
 
 namespace EchoBot;
 
-public static class MessageCountState
+public static class ConversationStateExtensions
 {
     public static int MessageCount(this ConversationState state) => state.GetValue<int>("countKey");
 
