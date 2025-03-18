@@ -67,7 +67,7 @@ With the above information, you can now run the client `CopilotStudioClientSampl
 
 3. Run the CopilotStudioClientSample.exe program.
 
-This should challenge you for login and connect ot the Copilot Studio Hosted bot, allowing you to communicate via a console interface.
+This should challenge you for login and connect to the Copilot Studio Hosted bot, allowing you to communicate via a console interface.
 
 ## Authentication
 

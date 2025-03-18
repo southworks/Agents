@@ -22,9 +22,7 @@ namespace CopilotStudioClientSample
         {
             ArgumentNullException.ThrowIfNull(settings);
 
-            string[] scopes = ["https://api.powerplatform.com/.default"];
-            //string[] scopes = ["https://api.gov.powerplatform.microsoft.us/CopilotStudio.Copilots.Invoke"];
-
+            string[] scopes = [CopilotClient.ScopeFromSettings(settings)];
             IPublicClientApplication app = PublicClientApplicationBuilder.Create(settings.AppClientId)
                  .WithAuthority(AadAuthorityAudience.AzureAdMyOrg)
                  .WithTenantId(settings.TenantId)

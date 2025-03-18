@@ -10,7 +10,7 @@ using Microsoft.Agents.CopilotStudio.Client.Discovery;
 namespace CopilotStudioClientSample
 {
     /// <summary>
-    /// Connection Settings extension for the sample to include appID and TeantId for creating authentication token.
+    /// Connection Settings extension for the sample to include appID and TenantId for creating authentication token.
     /// </summary>
     internal class SampleConnectionSettings : ConnectionSettings
     {
