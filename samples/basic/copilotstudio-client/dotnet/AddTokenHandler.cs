@@ -22,7 +22,7 @@ namespace CopilotStudioClientSample
         {
             ArgumentNullException.ThrowIfNull(settings);
 
-            string[] scopes = [CopilotClient.ScopeFromSettings(settings)];
+            string[] scopes = new[] { CopilotClient.ScopeFromSettings(settings) };
             IPublicClientApplication app = PublicClientApplicationBuilder.Create(settings.AppClientId)
                  .WithAuthority(AadAuthorityAudience.AzureAdMyOrg)
                  .WithTenantId(settings.TenantId)
