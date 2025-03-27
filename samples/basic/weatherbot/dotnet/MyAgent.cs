@@ -1,9 +1,9 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using Microsoft.Agents.BotBuilder;
-using Microsoft.Agents.BotBuilder.App;
-using Microsoft.Agents.BotBuilder.State;
+using Microsoft.Agents.Builder;
+using Microsoft.Agents.Builder.App;
+using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System;
@@ -13,11 +13,11 @@ using WeatherBot.Agents;
 
 namespace WeatherBot;
 
-public class MyBot : AgentApplication
+public class MyAgent : AgentApplication
 {
     private readonly WeatherForecastAgent _weatherAgent;
 
-    public MyBot(AgentApplicationOptions options, WeatherForecastAgent weatherAgent) : base(options)
+    public MyAgent(AgentApplicationOptions options, WeatherForecastAgent weatherAgent) : base(options)
     {
         _weatherAgent = weatherAgent ?? throw new ArgumentNullException(nameof(weatherAgent));
 
