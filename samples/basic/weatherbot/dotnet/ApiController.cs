@@ -15,7 +15,7 @@ namespace WeatherBot;
 [Authorize]
 [ApiController]
 [Route("api/messages")]
-public class BotController(IAgentHttpAdapter adapter, IAgent bot) : ControllerBase
+public class ApiController(IAgentHttpAdapter adapter, IAgent bot) : ControllerBase
 {
     [HttpPost]
     public Task PostAsync(CancellationToken cancellationToken)

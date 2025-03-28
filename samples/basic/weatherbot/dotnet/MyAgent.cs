@@ -27,10 +27,10 @@ public class MyAgent : AgentApplication
 
     protected async Task MessageActivityAsync(ITurnContext turnContext, ITurnState turnState, CancellationToken cancellationToken)
     {
-        var chatHistory = turnState.GetValue("conversation.chatHistory", () => new ChatHistory());
+        ChatHistory chatHistory = turnState.GetValue("conversation.chatHistory", () => new ChatHistory());
 
         // Invoke the WeatherForecastAgent to process the message
-        var forecastResponse = await _weatherAgent.InvokeAgentAsync(turnContext.Activity.Text, chatHistory);
+        WeatherForecastAgentResponse forecastResponse = await _weatherAgent.InvokeAgentAsync(turnContext.Activity.Text, chatHistory);
         if (forecastResponse == null)
         {
             await turnContext.SendActivityAsync(MessageFactory.Text("Sorry, I couldn't get the weather forecast at the moment."), cancellationToken);
