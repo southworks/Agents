@@ -1,8 +1,0 @@
-title: Microsoft 365 Agents SDK
-theme: null
-relative_links:
-  enabled: true
-  collections: true
-description: An SDK for building Agents
-baseurl: "https://github.com/microsoft/Agents/tree/main/"
-url: https://microsoft.github.io/Agents/
