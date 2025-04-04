@@ -83,9 +83,9 @@ You may want to modify the response of your agent and format it. You can easily 
 
 It is a common requirement to format a response returned from an AI model to display to a user. Adaptive Cards are a widely used method to do this and supported by many different clients. 
 
-## Add Orchastration
+## Add Orchestration
 
-Add Orchastrators, like Semantic Kernel, LangChain or more, for all or specific events using their SDKs.
+Add Orchestrators, like Semantic Kernel, LangChain or more, for all or specific events using their SDKs.
 
 <pre>
       var builder = Kernel.CreateBuilder();
