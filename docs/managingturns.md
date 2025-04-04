@@ -1,7 +1,6 @@
 ---
-layout: default
+layout: custom
 title: Managing Turns
-nav_order: 4
 ---
 
 # Managing Turns

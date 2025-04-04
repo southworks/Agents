@@ -1,7 +1,6 @@
 ---
-layout: default
+layout: custom
 title: Quickstart C#
-nav_order: 2
 ---
 
 

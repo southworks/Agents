@@ -1,7 +1,6 @@
 ---
-layout: default
+layout: custom
 title: Building Agents
-nav_order: 3
 ---
 
 # Building Agents
