@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Microsoft 365 Agents SDK
+title: Quickstart C#
 nav_order: 2
 ---
 
