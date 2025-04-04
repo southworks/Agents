@@ -1,7 +1,6 @@
 ---
-layout: default
+layout: custom
 title: Microsoft 365 Agents SDK
-nav_order: 1
 ---
 
 

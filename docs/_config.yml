@@ -1,7 +1,8 @@
 title: Microsoft 365 Agents SDK
-remote_theme: just-the-docs/just-the-docs
-plugins:
-- jekyll-remote-theme
+theme: null
+relative_links:
+  enabled: true
+  collections: true
 description: An SDK for building Agents
-baseurl: ""
+baseurl: "https://github.com/microsoft/Agents/tree/main/"
 url: https://microsoft.github.io/Agents/

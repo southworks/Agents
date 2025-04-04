@@ -1,7 +1,6 @@
 ---
-layout: default
+layout: custom
 title: Using activities
-nav_order: 5
 ---
 
 # Using Activities

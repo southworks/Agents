@@ -1,7 +1,6 @@
 ---
-layout: default
+layout: custom
 title: Creating messages
-nav_order: 6
 ---
 
 # Creating Messages
