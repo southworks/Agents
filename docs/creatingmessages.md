@@ -8,7 +8,7 @@ Typically, it depends on the client how a message is rendered in a UI, most clie
 
 ### Text
 
-```
+```cs
  var textMessage = MessageFactory.Text("Hello, world!");
 ```
 
