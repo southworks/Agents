@@ -40,7 +40,7 @@ app.MapPost("/api/messages", async (HttpRequest request, HttpResponse response, 
 Now the agent is created, you can register to listen for events, add your AI services and custom logic.
 
 In the simple samples on the [repo](aka.ms/agents), you will see the agent is registered automatically for the generic `OnActivity` event. 
-```
+```cs
     agent.OnActivity(ActivityTypes.Message, async (turnContext, turnState, cancellationToken) =>
     {
         var text = turnContext.Activity.Text;
