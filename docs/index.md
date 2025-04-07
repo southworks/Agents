@@ -18,7 +18,7 @@ It is easy to get the starter sample in C#, JavaScript or Python from [Github](h
 
 To create an agent in C#: 
 
-```
+```cs
 builder.AddAgent( sp =>
 {
     var agent = new AgentApplication(sp.GetRequiredService<AgentApplicationOptions>());
