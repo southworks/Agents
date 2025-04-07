@@ -30,7 +30,7 @@ builder.AddAgent(sp =>
 
 The endpoint of your application needs to be configured to handle incoming requests and is designed to specifically process messages to your agent, using an adapter `IBotHttpadapter` and `IBot agent` (which is the agent created earlier) this converts the http request and response into understandable formats between the web server and the agent.
 
-```
+```cs
 app.MapPost("/api/messages", async (HttpRequest request, HttpResponse response, IBotHttpAdapter adapter, IBot agent, CancellationToken cancellationToken) =>
 {
     await adapter.ProcessAsync(request, response, agent, cancellationToken);
