@@ -145,7 +145,7 @@ The next step is to register your identity provider with your agent.
 
    1. **Unique Identifier**. Enter the unique identifier you recorded for your Microsoft Entra ID identity provider while creating federated credentials.
 
-   1. **Token Exchange URL**. Leave it blank because it's used for SSO in Microsoft Entra ID only.
+   1. **Token Exchange URL**. For Teams SSO, enter the api endpoint created earlier:  `api://botid-{appId}`.  Otherwise leave blank.
 
    1. **Tenant ID**. Enter the **directory (tenant) ID** that you recorded earlier for your Microsoft Entra ID app or `common` depending on the supported account types selected when you created the Azure DD app. To decide which value to assign, follow these criteria:
 
