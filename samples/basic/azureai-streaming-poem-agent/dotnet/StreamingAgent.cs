@@ -52,7 +52,7 @@ public class StreamingAgent : AgentApplication
     }
 
     /// <summary>
-    /// Handel Messages events from clients. 
+    /// Handle Messages events from clients. 
     /// </summary>
     /// <param name="turnContext"></param>
     /// <param name="turnState"></param>
