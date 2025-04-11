@@ -56,21 +56,14 @@ app.MapPost("/api/messages", async (HttpRequest request, HttpResponse response, 
 })
     .AllowAnonymous();
 
-// Setup development host and allow use of a local launchSettings.json file
 if (app.Environment.IsDevelopment())
 {
-    string launchSettingsPath = Path.Combine(app.Environment.ContentRootPath, "Properties", "launchSettings.json");
-    if (!File.Exists(launchSettingsPath))
-    {
-        // No local launch settings.. use default port
-        // Setup port and listening address.
-        app.Urls.Add("http://localhost:3978");
-    }
-    else
-    {
-        app.MapGet("/", () => "Microsoft Agents SDK Sample");
-    }
+    app.MapGet("/", () => "Microsoft Agents SDK Sample");
+
+    var port = args.Length > 0 ? args[0] : "3978";
+    app.Urls.Add($"http://localhost:{port}");
 }
+
 
 app.Run();
 
