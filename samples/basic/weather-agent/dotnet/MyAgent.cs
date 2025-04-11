@@ -50,7 +50,7 @@ public class MyAgent : AgentApplication
         if (forecastResponse == null)
         {
             turnContext.StreamingResponse.QueueTextChunk("Sorry, I couldn't get the weather forecast at the moment.");
-            await turnContext.StreamingResponse.EndStreamAsync(); 
+            await turnContext.StreamingResponse.EndStreamAsync(cancellationToken); 
             return;
         }
 
@@ -59,22 +59,19 @@ public class MyAgent : AgentApplication
         switch (forecastResponse.ContentType)
         {
             case WeatherForecastAgentResponseContentType.Text:
-                //await turnContext.StreamingResponse.QueueInformativeUpdateAsync("This is what I found:");
                 turnContext.StreamingResponse.QueueTextChunk(forecastResponse.Content);
                 break;
             case WeatherForecastAgentResponseContentType.AdaptiveCard:
-                turnContext.StreamingResponse.QueueTextChunk("All Done"); 
-                await turnContext.SendActivityAsync(
-                MessageFactory.Attachment(new Attachment()
+                turnContext.StreamingResponse.FinalMessage = MessageFactory.Attachment(new Attachment()
                 {
                     ContentType = "application/vnd.microsoft.card.adaptive",
                     Content = forecastResponse.Content,
-                }),cancellationToken);
+                });
                 break;
             default:
                 break;
         }
-        await turnContext.StreamingResponse.EndStreamAsync(); // End the streaming response
+        await turnContext.StreamingResponse.EndStreamAsync(cancellationToken); // End the streaming response
     }
 
     protected async Task WelcomeMessageAsync(ITurnContext turnContext, ITurnState turnState, CancellationToken cancellationToken)
