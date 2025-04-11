@@ -6,7 +6,6 @@ using Microsoft.Agents.Builder.App;
 using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
 using OpenAI.Chat;
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
