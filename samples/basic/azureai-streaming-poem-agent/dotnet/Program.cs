@@ -56,13 +56,9 @@ app.MapPost("/api/messages", async (HttpRequest request, HttpResponse response, 
 })
     .AllowAnonymous();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapGet("/", () => "Microsoft Agents SDK Sample");
-
-    var port = args.Length > 0 ? args[0] : "3978";
-    app.Urls.Add($"http://localhost:{port}");
-}
+// Hardcoded for brevity and ease of testing. 
+// In production, this should be set in configuration.
+app.Urls.Add($"http://localhost:3978");
 
 
 app.Run();
