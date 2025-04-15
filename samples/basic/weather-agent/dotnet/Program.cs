@@ -53,8 +53,6 @@ builder.Services.AddAgentAspNetAuthentication(builder.Configuration);
 
 builder.AddAgentApplicationOptions();
 
-//builder.Services.AddTransient<WeatherForecastAgent>();
-
 builder.AddAgent<MyAgent>();
 
 builder.Services.AddSingleton<IStorage, MemoryStorage>();
