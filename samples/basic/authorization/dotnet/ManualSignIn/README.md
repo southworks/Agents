@@ -62,7 +62,7 @@ The sample uses the bot OAuth capabilities in [Azure Bot Service](https://docs.b
    | ConnectionName       | Set the configured bot's OAuth connection name.      |
     
 1. Run `dev tunnels`. Please follow [Create and host a dev tunnel](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
-   > NOTE: Go to your project directory and open the `./Properties/launchSettings.json` file. Check the port number and update it to match your DevTunnel port. If `./Properties/launchSettings.json`not fount Close and re-open the solution.launchSettings.json have been re-created.
+   > NOTE: Go to your project directory and open the `./Properties/launchSettings.json` file. Check the port number and update it to match your DevTunnel port. If the `./Properties/launchSettings.json` file is not found, close and re-open the solution to allow the `launchSettings.json` file to be re-created.
 
    ```bash
    devtunnel host -p 3978 --allow-anonymous
