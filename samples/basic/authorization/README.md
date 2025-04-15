@@ -15,8 +15,7 @@ These Samples demonstrate 3 methods of acquiring User tokens from inside an agen
 
 These Samples use the OAuth capabilities in [Azure Bot Service](https://docs.botframework.com), providing features to make it easier to develop a bot that authorizes users to various identity providers such as Entria ID (formally Azure Active Directory), GitHub, Uber, etc.
 
-These samples are designed to though Azure Bot Services, are are not intended to work with the Bot Framework Emulator, Teams Test Tool at this time. 
-
+These samples are designed to work through Azure Bot Services and are not intended to work with the Bot Framework Emulator or Teams Test Tool at this time.
 ## Prerequisites
 
 Access and Software
