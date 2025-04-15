@@ -49,9 +49,6 @@ For the purposes of local development we will use an application registration th
    - Click **Authentication** in the left menu
    - 
 
-This Agent has been created using [Microsoft 365 Agents Framework](https://github.com/microsoft/agents-for-net), it shows how to use user authorization in your Agent.
-
-
 - ## Prerequisites
 
 -  [.Net](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) version 8.0
