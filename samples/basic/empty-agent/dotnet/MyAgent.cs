@@ -10,9 +10,9 @@ using System.Threading;
 
 namespace EchoBot;
 
-public class MyBot : AgentApplication
+public class MyAgent : AgentApplication
 {
-    public MyBot(AgentApplicationOptions options) : base(options)
+    public MyAgent(AgentApplicationOptions options) : base(options)
     {
         OnConversationUpdate(ConversationUpdateEvents.MembersAdded, WelcomeMessageAsync);
 

@@ -32,7 +32,7 @@ builder.Services.AddSingleton<IStorage, MemoryStorage>();
 builder.AddAgentApplicationOptions();
 
 // Add the bot (which is transient)
-builder.AddAgent<MyBot>();
+builder.AddAgent<MyAgent>();
 
 
 WebApplication app = builder.Build();
