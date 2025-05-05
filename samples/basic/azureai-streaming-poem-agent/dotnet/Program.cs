@@ -8,13 +8,11 @@ using Microsoft.Agents.Storage;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using StreamingMessageAgent;
 using System;
 using System.ClientModel;
-using System.IO;
 using System.Threading;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,9 +20,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 builder.Logging.AddConsole();
-
-// Add AspNet token validation
-builder.Services.AddAgentAspNetAuthentication(builder.Configuration);
 
 builder.Services.AddTransient<ChatClient>(sp =>
 {
@@ -59,7 +54,6 @@ app.MapPost("/api/messages", async (HttpRequest request, HttpResponse response, 
 // Hardcoded for brevity and ease of testing. 
 // In production, this should be set in configuration.
 app.Urls.Add($"http://localhost:3978");
-
+app.MapGet("/", () => "Microsoft Agents SDK Sample");
 
 app.Run();
-

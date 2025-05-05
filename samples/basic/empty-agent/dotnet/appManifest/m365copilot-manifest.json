@@ -3,7 +3,7 @@
   "manifestVersion": "devPreview",
   "version": "1.0.0",
   "id": "${{AAD_APP_CLIENT_ID}}",
-  "packageName": "com.microsoft.agents.copilotoauth",
+  "packageName": "com.microsoft.agents.emptyagent",
   "developer": {
     "name": "Microsoft, Inc.",
     "websiteUrl": "https://example.azurewebsites.net",
@@ -15,11 +15,11 @@
     "outline": "outline.png"
   },
   "name": {
-    "short": "Empty Agent Host",
-    "full": "Empty Agent Host Example"
+    "short": "Empty Agent",
+    "full": "Empty Agent Example"
   },
   "description": {
-    "short": "Sample demonstrating an empty agent host.",
+    "short": "Sample demonstrating an empty agent using Agents SDK.",
     "full": "This sample demonstrates how echo text sent back to a client"
   },
   "accentColor": "#FFFFFF",
@@ -47,11 +47,6 @@
     "messageTeamMembers"
   ],
   "validDomains": [
-    "token.botframework.com",
     "<<AGENT_DOMAIN>>"
-  ],
-  "webApplicationInfo": {
-    "id": "${{AAD_APP_CLIENT_ID}}",
-    "resource": "api://botid-${{AAD_APP_CLIENT_ID}}"
-  }
+  ]
 }

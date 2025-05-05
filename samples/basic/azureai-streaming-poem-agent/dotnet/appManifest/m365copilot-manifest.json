@@ -1,9 +1,9 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
-  "manifestVersion": "1.16",
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/vdevPreview/MicrosoftTeams.schema.json",
+  "manifestVersion": "devPreview",
   "version": "1.0.0",
   "id": "${{AAD_APP_CLIENT_ID}}",
-  "packageName": "com.microsoft.agents.emptyagent",
+  "packageName": "com.microsoft.agents.streamingagent",
   "developer": {
     "name": "Microsoft, Inc.",
     "websiteUrl": "https://example.azurewebsites.net",
@@ -15,19 +15,28 @@
     "outline": "outline.png"
   },
   "name": {
-    "short": "Empty Agent",
-    "full": "Empty Agent Example"
+    "short": "Streaming Agent",
+    "full": "Streaming Agent Example"
   },
   "description": {
-    "short": "Sample demonstrating an empty agent using Agents SDK.",
-    "full": "This sample demonstrates how echo text sent back to a client"
+    "short": "Sample demonstrating a streaming agent using Agents SDK.",
+    "full": "This sample demonstrates streaming OpenAI responses back to a client"
   },
   "accentColor": "#FFFFFF",
+  "copilotAgents": {
+    "customEngineAgents": [
+      {
+        "id": "${{AAD_APP_CLIENT_ID}}",
+        "type": "bot"
+      }
+    ]
+  },
   "bots": [
     {
       "botId": "${{AAD_APP_CLIENT_ID}}",
       "scopes": [
-        "personal"
+        "personal",
+        "groupChat"
       ],
       "supportsFiles": false,
       "isNotificationOnly": false

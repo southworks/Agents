@@ -12,6 +12,8 @@ To enable debugging, open this folder using Visual Studio Code (VSCode). Follow 
 |Category | Name | Description | node | dotnet | python |
 |---------|-------------|-------------|--------|--------|--------|
 | Basic   | Empty Agent | Simplest agent | [basic/empty-agent/nodejs](./basic/empty-agent/nodejs) | [basic/empty-agent/dotnet](./basic/empty-agent/dotnet) | TBD |
-| Basic   | Weather Agent | WeatherAgent with various orchestrator libs | (Using LangChain.js) [basic/weather-agent/nodejs](./basic/weather-agent/nodejs) | (Using Semantic Kernel) [basic/weatherbot/dotnet](./basic/weatherbot/dotnet) | TBD |
+| Basic   |  Full Authentication | Empty Agent w/JWT Auth | TBD | [basic/full-authentication/dotnet](./basic/empty-agent/dotnet) | TBD |
+| Basic   | Weather Agent | WeatherAgent with various orchestrator libs | (Using LangChain.js) [basic/weather-agent/nodejs](./basic/weather-agent/nodejs) | (Using Semantic Kernel) [basic/weather-agent/dotnet](./basic/weather-agent/dotnet) | TBD |
+| Basic   |  Streaming Agent | Streams OpenAI responses | TBD | [basic/azureai-streaming-poem-agent/dotnet](./basic/azureai-streaming-poem-agent/dotnet) | TBD |
 | Basic   | Copilot Studio Client | Consume CopilotStudio Agent | [basic/copilotstudio-client/nodejs](./basic/copilotstudio-client/nodejs) | [basic/copilotstudio-client/dotnet](./basic/copilotstudio-client/dotnet) | TBD |
 | Complex | Copilot Studio Skill | Call the echo bot from a Copilot Studio skill | [complex/copilotstudio-skill/nodejs](./complex/copilotstudio-skill/nodejs) | [complex/copilotstudio-skill/dotnet](./complex/copilotstudio-skill/dotnet) | TBD |

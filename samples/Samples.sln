@@ -9,6 +9,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CopilotStudioClient", "basi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CopilotStudioEchoSkill", "complex\copilotstudio-skill\dotnet\CopilotStudioEchoSkill.csproj", "{8B83539F-571B-257A-2247-035F394C4EC7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WeatherAgent", "basic\weather-agent\dotnet\WeatherAgent.csproj", "{8005F52C-24AB-A495-1926-31D226AD1FC8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FullAuthentication", "basic\full-authentication\dotnet\FullAuthentication.csproj", "{0D8FBC85-0C35-02EF-23C5-22956EEF8828}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StreamingMessageAgent", "basic\azureai-streaming-poem-agent\dotnet\StreamingMessageAgent.csproj", "{30ACB95D-47FA-0DD7-1B38-9ADBF9ED2E54}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +33,18 @@ Global
 		{8B83539F-571B-257A-2247-035F394C4EC7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8B83539F-571B-257A-2247-035F394C4EC7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8B83539F-571B-257A-2247-035F394C4EC7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8005F52C-24AB-A495-1926-31D226AD1FC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8005F52C-24AB-A495-1926-31D226AD1FC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8005F52C-24AB-A495-1926-31D226AD1FC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8005F52C-24AB-A495-1926-31D226AD1FC8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D8FBC85-0C35-02EF-23C5-22956EEF8828}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D8FBC85-0C35-02EF-23C5-22956EEF8828}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D8FBC85-0C35-02EF-23C5-22956EEF8828}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D8FBC85-0C35-02EF-23C5-22956EEF8828}.Release|Any CPU.Build.0 = Release|Any CPU
+		{30ACB95D-47FA-0DD7-1B38-9ADBF9ED2E54}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{30ACB95D-47FA-0DD7-1B38-9ADBF9ED2E54}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{30ACB95D-47FA-0DD7-1B38-9ADBF9ED2E54}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{30ACB95D-47FA-0DD7-1B38-9ADBF9ED2E54}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -9,9 +9,9 @@ using System;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using WeatherBot.Plugins;
+using WeatherAgent.Plugins;
 
-namespace WeatherBot.Agents;
+namespace WeatherAgent.Agents;
 
 public class WeatherForecastAgent
 {
@@ -81,7 +81,7 @@ public class WeatherForecastAgent
             sb.Append(response.Content);
         }
 
-        // Make sure the response is in the correct format and retry if neccesary
+        // Make sure the response is in the correct format and retry if necessary
         try
         {
             string resultContent = sb.ToString();

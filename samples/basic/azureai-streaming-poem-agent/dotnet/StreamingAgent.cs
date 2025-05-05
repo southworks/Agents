@@ -77,7 +77,7 @@ public class StreamingAgent : AgentApplication
                     You break your poems into stanzas 
                     You format your poems in Markdown using double lines to separate stanzas
                     """),
-                    
+
                 new UserChatMessage("Write a poem about the Greek God Apollo as depicted in the Percy Jackson books"),
             ];
 

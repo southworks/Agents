@@ -3,7 +3,7 @@
   "manifestVersion": "devPreview",
   "version": "1.0.0",
   "id": "${{AAD_APP_CLIENT_ID}}",
-  "packageName": "com.microsoft.agents.copilotoauth",
+  "packageName": "com.microsoft.agents.echoskill",
   "developer": {
     "name": "Microsoft, Inc.",
     "websiteUrl": "https://example.azurewebsites.net",
@@ -15,11 +15,11 @@
     "outline": "outline.png"
   },
   "name": {
-    "short": "Empty Agent Skill Host",
-    "full": "Empty Agent Skill Host Example"
+    "short": "Copilot Studio EchoSkill Sample",
+    "full": "Copilot Studio EchoSkill Sample"
   },
   "description": {
-    "short": "Sample demonstrating an empty agent skill host.",
+    "short": "Sample demonstrating an Skill that can be called by Copilot Studio",
     "full": "This sample demonstrates how echo text sent back to a client as a skill for intergraiton with Microsoft Copilot Studio"
   },
   "accentColor": "#FFFFFF",
