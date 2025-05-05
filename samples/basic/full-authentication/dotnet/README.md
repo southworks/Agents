@@ -1,8 +1,13 @@
-﻿# EmptyAgent Sample
+﻿# FullAuthentication Sample
 
-This is a sample of a simple Agent that is hosted on an Asp.net core web service.  This Agent is configured to accept a request and echo the text of the request back to the caller.
+This is a sample of a simple Agent that is hosted on an Asp.net core web service, with JWT Token Validation.  This is the EmptyAgent, with AspNet JWT token authentication enabled.
 
-This Agent Sample is intended to introduce you the basic operation of the Microsoft 365 Agents SDK messaging loop. It can also be used as a the base for a custom Agent that you choose to develop.
+## AspNet Authentication for an Agent
+- This samples includes authentication setup for validating tokens from Entra or Azure Bot Service
+  - The `AspNetExtensions.AddAgentAspNetAuthentication` supports validating either type of token
+  - Performs audience, issuer, signing validation, and signing key refresh.
+  - It also support configuration for other Azure clouds such as US Gov, Gallatin or others.
+- If your agent will not be communicating with Azure Bot Service, any AspNet mechanism to authenticate requests can be used instead.
 
 ## Prerequisites
 
@@ -19,7 +24,7 @@ This Agent Sample is intended to introduce you the basic operation of the Micros
     - Create and configure an [Azure App Service](https://learn.microsoft.com/azure/app-service/) to deploy your Agent to.
     - A tunneling tool to allow for local development and debugging should you wish to do local development whilst connected to a external client such as Microsoft Teams.
 
-## Getting Started with EmptyAgent Sample
+## Getting Started with FullAuthentication Sample
 
 Read more about [Running an Agent](../../../docs/HowTo/running-an-agent.md)
 
@@ -36,6 +41,13 @@ Read more about [Running an Agent](../../../docs/HowTo/running-an-agent.md)
    1. Find the section labeled `Connections`,  it should appear similar to this:
 
       ```json
+      "TokenValidation": {
+        "Audiences": [
+          "{{ClientId}}" // this is the Client ID used for the Azure Bot
+        ],
+        "TenantId": "{{TenantId}}" 
+      },
+   
       "Connections": {
         "ServiceConnection": {
           "Settings": {

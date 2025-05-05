@@ -3,7 +3,7 @@
   "manifestVersion": "1.16",
   "version": "1.0.0",
   "id": "${{AAD_APP_CLIENT_ID}}",
-  "packageName": "com.microsoft.agents.emptyagent",
+  "packageName": "com.microsoft.agents.streamingagent",
   "developer": {
     "name": "Microsoft, Inc.",
     "websiteUrl": "https://example.azurewebsites.net",
@@ -15,12 +15,12 @@
     "outline": "outline.png"
   },
   "name": {
-    "short": "Empty Agent",
-    "full": "Empty Agent Example"
+    "short": "Streaming Agent",
+    "full": "Streaming Agent Example"
   },
   "description": {
-    "short": "Sample demonstrating an empty agent using Agents SDK.",
-    "full": "This sample demonstrates how echo text sent back to a client"
+    "short": "Sample demonstrating a streaming agent using Agents SDK.",
+    "full": "This sample demonstrates streaming OpenAI responses back to a client"
   },
   "accentColor": "#FFFFFF",
   "bots": [

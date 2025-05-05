@@ -19,14 +19,14 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace Microsoft.Agents.Samples;
+namespace FullAuthentication;
 
 public static class AspNetExtensions
 {
     private static readonly ConcurrentDictionary<string, ConfigurationManager<OpenIdConnectConfiguration>> _openIdMetadataCache = new();
 
     /// <summary>
-    /// Adds token validation typical for ABS/SMBA and Bot-to-bot.
+    /// Adds token validation typical for ABS/SMBA and agent-to-agent.
     /// default to Azure Public Cloud.
     /// </summary>
     /// <param name="services"></param>
@@ -38,7 +38,7 @@ public static class AspNetExtensions
     /// <code>
     ///   "TokenValidation": {
     ///     "Audiences": [
-    ///       "{required:bot-appid}"
+    ///       "{required:agent-appid}"
     ///     ],
     ///     "TenantId": "{recommended:tenant-id}",
     ///     "ValidIssuers": [
@@ -169,7 +169,7 @@ public static class AspNetExtensions
 
                     if (azureBotServiceTokenHandling && AuthenticationConstants.BotFrameworkTokenIssuer.Equals(issuer))
                     {
-                        // Use the Bot Framework authority for this configuration manager
+                        // Use the Azure Bot authority for this configuration manager
                         context.Options.TokenValidationParameters.ConfigurationManager = _openIdMetadataCache.GetOrAdd(azureBotServiceOpenIdMetadataUrl, key =>
                         {
                             return new ConfigurationManager<OpenIdConnectConfiguration>(azureBotServiceOpenIdMetadataUrl, new OpenIdConnectConfigurationRetriever(), new HttpClient())

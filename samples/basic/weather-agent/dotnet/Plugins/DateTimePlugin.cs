@@ -5,7 +5,7 @@ using Microsoft.SemanticKernel;
 using System;
 using System.ComponentModel;
 
-namespace WeatherBot.Plugins;
+namespace WeatherAgent.Plugins;
 
 /// <summary>
 /// Semantic Kernel plugins for date and time.

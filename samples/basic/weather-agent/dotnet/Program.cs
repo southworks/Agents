@@ -10,10 +10,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.SemanticKernel;
-using System.IO;
 using System.Threading;
-using WeatherBot;
-using WeatherBot.Agents;
+using WeatherAgent;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -49,12 +47,16 @@ else
         apiKey: builder.Configuration.GetSection("AIServices:OpenAI").GetValue<string>("ApiKey"));
 }
 
-builder.Services.AddAgentAspNetAuthentication(builder.Configuration);
-
+// Add AgentApplicationOptions from appsettings config.
 builder.AddAgentApplicationOptions();
 
+// Add the Agent
 builder.AddAgent<MyAgent>();
 
+// Register IStorage.  For development, MemoryStorage is suitable.
+// For production Agents, persisted storage should be used so
+// that state survives Agent restarts, and operate correctly
+// in a cluster of Agent instances.
 builder.Services.AddSingleton<IStorage, MemoryStorage>();
 
 WebApplication app = builder.Build();
@@ -72,4 +74,3 @@ app.Urls.Add($"http://localhost:3978");
 
 
 app.Run();
-

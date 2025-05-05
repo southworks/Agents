@@ -3,7 +3,7 @@
   "manifestVersion": "devPreview",
   "version": "1.0.0",
   "id": "${{AAD_APP_CLIENT_ID}}",
-  "packageName": "com.microsoft.agents.copilotoauth",
+  "packageName": "com.microsoft.agents.weather",
   "developer": {
     "name": "Microsoft, Inc.",
     "websiteUrl": "https://example.azurewebsites.net",
@@ -47,11 +47,6 @@
     "messageTeamMembers"
   ],
   "validDomains": [
-    "token.botframework.com",
     "<<AGENT_DOMAIN>>"
-  ],
-  "webApplicationInfo": {
-    "id": "${{AAD_APP_CLIENT_ID}}",
-    "resource": "api://botid-${{AAD_APP_CLIENT_ID}}"
-  }
+  ]
 }
