@@ -34,7 +34,7 @@ builder.Services.AddSingleton<IStorage, MemoryStorage>();
 WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
-app.UseRouting();
+
 app.MapPost("/api/messages", async (HttpRequest request, HttpResponse response, IAgentHttpAdapter adapter, IAgent agent, CancellationToken cancellationToken) =>
 {
     await adapter.ProcessAsync(request, response, agent, cancellationToken);

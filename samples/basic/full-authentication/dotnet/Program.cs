@@ -38,7 +38,6 @@ builder.Services.AddAgentAspNetAuthentication(builder.Configuration);
 
 var app = builder.Build();
 
-app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
