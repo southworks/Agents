@@ -15,6 +15,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FullAuthentication", "basic
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StreamingMessageAgent", "basic\azureai-streaming-poem-agent\dotnet\StreamingMessageAgent.csproj", "{30ACB95D-47FA-0DD7-1B38-9ADBF9ED2E54}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "OAuth", "OAuth", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoSignIn", "basic\authorization\auto-signin\dotnet\AutoSignIn.csproj", "{DE1A2C3E-54E5-2715-CD3C-A03D8A86CD6B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OBOAuthorization", "basic\authorization\obo-authorization\dotnet\OBOAuthorization.csproj", "{7DD0CB6A-AAA3-196E-1970-B05995507FA4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,9 +51,21 @@ Global
 		{30ACB95D-47FA-0DD7-1B38-9ADBF9ED2E54}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{30ACB95D-47FA-0DD7-1B38-9ADBF9ED2E54}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{30ACB95D-47FA-0DD7-1B38-9ADBF9ED2E54}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DE1A2C3E-54E5-2715-CD3C-A03D8A86CD6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DE1A2C3E-54E5-2715-CD3C-A03D8A86CD6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DE1A2C3E-54E5-2715-CD3C-A03D8A86CD6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DE1A2C3E-54E5-2715-CD3C-A03D8A86CD6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7DD0CB6A-AAA3-196E-1970-B05995507FA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7DD0CB6A-AAA3-196E-1970-B05995507FA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7DD0CB6A-AAA3-196E-1970-B05995507FA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7DD0CB6A-AAA3-196E-1970-B05995507FA4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{DE1A2C3E-54E5-2715-CD3C-A03D8A86CD6B} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{7DD0CB6A-AAA3-196E-1970-B05995507FA4} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {46F8E711-A447-4AB5-8357-03A5B5D21B49}

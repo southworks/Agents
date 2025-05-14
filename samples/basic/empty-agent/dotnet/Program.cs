@@ -32,7 +32,6 @@ builder.Services.AddSingleton<IStorage, MemoryStorage>();
 WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
-app.UseRouting();
 
 app.MapGet("/", () => "Microsoft Agents SDK Sample");
 app.MapPost("/api/messages", async (HttpRequest request, HttpResponse response, IAgentHttpAdapter adapter, IAgent agent, CancellationToken cancellationToken) =>
