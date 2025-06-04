@@ -169,7 +169,6 @@ Here is an example for **SingleTenant** `FederatedCredentials`:
 |AuthorityEndpoint     |String         |Null         |When present, used as the Authority to request a token from.|
 |TenantId     |String         |Null         |When present and AuthorityEndpoint is null, used to create an Authority to request a token from|
 |Scopes     |String list         |Null         |Default Lists of scopes to request tokens for. Is only used when no scopes are passed from the agent connection request|
-|FederatedClientId     |String    |Null         |Managed Identity ClientId to use when creating the Access token.|
 |FederatedTokenFile     |String    |Null         |The token file (same as AKS `AZURE_FEDERATED_TOKEN_FILE` env var)|
 
 Here is an example for **SingleTenant** `WorkloadIdentity`:
@@ -181,7 +180,6 @@ Here is an example for **SingleTenant** `WorkloadIdentity`:
         "AuthType": "WorkloadIdentity",
         "ClientId": "<ClientID>",
         "AuthorityEndpoint": "https://login.microsoftonline.com/<<TenantId>>",
-        "FederatedClientId": "<FederatedClientId>",
         "FederatedTokenFile": "<FederatedTokenFile>",
         "Scopes": [
           "https://api.botframework.com/.default"
@@ -206,7 +204,6 @@ Here is an example for **SingleTenant** `WorkloadIdentity`:
         "AuthType": "WorkloadIdentity",
         "ClientId": "<ClientID>",
         "AuthorityEndpoint": "https://login.microsoftonline.com/<<TenantId>>",
-        "FederatedClientId": "<FederatedClientId>",
         "FederatedTokenFile": "<FederatedTokenFile>",
         "Scopes": [
           "https://api.botframework.com/.default"
