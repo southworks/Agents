@@ -90,7 +90,6 @@ Here is an example for `UserManagedIdentity`:
       "Settings": {
         "AuthType": "UserManagedIdentity",
         "ClientId": "<ClientID>",
-        "TenantId": "<<ClientTenantId>>",
         "Scopes": [
           "https://api.botframework.com/.default"
         ]
@@ -106,19 +105,6 @@ When using Auth type **SystemManagedIdentity**, Client ID is ignored and the sys
 > When using the Managed Identity Types, your host or client must be running with an Azure Service and have set up that service with either a System Assigned Managed identity, or a User Assigned Managed identity.
 
 Here is an example for `SystemManagedIdentity` auth type:
-
-```json
-  "Connections": {
-    "ServiceConnection": {
-      "Settings": {
-        "AuthType": "SystemManagedIdentity",
-        "TenantId": "<<ClientTenantId>>",
-        "Scopes": [
-          "https://api.botframework.com/.default"
-        ]
-      }
-    }
-  }
 
 ```json
   "Connections": {
