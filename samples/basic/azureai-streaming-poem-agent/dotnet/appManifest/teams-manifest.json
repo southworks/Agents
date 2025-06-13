@@ -19,8 +19,8 @@
     "full": "AgentSDK Streaming OpenAI responses"
   },
   "description": {
-    "short": "Sample demonstrating AgentSDK + OpenAI to deminstrate streaming responses",
-    "full": "Sample demonstrating AgentSDK + OpenAI to deminstrate streaming responses"
+    "short": "Sample demonstrating AgentSDK + OpenAI to demonstrate streaming responses",
+    "full": "Sample demonstrating AgentSDK + OpenAI to demonstrate streaming responses"
   },
   "accentColor": "#FFFFFF",
   "bots": [
