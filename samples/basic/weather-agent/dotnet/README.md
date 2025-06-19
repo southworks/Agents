@@ -23,7 +23,7 @@ This Agent Sample is intended to introduce you the basics of integrating Semanti
 
 ## Getting Started with WeatherBot Sample
 
-Read more about [Running an Agent](../../../docs/HowTo/running-an-agent.md)
+Read more about [Running an Agent](../../../../docs/HowTo/running-an-agent.md)
 
 ### QuickStart using WebChat
 
