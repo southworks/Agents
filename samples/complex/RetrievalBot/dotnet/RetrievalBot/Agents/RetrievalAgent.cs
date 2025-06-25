@@ -67,10 +67,7 @@ namespace RetrievalBot.Agents
 
             // Give the agent some tools to work with
             this._agent.Kernel.Plugins.Add(KernelPluginFactory.CreateFromType<DateTimePlugin>());
-            //this._agent.Kernel.Plugins.Add(KernelPluginFactory.CreateFromType<WeatherForecastPlugin>());
             this._agent.Kernel.Plugins.Add(KernelPluginFactory.CreateFromType<AdaptiveCardPlugin>());
-            this._agent.Kernel.Plugins.AddFromObject(new GetContactsPlugin(app));
-            this._agent.Kernel.Plugins.AddFromObject(new SendMailPlugin(app));
             this._agent.Kernel.Plugins.AddFromObject(new BuildRetrievalPlugin(app));
         }
 

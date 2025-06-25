@@ -1,19 +1,21 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-//using WeatherBot;
-using RetrievalBot;
+using Microsoft.Agents.Builder;
+using Microsoft.Agents.Builder.App;
+using Microsoft.Agents.Builder.State;
+using Microsoft.Agents.Hosting.AspNetCore;
+using Microsoft.Agents.Samples;
+using Microsoft.Agents.Storage;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.SemanticKernel;
-using Microsoft.Extensions.Configuration;
+using RetrievalBot;
 using RetrievalBot.Agents;
-using Microsoft.Agents.Storage;
-using Microsoft.Agents.Hosting.AspNetCore;
-using Microsoft.Agents.Samples;
-using Microsoft.Agents.Builder.State;
-using Microsoft.Agents.Builder.App;
+using System.Threading;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -51,19 +53,13 @@ else
         apiKey: builder.Configuration.GetSection("AIServices:OpenAI").GetValue<string>("ApiKey"));
 }
 
-// Register the RetrievalAgent
-//builder.Services.AddTransient<RetrievalAgent>();
 
 // Add AspNet token validation
 builder.Services.AddAgentAspNetAuthentication(builder.Configuration);
 
 // Add AgentApplicationOptions from config.
 builder.AddAgentApplicationOptions();
-//builder.Services.AddTransient<AgentApplicationOptions>((s) => {
-//    var appOps = new AgentApplicationOptions();
-//    appOps.StartTypingTimer = true;
-//    return appOps;
-//});
+
 
 
 
@@ -76,15 +72,20 @@ builder.Services.AddSingleton<ConversationState>();
 var app = builder.Build();
 
 
+app.MapGet("/", () => "Microsoft Agents SDK Sample");
+
+// This receives incoming messages from Azure Bot Service or other SDK Agents
+app.MapPost("/api/messages", async (HttpRequest request, HttpResponse response, IAgentHttpAdapter adapter, IAgent agent, CancellationToken cancellationToken) =>
+{
+    await adapter.ProcessAsync(request, response, agent, cancellationToken);
+});
+
 if (app.Environment.IsDevelopment())
 {
-    app.MapGet("/", () => "Microsoft Copilot SDK Sample");
-    app.UseDeveloperExceptionPage();
-    app.MapControllers().AllowAnonymous();
+    // Hardcoded for brevity and ease of testing. 
+    // In production, this should be set in configuration.
+    app.Urls.Add($"http://localhost:3978");
 }
-else
-{
-    app.MapControllers();
-}
+
 app.Run();
 

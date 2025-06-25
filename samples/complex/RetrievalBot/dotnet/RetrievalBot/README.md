@@ -13,12 +13,12 @@ This Agent Sample is intended to introduce you to the Copilot Retrieval API Grou
 - [Bot Framework Emulator](https://github.com/Microsoft/BotFramework-Emulator/releases) for Testing Web Chat.
 - Download and install Visual Studio (I have 2022 version).
 - You need Azure subscription to create Azure Bot Service. Follow the steps here – Link TBD
-- Download and install Git [Git - Installing Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-- You also need Copilot dev tenant for actually deploying the Agent to Copilot. The steps to get this are TBD.
+- Have Git available on your computer [Git - Installing Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+- You also need Copilot licenses enabled in your tenant for calling the Retrieval API. And actually deploying the Agent to Copilot
 - If you have a Copilot tenant, make sure your admin can install the app package from MAC (admin.microsoft.com). This requires admin level access and is the only way to upload Agentic applications to Copilot.
 - If you do not want or can’t get a Copilot tenant, but have a Dev Tenant, you can still use this sample and deploy your Agent to your Teams channel or chat or meeting. Here are the steps for this - [Upload your custom app - Teams | Microsoft Learn](https://learn.microsoft.com/en-us/microsoftteams/platform/concepts/deploy-and-publish/apps-upload). This process doesn’t require Admin level access. Just ensure that your admin has allowed users to upload apps to Teams store. [Manage custom app policies and settings - Microsoft Teams | Microsoft Learn](https://learn.microsoft.com/en-us/microsoftteams/teams-custom-app-policies-and-settings).
 - You will not be able to use the Copilot Retrieval APIs if you don't have a Copilot Tenant.
-- You also need to be a SharePoint administrator and should be able to create a SPO site and add a sample document from which you want to retrieve relevant information using the Copilot Retrieval API. Once you upload your document(s), give the API a couple of hours to index so that it can return relevant information. You can upload [this document](https://microsoft-my.sharepoint-df.com/:w:/p/sakov/EciAV44ukzpDmCU5N8BmA-YBQpVf_CGJHLvDyaxX59mrQw?e=nQqFuN) to ask it the sample queries listed below.
+- You also need to be a SharePoint administrator and should be able to create a SPO site and add a sample document from which you want to retrieve relevant information using the Copilot Retrieval API. Once you upload your document(s), give the API a couple of hours to index so that it can return relevant information. You can upload the document 'Contoso sessions at Microsoft Build Conference 2025.docx' in SharePoint Documents folder to ask it the sample queries listed below.
 
 
 ## Running this sample
@@ -140,9 +140,9 @@ If you type a message and hit enter, or the send arrow, you should receive a mes
 
 1. On the Azure Bot, select **Settings**, then **Configuration**, and update the **Messaging endpoint** to `{tunnel-url}/api/messages`
 
-1. Start the Agent in Visual Studio
-
-1. Select **Test in WebChat** on the Azure Bot
+2. One last thing before we run our agent app. Go to Plugins/BuildRetrievalPlugin.cs and udpate the FilterExpression
+3. Start the Agent in Visual Studio
+4. Select **Test in WebChat** on the Azure Bot
 
 
 ## Sample queries to try with this bot

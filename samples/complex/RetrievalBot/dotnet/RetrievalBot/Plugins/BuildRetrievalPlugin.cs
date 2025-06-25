@@ -19,8 +19,8 @@ using System.Collections.Generic;
 using System.Text;
 using Newtonsoft.Json;
 using System.Text.Json.Nodes;
-using Microsoft.Agents.M365Copilot.Beta.Copilot.Retrieval;
 using Microsoft.Agents.M365Copilot.Beta;
+using Microsoft.Agents.M365Copilot.Beta.Copilot.Retrieval;
 using Microsoft.Agents.M365Copilot.Beta.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Kiota.Abstractions.Authentication;
@@ -42,29 +42,29 @@ namespace RetrievalBot.Plugins
         [KernelFunction]
         public async Task<string> BuildRetrievalAsync(string userquery)
         {
-
-            string accessToken = _app.Authorization.GetTurnToken("graph"); 
+            string accessToken = _app.Authorization.GetTurnToken("graph");
             var tokenProvider = new StaticTokenProvider(accessToken);
             var authProvider = new BaseBearerTokenAuthenticationProvider(tokenProvider);
-#pragma warning disable CS0436 // Type conflicts with imported type
-            var apiClient = new BaseM365CopilotClient(new HttpClientRequestAdapter(authProvider));
-#pragma warning restore CS0436 // Type conflicts with imported type
+            var baseURL = "https://graph.microsoft.com/beta";
+            var apiClient = new AgentsM365CopilotBetaServiceClient(authProvider, baseURL);
 
-#pragma warning disable CS0618 // Type or member is obsolete
-#pragma warning disable CS0436 // Type conflicts with imported type
-            var response = await apiClient.Copilot.Retrieval.PostAsync(new RetrievalPostRequestBody()
+            try
             {
-                QueryString = userquery,
-                FilterExpression = "(path:\"https://testagentssdk.sharepoint.com/sites/Agents/Shared%20Documents/Build/\")",
-                ResourceMetadata = [string.Empty],
-                MaximumNumberOfResults = 1
-            });
-#pragma warning restore CS0436 // Type conflicts with imported type
-#pragma warning restore CS0618 // Type or member is obsolete
-
-            return System.Text.Json.JsonSerializer.Serialize(response);
-
-            
+                var response = await apiClient.Copilot.Retrieval.PostAsync(new RetrievalPostRequestBody()
+                {
+                    QueryString = userquery,
+                    DataSource = RetrievalDataSource.SharePoint,
+                    FilterExpression = "(path:\"https://<tenantname>.sharepoint.com/sites/\")", // replace <tenantname> with your tenant name
+                    ResourceMetadata = [string.Empty],
+                    MaximumNumberOfResults = 1
+                });
+                return System.Text.Json.JsonSerializer.Serialize(response);
+            }
+            catch (Exception ex)
+            {
+                // Log or inspect the exception and return details for debugging
+                return $"Exception: {ex.GetType().Name} - {ex.Message}\nStackTrace: {ex.StackTrace}";
+            }
         }
     }
 }
