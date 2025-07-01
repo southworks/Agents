@@ -8,12 +8,27 @@ import { FluentThemeProvider } from 'botframework-webchat-fluent-theme'
 import React, { useState, useEffect } from 'react'
 import { CopilotStudioClient, CopilotStudioWebChat, CopilotStudioWebChatConnection } from '@microsoft/agents-copilotstudio-client'
 
-import { settings } from './settings'
 import { acquireToken } from './acquireToken'
 
 const { BasicWebChat, Composer } = Components
 
-function Chat () {
+function Chat() {
+
+  let settings
+
+  try {
+    settings = require('./settings.js').settings
+  }
+  catch (error) {
+    console.warn("Settings File Not Found. Rename settings.EXAMPLE.js to settings.js and fill out necessary fields")
+    settings = {
+      appClientId: '',
+      tenantId: '',
+      environmentId: '',
+      agentIdentifier: '',
+      directConnectUrl: '',
+    }
+  }
   const [connection, setConnection] = useState<CopilotStudioWebChatConnection | null>(null)
 
   const agentsSettings = {
@@ -40,7 +55,7 @@ function Chat () {
           <BasicWebChat />
         </Composer>
       </FluentThemeProvider>
-      )
+    )
     : null
 }
 
