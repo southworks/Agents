@@ -6,7 +6,7 @@
 import { Components } from 'botframework-webchat'
 import { FluentThemeProvider } from 'botframework-webchat-fluent-theme'
 import React, { useState, useEffect } from 'react'
-import { CopilotStudioClient, CopilotStudioWebChat, CopilotStudioWebChatConnection } from '@microsoft/agents-copilotstudio-client'
+import { ConnectionSettings, CopilotStudioClient, CopilotStudioWebChat, CopilotStudioWebChatConnection } from '@microsoft/agents-copilotstudio-client'
 
 import { acquireToken } from './acquireToken'
 
@@ -14,14 +14,14 @@ const { BasicWebChat, Composer } = Components
 
 function Chat() {
 
-  let settings
+  let agentsSettings: ConnectionSettings
 
   try {
-    settings = require('./settings.js').settings
+    agentsSettings = require('./settings.js').settings
   }
   catch (error) {
-    console.warn("Settings File Not Found. Rename settings.EXAMPLE.js to settings.js and fill out necessary fields")
-    settings = {
+    console.error(error + "\nsettings.js Not Found. Rename settings.EXAMPLE.js to settings.js and fill out necessary fields")
+    agentsSettings = {
       appClientId: '',
       tenantId: '',
       environmentId: '',
@@ -30,15 +30,6 @@ function Chat() {
     }
   }
   const [connection, setConnection] = useState<CopilotStudioWebChatConnection | null>(null)
-
-  const agentsSettings = {
-    appClientId: settings.appClientId ?? '',
-    tenantId: settings.tenantId ?? '',
-    environmentId: settings.environmentId ?? '',
-    customPowerPlatformCloud: settings.customPowerPlatformCloud,
-    agentIdentifier: settings.agentIdentifier,
-    directConnectUrl: settings.directConnectUrl,
-  }
   const webchatSettings = { showTyping: true }
 
   useEffect(() => {
