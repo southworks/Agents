@@ -6,7 +6,7 @@
 import { Components } from 'botframework-webchat'
 import { FluentThemeProvider } from 'botframework-webchat-fluent-theme'
 import React, { useState, useEffect } from 'react'
-import { CopilotStudioClient, CopilotStudioWebChat, CopilotStudioWebChatConnection, loadCopilotStudioConnectionSettingsFromEnv } from '@microsoft/agents-copilotstudio-client'
+import { CopilotStudioClient, CopilotStudioWebChat, CopilotStudioWebChatConnection } from '@microsoft/agents-copilotstudio-client'
 
 import { settings } from './settings'
 import { acquireToken } from './acquireToken'
