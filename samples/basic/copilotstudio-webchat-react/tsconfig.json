@@ -2,9 +2,9 @@
   "compilerOptions": {
     "incremental": true,
     "lib": [
-      "ES2021", "DOM"
+      "ESNext", "DOM"
     ],
-    "target": "es2019",
+    "target": "esnext",
     "module": "commonjs",
     "declaration": true,
     "sourceMap": true,

@@ -5,8 +5,7 @@
 
 // This file emulates the process object in node.
 // rename this file to settings.js before running this test sample
-export const process = {
-  env: {
+export const settings = {
     // App ID of the App Registration used to log in, this should be in the same tenant as the Copilot.
     appClientId: '',
 
@@ -33,4 +32,3 @@ export const process = {
 
     DEBUG: 'copilot-studio-client'
   }
-}

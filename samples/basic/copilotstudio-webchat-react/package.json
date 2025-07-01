@@ -9,8 +9,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "esbuild src/index.tsx --bundle --platform=browser --target=es2019 --outdir=public/static --jsx=automatic",
-    "start": "npm run build -- --watch --inject:./settings.js --serve=localhost:3000 --servedir=./public"
+    "build": "esbuild src/index.tsx --bundle --platform=browser --target=esnext --outdir=public/static --jsx=automatic",
+    "start": "npm run build -- --watch --serve=localhost:3000 --servedir=./public"
   },
   "dependencies": {
     "@azure/msal-browser": "^4.13.1",

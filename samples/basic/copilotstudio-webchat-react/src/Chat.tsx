@@ -8,6 +8,7 @@ import { FluentThemeProvider } from 'botframework-webchat-fluent-theme'
 import React, { useState, useEffect } from 'react'
 import { CopilotStudioClient, CopilotStudioWebChat, CopilotStudioWebChatConnection, loadCopilotStudioConnectionSettingsFromEnv } from '@microsoft/agents-copilotstudio-client'
 
+import { settings } from './settings'
 import { acquireToken } from './acquireToken'
 
 const { BasicWebChat, Composer } = Components
@@ -15,7 +16,14 @@ const { BasicWebChat, Composer } = Components
 function Chat () {
   const [connection, setConnection] = useState<CopilotStudioWebChatConnection | null>(null)
 
-  const agentsSettings = loadCopilotStudioConnectionSettingsFromEnv()
+  const agentsSettings = {
+    appClientId: settings.appClientId ?? '',
+    tenantId: settings.tenantId ?? '',
+    environmentId: settings.environmentId ?? '',
+    customPowerPlatformCloud: settings.customPowerPlatformCloud,
+    agentIdentifier: settings.agentIdentifier,
+    directConnectUrl: settings.directConnectUrl,
+  }
   const webchatSettings = { showTyping: true }
 
   useEffect(() => {
