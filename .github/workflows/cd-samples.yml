@@ -69,3 +69,9 @@ jobs:
           npm ci
           npm run build
 
+      - name: Build Node poem Agent
+        working-directory: ./samples/basic/azureai-streaming-poem-agent/nodejs/
+        run: |
+          npm ci
+          npm run build
+
