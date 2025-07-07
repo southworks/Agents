@@ -20,32 +20,6 @@ agent.onActivity('invoke', async (context: TurnContext, state: TurnState) => {
     await context.sendActivity(invokeResponse)
 })
 
-agent.onMessage('joke', async (context: TurnContext, state: TurnState) => {
-
-    context.streamingResponse.setFeedbackLoop(true)
-    context.streamingResponse.setGeneratedByAILabel(true)
-    context.streamingResponse.setSensitivityLabel({ type: 'https://schema.org/Message', '@type': 'CreativeWork', name: 'Internal' })
-
-    await context.streamingResponse.queueInformativeUpdate('starting a joke...')
-
-    const result = streamText({
-        model: azure(process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-4.1-mini'),
-        system: `
-            You are a creative assistant who knows everything about Microsoft 365 agents sdk.
-            You write jokes about the SDK using computer programming humor.
-            `,
-        prompt: 'Write a joke about the Activity protocol as in the Bot Framework SDK'
-    })
-
-    for await (const textPart of result.textStream) {
-        if (textPart.length> 0) {
-            await context.streamingResponse.queueTextChunk(textPart)
-        }
-    }
-
-    await context.streamingResponse.endStream()
-})
-
 agent.onMessage('poem', async (context: TurnContext, state: TurnState) => {
 
     context.streamingResponse.setFeedbackLoop(true)
@@ -54,7 +28,7 @@ agent.onMessage('poem', async (context: TurnContext, state: TurnState) => {
 
     await context.streamingResponse.queueInformativeUpdate('starting a poem...')
 
-    const result = streamText({
+    const { fullStream } = streamText({
         model: azure(process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-4.1-mini'),
         system: `
             You are a creative assistant who has deeply studied Greek and Roman Gods, You also know all of the Percy Jackson Series
@@ -67,16 +41,28 @@ agent.onMessage('poem', async (context: TurnContext, state: TurnState) => {
     })
 
     try {
-        for await (const textPart of result.textStream) {
-            if (textPart.length > 0) {
-                await context.streamingResponse.queueTextChunk(textPart)
+        for await (const part of fullStream) {
+            switch  (part.type) {
+                case 'text-delta' : {
+                    if (part.textDelta.length > 0) {
+                        await context.streamingResponse.queueTextChunk(part.textDelta)
+                    }
+                    break
+                }
+                case 'error' : {
+                    const error = part.error
+                    throw new Error(`Error in streaming: ${error}`)
+                    break
+                }
             }
+            
         }
-        await context.streamingResponse.endStream()
     } catch (error) {
         console.error('Error during streaming:', error);
         await context.streamingResponse.queueTextChunk('An error occurred while generating the poem. Please try again later.');
+    } finally {
         await context.streamingResponse.endStream();
+        console.log('Streaming completed or errored out.');
     }
 })
 
