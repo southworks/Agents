@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: 'Create a report to help us improve the Agents SDK '
+about: 'Create a report to help us improve the Agents SDK'
 title: ''
 labels: Triage
 assignees: ''
