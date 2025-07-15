@@ -14,11 +14,11 @@ What package version of the SDK are you using.
 - SDK Use: Agents Hosting / Clients / Tools
 
 **if your using the Agent Hosting system, please complete the following information:**
- - How are you Hosting this: [e.g. Azure, Desktop, Other]
+ - How are you Hosting this: [e.g. Cloud / OnPrem]
  - Are you deploying: [e.g. AppServices, Containers(type?)] 
  - Are you using Azure Bot Services:
  - What Client are you using: [e.g. MSTeams, WebChat, other]
- - What .net\node\python version is your build in:
+ - What dotnet\node\python version is your build in:
 
 **Describe the bug**
 A clear and concise description of what the bug is.
