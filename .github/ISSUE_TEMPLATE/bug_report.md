@@ -29,7 +29,8 @@ How can we reproduce this error?
 
 Please provide Code Snippets, Channel type, and any special configuration we will need to reproduce this problem.
 
-*Note:* If your issue with the Copilot Studio Client and its interaction with a feature of Copilot Studio, we would ask that you prepare and make available a simplified power platform solution with a Copilot Studio agent that causes the problem.  if you're not comfortable with this and we require that to explore your issue report, we will ask you to create a Support Ticket with Microsoft so that we can proceed. 
+*Note:* If your issue is with the Copilot Studio Client and its interaction with a feature of Copilot Studio, we would ask that you prepare and make available a simplified power platform solution with a Copilot Studio agent that causes the problem. 
+If you're not comfortable with this and we require that to explore your issue report, we will ask you to create a Support Ticket with Microsoft so that we can proceed.
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.
