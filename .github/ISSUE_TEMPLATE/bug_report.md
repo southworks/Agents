@@ -11,7 +11,7 @@ assignees: ''
 What package version of the SDK are you using.
 - Language: 
 - Package version: 
-- SDK Use: Agent Hosting / Clients / Tools
+- SDK Use: Agents Hosting / Clients / Tools
 
 **if your using the Agent Hosting system, please complete the following information:**
  - How are you Hosting this: [e.g. Azure, Desktop, Other]
