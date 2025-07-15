@@ -13,7 +13,7 @@ What package version of the SDK are you using.
 - Package version: 
 - SDK Use: Agents Hosting / Clients / Tools
 
-**if your using the Agent Hosting system, please complete the following information:**
+**If you're using the Agent Hosting system, please complete the following information:**
  - How are you Hosting this: [e.g. Cloud / OnPrem]
  - Are you deploying: [e.g. AppServices, Containers(type?)] 
  - Are you using Azure Bot Services:
