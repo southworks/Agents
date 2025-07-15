@@ -1,6 +1,6 @@
 ---
 name: Activity Protocol Spec Change request
-about: 'Request a change or update to Activity Protocol '
+about: 'Request a change or update to Activity Protocol'
 title: ''
 labels: Specs, Triage
 assignees: ''
