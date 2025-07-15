@@ -1,5 +1,5 @@
 ---
-name: Feature request for Agent SDK
+name: Feature request for Agents SDK
 about: 'Suggest an idea for the Agents SDK '
 title: ''
 labels: Triage
