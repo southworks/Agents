@@ -602,7 +602,8 @@ The `relatesTo` field references another conversation, and optionally a specific
 ### Reserve Event 
 Reserved events are system-defined event with pre-determined name and structures used to facilitate specific protocol-level interactions between components, such as consent management etc. Reserved event name is prefix with "Sys." to indicate their reserved nature and to prevent conflicts with application-defined events.
 
-`Sys.ConsentResponseEvent` activity from Bot to channel to indicate the response to a consent request for conversation recording. The `value` field contains the consent response, which is a complex type indicating whether the user has granted or denied consent for provided media type.
+#### List of Reserve Events:
+1. `Sys.ConsentResponseEvent` activity from Bot to channel to indicate the response to a consent request for conversation recording. The `value` field contains the consent response, which is a complex type indicating whether the user has granted or denied consent for provided media type.
 
 ```json
 {
@@ -616,6 +617,26 @@ Reserved events are system-defined event with pre-determined name and structures
 ```
 
 Possible values for `contentType` are audio, video, text, screen, all or any other media type that the channel supports. The `consentValue` field indicates whether the user has granted or denied consent for the specified `contentType`.
+
+2. `pvaSetContext` activity from channel to bot to set [global variables](https://learn.microsoft.com/en-us/microsoft-copilot-studio/authoring-variables-bot?tabs=webApp#to-add-the-variable-to-an-embedded-bot) which are marked for external initialisation.
+```json
+{
+  "type": "event",
+  "name": "pvaSetContext",
+  "value": { 
+    "key1": "value1", 
+    "key2": "value2" 
+  }
+}
+```
+
+3. `startConversation` activity from channel to bot to start a new conversation. This event activate [Conversation Start](https://learn.microsoft.com/en-us/microsoft-copilot-studio/authoring-system-topics?tabs=webApp) sytem topic.
+```json
+{
+  "type": "event",
+  "name": "startConversation"
+}
+```
 
 
 ## Invoke activity
