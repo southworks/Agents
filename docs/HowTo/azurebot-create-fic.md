@@ -1,4 +1,4 @@
-# Register a Single Tenant Agent using Client Secrets for an Azure Bot
+# Register a Single Tenant Agent using Federated Credentials for an Azure Bot
 
 This article shows how to register a agent with Azure AI Bot Service.
 
@@ -7,16 +7,30 @@ Your can manage your agent identity in Azure in a few different ways.
 - As a user-assigned managed identity, so that you don't need to manage the bot's credentials yourself.
 - As a single-tenant app using secrets, certificates, or Federated Credentials.
 
-> These instructions are for SingleTenant Identity with a Client Secret.
+> These instructions are for SingleTenant with Federated Credentials. If you plan to use the agent for local debugging then Federated Credentials will not work. 
 > If you are on the Microsoft Tenant, using either MultiTenant or SingleTenant with a client secret is prohibited.  There are limited options for running locally in this case. Certiciate SN+I is a viable alternative. If this doesn't work for you, the only alternative is to use [Managed Identity](azurebot-create-msi.md) and deploy the agent code to Azure and run there.
 
-## Create the resource
+## Create the resources
 
 Create the Azure Bot resource. This allows you to register your agent with the Azure AI Bot Service.
 
 1. Go to the Azure portal.
+ 
+1. Create a **User Assigned Managed Identity**
+   1. In the right pane, find/select **Create a resource** and select **User Assigned Managed Identity**
+   
+      ![Create User Assigned Managed Identity](media/create-usermanagedidentity.png) 
 
-1. In the right pane, select **Create a resource**.
+   1. Select **Create** and supply the required information
+   
+      ![User Assigned Managed Identity Details](media/userassignedidentity-details.png) 
+   
+   1. Complete creation by selecting **Create**.  When it's done, click on **Go to resource**
+
+   1. Record the **ClientId**.  This will be used later when setting up Federated Credentials on the App Registration.
+      - This is also used when configuring the Agent settings, and is the `FederatedClientId` setting. 
+
+1. Create the Azure Bot: In the right pane, select **Create a resource**.
 
 1. Find and select the **Azure Bot** card.
 
@@ -47,16 +61,26 @@ Create the Azure Bot resource. This allows you to register your agent with the A
 1. Select **Settings**, then **Configuration**
 
 1. Select **Manage Password** next to **Microsoft App ID**
+ 
    ![Azure Bot Configuration](media/azure-bot-configuration-single.png)
 
 1. On the **Overview** pane, record the **Application (client) ID** and **Directory (tenant) ID**
+   - This is used when configuring the Agent settings, and is the `ClientId` and `TenantId` settings. 
 
-1. Select **Certificates & secrets** on the left then **Client secrets**
+1. Select **Certificates & secrets** on the left then **Client secrets**.  If there is a secret listed, you can delete this.  It will not be used.
 
-1. Create a new secret by click **New client secret**
+1. Select **Federated credentials**
+ 
+1. Click **+ Add credential**
 
-> [!IMPORTANT]
-> Very important Copy the new secret and store in a safe place.  You need the information later when configuring your agent code.
+1. Set credential properties
+
+   ![Add Federated Credential](media/add-federated-managedidentity.png)
+
+   1. **Federated credential scenario**: **Managed Identity**
+   1. Click **Select a managed identity** and chose the User Managed Identity created above
+   1. Set the **Name**
+   1. Click **Add** when done
 
 ## Further reading
 - [Configuring DotNet Agent Auth](https://aka.ms/AgentsSDK-DotNetMSALAuth)
