@@ -29,13 +29,13 @@ namespace RetrievalBot
 
             var chatHistory = turnState.GetValue("conversation.chatHistory", () => new ChatHistory());
             
-            RetrievalAgent weatherAgent = new RetrievalAgent(_kernel, this);
+            RetrievalAgent retrievalAgent = new RetrievalAgent(_kernel, this);
 
             // Invoke the RetrievalAgent to process the message
-            var forecastResponse = await weatherAgent.InvokeAgentAsync(turnContext.Activity.Text, chatHistory);
+            var forecastResponse = await retrievalAgent.InvokeAgentAsync(turnContext.Activity.Text, chatHistory);
             if (forecastResponse == null)
             {
-                await turnContext.SendActivityAsync(MessageFactory.Text("Sorry, I couldn't get the weather forecast at the moment."), cancellationToken);
+                await turnContext.SendActivityAsync(MessageFactory.Text("Sorry, I couldn't get the information you are looking for, at the moment."), cancellationToken);
                 return;
             }
 
