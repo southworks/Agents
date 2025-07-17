@@ -1,9 +1,8 @@
 {
-  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/vdevPreview/MicrosoftTeams.schema.json",
-  "manifestVersion": "devPreview",
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.22",
   "version": "1.0.0",
   "id": "${{AAD_APP_CLIENT_ID}}",
-  "packageName": "com.microsoft.agents.streaming",
   "developer": {
     "name": "Microsoft, Inc.",
     "websiteUrl": "https://example.azurewebsites.net",
@@ -15,12 +14,12 @@
     "outline": "outline.png"
   },
   "name": {
-    "short": "AgentSDK Streaming responses",
-    "full": "AgentSDK Streaming OpenAI responses"
+    "short": "AgentSDK EmptyAgent",
+    "full": "AgentSDK EmptyAgent"
   },
   "description": {
-    "short": "Sample demonstrating AgentSDK + OpenAI to demonstrate streaming responses",
-    "full": "Sample demonstrating AgentSDK + OpenAI to demonstrate streaming responses"
+    "short": "Sample demonstrating a simple Agent that echos back user messages.",
+    "full": "Sample demonstrating AgentSDK + Teams to demonstrate a simple Agent that echos back user messages."
   },
   "accentColor": "#FFFFFF",
   "copilotAgents": {

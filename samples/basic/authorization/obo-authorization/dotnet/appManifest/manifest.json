@@ -1,9 +1,8 @@
 {
-  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/vdevPreview/MicrosoftTeams.schema.json",
-  "manifestVersion": "devPreview",
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.22",
   "version": "1.0.0",
   "id": "${{AAD_APP_CLIENT_ID}}",
-  "packageName": "com.microsoft.agents.echoskill",
   "developer": {
     "name": "Microsoft, Inc.",
     "websiteUrl": "https://example.azurewebsites.net",
@@ -15,12 +14,12 @@
     "outline": "outline.png"
   },
   "name": {
-    "short": "Copilot Studio EchoSkill Sample",
-    "full": "Copilot Studio EchoSkill Sample"
+    "short": "User Authorization (OAuth+OBO)",
+    "full": "User Authorization (OAuth+OBO)"
   },
   "description": {
-    "short": "Sample demonstrating an Skill that can be called by Copilot Studio",
-    "full": "This sample demonstrates how echo text sent back to a client as a skill for intergraiton with Microsoft Copilot Studio"
+    "short": "Sample demonstrating Azure Bot Services user authorization with using a Agent.",
+    "full": "This sample demonstrates how to integrate with Microsoft Copilot Studio using OBO and CopilotStudioClient."
   },
   "accentColor": "#FFFFFF",
   "copilotAgents": {
@@ -35,8 +34,7 @@
     {
       "botId": "${{AAD_APP_CLIENT_ID}}",
       "scopes": [
-        "personal",
-        "groupChat"
+        "personal"
       ],
       "supportsFiles": false,
       "isNotificationOnly": false
@@ -48,7 +46,7 @@
   ],
   "validDomains": [
     "token.botframework.com",
-    "<<AGENT_DOMAIN>>"
+    "<<BOT_DOMAIN>>"
   ],
   "webApplicationInfo": {
     "id": "${{AAD_APP_CLIENT_ID}}",
