@@ -87,6 +87,14 @@ MicrosoftAppId={app-id-guid}
 MicrosoftAppPassword={app-registration-secret}
 ```
 
+## Support for National Cloud Authentication
+To configure sovereign / national cloud authentication, we provide an environment variable that can be set with the [Microsoft Entra authentication endpoint](https://learn.microsoft.com/en-us/entra/identity-platform/authentication-national-cloud#azure-ad-authentication-endpoints).
+If not provided, it defaults to the public cloud endpoint "https://login.microsoftonline.com".
+
+```env
+authorityEndpoint={login-authority-for-the-connection}
+```
+
 ## Custom Authentication Provider
 
 Users requiring a customized authentication provider can implement the interface:
