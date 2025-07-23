@@ -66,7 +66,7 @@ This step requires permissions to create application identities in your Azure te
 ## 4. Configure the Example Application
 
 1. **Edit the build environment file:**
-   - Open `settings.TEMPLATE.js` in the root directory
+   - Open `settings.EXAMPLE.js` in the root directory
    - Rename to `settings.js`
    - Fill in the values you recorded during setup using one of the two configurations:
      ### Option 1
