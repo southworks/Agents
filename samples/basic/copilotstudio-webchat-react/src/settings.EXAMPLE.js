@@ -5,30 +5,31 @@
 
 // This file emulates the process object in node.
 // rename this file to settings.js before running this test sample
-export const settings = {
-    // App ID of the App Registration used to log in, this should be in the same tenant as the Copilot.
-    appClientId: '',
+import { ConnectionSettings } from '@microsoft/agents-copilotstudio-client'
 
-    // Tenant ID of the App Registration used to log in, this should be in the same tenant as the Copilot.
-    tenantId: '',
+// Flag to enable debug mode, which will store the debug information in localStorage.
+// Copilot Studio Client uses the "debug" library for logging (https://github.com/debug-js/debug?tab=readme-ov-file#browser-support).
+window.localStorage.debug = 'copilot-studio:*'
 
-    // Environment ID of the environment with the Copilot Studio App.
-    environmentId: '',
-
-    // PowerPlatformCloud enum key.
-    cloud: '',
-
-    // Power Platform API endpoint to use if Cloud is configured as "Other".
-    customPowerPlatformCloud: '',
-
-    // Schema Name of the Copilot to use.
-    agentIdentifier: '',
-
-    // AgentType enum key.
-    copilotAgentType: '',
-
-    // URL used to connect to the Copilot Studio service.
-    directConnectUrl: '',
-
-    DEBUG: 'copilot-studio-client'
-  }
+export const settings = new ConnectionSettings({
+  // App ID of the App Registration used to log in, this should be in the same tenant as the Copilot.
+  appClientId: '',
+  // Tenant ID of the App Registration used to log in, this should be in the same tenant as the Copilot.
+  tenantId: '',
+  // Authority endpoint for the Azure AD login. Default is 'https://login.microsoftonline.com'.
+  authority: '',
+  // Environment ID of the environment with the Copilot Studio App.
+  environmentId: '',
+  // Schema Name of the Copilot to use.
+  agentIdentifier: '',
+  // PowerPlatformCloud enum key.
+  cloud: undefined,
+  // Power Platform API endpoint to use if Cloud is configured as "Other".
+  customPowerPlatformCloud: undefined,
+  // AgentType enum key.
+  copilotAgentType: undefined,
+  // URL used to connect to the Copilot Studio service.
+  directConnectUrl: undefined,
+  // Flag to use the "x-ms-d2e-experimental" header URL on subsequent calls to the Copilot Studio service.
+  useExperimentalEndpoint: false
+})
