@@ -9,7 +9,7 @@ This Agent Sample is intended to introduce you the basics of integrating Semanti
 ## Prerequisites
 
 - [.Net](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) version 8.0
-- [dev tunnel](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows)
+- [dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows)
 - [Microsoft 365 Agents Toolkit](https://github.com/OfficeDev/microsoft-365-agents-toolkit)
 
 ## QuickestStart using Agent Toolkit
@@ -79,7 +79,7 @@ This Agent Sample is intended to introduce you the basics of integrating Semanti
       1. Replace all **{{TenantId}}** with the Tenant Id where your application is registered.
       1. Set the **{{ClientSecret}}** to the Secret that was created on the App Registration.
       
-      > Storing sensitive values in appsettings is not recommend.  Follow [AspNet Configuration](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-9.0) for best practices.
+      > Storing sensitive values in appsettings is not recommend.  Follow [AspNet Configuration](https://learn.microsoft.com/aspnet/core/fundamentals/configuration/?view=aspnetcore-9.0) for best practices.
 
 1. Configure OpenAI in appsettings
    - You will need an Azure OpenAI or OpenAI instance, with the preferred model of `gpt-4o-mini`.   
@@ -104,7 +104,7 @@ This Agent Sample is intended to introduce you the basics of integrating Semanti
       - Requires a tunneling tool to allow for local development and debugging should you wish to do local development whilst connected to a external client such as Microsoft Teams.
       - **For ClientSecret or Certificate authentication types only.**  Federated Credentials and Managed Identity will not work via a tunnel to a local agent and must be deployed to an App Service or container.
       
-      1. Run `dev tunnels`. Please follow [Create and host a dev tunnel](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
+      1. Run `dev tunnels`. Please follow [Create and host a dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
 
          ```bash
          devtunnel host -p 3978 --allow-anonymous

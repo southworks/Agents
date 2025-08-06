@@ -11,7 +11,7 @@ To set up this sample, you will need the following:
 ## Prerequisites
 
 - [Python](https://www.python.org/) version 3.9 or higher
-- [dev tunnel](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows) (for local development)
+- [dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows) (for local development)
 - An Agent created in Microsoft CopilotStudio or access to an existing Agent.
 - Ability to create an Application Identity in Azure for a public client/native App Registration or access to an existing one with the `CopilotStudio.Copilots.Invoke` API persmission assigned.
 

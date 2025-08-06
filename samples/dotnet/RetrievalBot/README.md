@@ -9,14 +9,14 @@ This Agent Sample is intended to introduce you to the Copilot Retrieval API Grou
 ## Prerequisites
 
 - [.NET](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) version 8.0
-- [Dev Tunnels](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started)
+- [Dev Tunnels](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started)
 - [Bot Framework Emulator](https://github.com/Microsoft/BotFramework-Emulator/releases) for Testing Web Chat.
 - Download and install Visual Studio (I have 2022 version).
 - You need Azure subscription to create Azure Bot Service. Follow the steps here – Link TBD
 - Have Git available on your computer [Git - Installing Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 - You also need Copilot licenses enabled in your tenant for calling the Retrieval API. And actually deploying the Agent to Copilot
 - If you have a Copilot tenant, make sure your admin can install the app package from MAC (admin.microsoft.com). This requires admin level access and is the only way to upload Agentic applications to Copilot.
-- If you do not want or can’t get a Copilot tenant, but have a Dev Tenant, you can still use this sample and deploy your Agent to your Teams channel or chat or meeting. Here are the steps for this - [Upload your custom app - Teams | Microsoft Learn](https://learn.microsoft.com/en-us/microsoftteams/platform/concepts/deploy-and-publish/apps-upload). This process doesn’t require Admin level access. Just ensure that your admin has allowed users to upload apps to Teams store. [Manage custom app policies and settings - Microsoft Teams | Microsoft Learn](https://learn.microsoft.com/en-us/microsoftteams/teams-custom-app-policies-and-settings).
+- If you do not want or can’t get a Copilot tenant, but have a Dev Tenant, you can still use this sample and deploy your Agent to your Teams channel or chat or meeting. Here are the steps for this - [Upload your custom app - Teams | Microsoft Learn](https://learn.microsoft.com/microsoftteams/platform/concepts/deploy-and-publish/apps-upload). This process doesn’t require Admin level access. Just ensure that your admin has allowed users to upload apps to Teams store. [Manage custom app policies and settings - Microsoft Teams | Microsoft Learn](https://learn.microsoft.com/microsoftteams/teams-custom-app-policies-and-settings).
 - You will not be able to use the Copilot Retrieval APIs if you don't have a Copilot Tenant.
 - You also need to be a SharePoint administrator and should be able to create a SPO site and add a sample document from which you want to retrieve relevant information using the Copilot Retrieval API. Once you upload your document(s), give the API a couple of hours to index so that it can return relevant information. You can upload the document 'Contoso sessions at Microsoft Build Conference 2025.docx' in SharePoint Documents folder to ask it the sample queries listed below.
 
@@ -36,7 +36,7 @@ This Agent Sample is intended to introduce you to the Copilot Retrieval API Grou
         1. With Credential Free (Keyless):
         
            This is a secure way to authenticate to Azure resources without needing to store credentials in your code. Your Azure user account is assigned the "Cognitive Services OpenAI User" role, which allows you to access the OpenAI resource.
-           Follow this guide [Role-based access control for Azure resources](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/role-based-access-control) to assign the "Cognitive Services OpenAI User" role to your Azure user account and Managed Identities.    
+           Follow this guide [Role-based access control for Azure resources](https://learn.microsoft.com/azure/ai-services/openai/how-to/role-based-access-control) to assign the "Cognitive Services OpenAI User" role to your Azure user account and Managed Identities.    
            
            Then you just need to configure Azure OpenAI Endpoint and DeploymentName in the appsettings.json file
         
@@ -129,9 +129,9 @@ If you type a message and hit enter, or the send arrow, you should receive a mes
       1. Set the **TenantId** to the Tenant Id where your application is registered.
       1. Set the **Audience** to the AppId of the bot identity.
       
-      > Storing sensitive values in appsettings is not recommend.  Follow [AspNet Configuration](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-9.0) for best practices.
+      > Storing sensitive values in appsettings is not recommend.  Follow [AspNet Configuration](https://learn.microsoft.com/aspnet/core/fundamentals/configuration/?view=aspnetcore-9.0) for best practices.
 
-1. Run `dev tunnels`. Please follow [Create and host a dev tunnel](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
+1. Run `dev tunnels`. Please follow [Create and host a dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
    > NOTE: Go to your project directory and open the `./Properties/launchSettings.json` file. Check the port number and use that port number in the devtunnel command (instead of 3978).
 
    ```bash

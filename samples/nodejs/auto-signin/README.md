@@ -17,7 +17,7 @@ The sample uses the bot OAuth capabilities in [Azure Bot Service](https://docs.b
 - ## Prerequisites
 
 -  [NodeJS](https://nodejs.org) version 20.0 or greater
--  [dev tunnel](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows) (for local development)
+-  [dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows) (for local development)
 
 ## Configure Azure Bot Service
 
@@ -60,7 +60,7 @@ The sample uses the bot OAuth capabilities in [Azure Bot Service](https://docs.b
     ```
       
 
-1. Run `dev tunnels`. Please follow [Create and host a dev tunnel](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
+1. Run `dev tunnels`. Please follow [Create and host a dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
 
    ```bash
    devtunnel host -p 3978 --allow-anonymous

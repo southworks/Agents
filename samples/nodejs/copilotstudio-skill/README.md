@@ -11,7 +11,7 @@ This sample shows how to create an Agent that can be consumed from CopilotStudio
     node --version
     ```
 
-- Access to CopilotStudio to [create an Agent](https://learn.microsoft.com/en-us/microsoft-copilot-studio/fundamentals-get-started?tabs=web)
+- Access to CopilotStudio to [create an Agent](https://learn.microsoft.com/microsoft-copilot-studio/fundamentals-get-started?tabs=web)
 
 ## Deploy in localhost
 
@@ -27,7 +27,7 @@ Take note of the tunnelUrl
 1. Create an EntraID app registration, and save the authentication information in the `.env` file, following any of the [available options](https://microsoft.github.io/Agents/HowTo/azurebot-auth-for-js.html) for Single Tenant.
 1. Update the Home page URL in the app registration with the tunnel url.
 1. Update the manifest replacing the `{baseUrl}` with the `{tunnelUrl}` and `{clientId}` with the `{appId}` from EntraID
-1. - [Configure a skill](https://learn.microsoft.com/en-us/microsoft-copilot-studio/configuration-add-skills#configure-a-skill)
+1. - [Configure a skill](https://learn.microsoft.com/microsoft-copilot-studio/configuration-add-skills#configure-a-skill)
     1. In CopilotStudio navigate to the Agent settings, skills, and register the skill with the URL `{tunnelUrl}/manifest.json`
     1. In CopilotStudio navigate to the Agent topics, add a new trigger to invoke an action to call the skill
 
@@ -36,7 +36,7 @@ Take note of the tunnelUrl
 1. Deploy the express application to Azure, using AppService, AzureVMs or Azure Container Apps.
 1. Update the Home page URL in the app registration with the Azure service URL.
 1. Create an EntraID app registration, and configure the Azure instance following any of the [available options](https://microsoft.github.io/Agents/HowTo/azurebot-auth-for-js.html) for SingleTenant.
-1. - [Configure a skill](https://learn.microsoft.com/en-us/microsoft-copilot-studio/configuration-add-skills#configure-a-skill)
+1. - [Configure a skill](https://learn.microsoft.com/microsoft-copilot-studio/configuration-add-skills#configure-a-skill)
     1. In CopilotStudio navigate to the Agent settings, skills, and register the skill with the URL `{azureServiceUrl}/manifest.json`
     1. In CopilotStudio navigate to the Agent topics, add a new trigger to invoke an action to call the skill
 

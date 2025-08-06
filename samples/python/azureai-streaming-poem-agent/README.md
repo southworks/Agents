@@ -5,7 +5,7 @@ This is a sample of a simple Agent that is hosted on a Python web service. The s
 ## Prerequisites
 
 -  [Python](https://www.python.org/) version 3.9 or higher
--  [dev tunnel](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows) (for local development)
+-  [dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows) (for local development)
 - You will need an Azure OpenAI, with the preferred model of `gpt-4o-mini`.
 
 ## Local Setup
@@ -26,7 +26,7 @@ This is a sample of a simple Agent that is hosted on a Python web service. The s
    1. Set **AZURE_OPENAI_ENDPOINT** to the endpoint for your Azure OpenAI instance. For example, if using an Azure AI Foundry named `testing`, the endpoint would be `https://endpoint.openai.azure.com/`
 
 
-1. Run `dev tunnels`. See [Create and host a dev tunnel](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
+1. Run `dev tunnels`. See [Create and host a dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
 
    ```bash
    devtunnel host -p 3978 --allow-anonymous
