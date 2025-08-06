@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "EmptyAgent": {
+    "QuickStart": {
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {

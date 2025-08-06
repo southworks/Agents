@@ -12,7 +12,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CopilotStudioEchoSkill", "c
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OBOAuthorization", "obo-authorization\OBOAuthorization.csproj", "{69FAB538-686C-4CE7-B4CE-9BD884E31EB2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EmptyAgent", "quickstart\EmptyAgent.csproj", "{6F14E243-7ED3-43D8-A433-5BA4D52077CF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QuickStart", "quickstart\QuickStart.csproj", "{6F14E243-7ED3-43D8-A433-5BA4D52077CF}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RetrievalBot", "RetrievalBot\RetrievalBot.csproj", "{9419EAC0-31D3-47DC-A008-9EDF584076D6}"
 EndProject
