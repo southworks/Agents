@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.SemanticKernel;
 using System.Threading;
-using WeatherAgent;
+using SemanticKernelMultiturn;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 

@@ -4,7 +4,7 @@
 using System.ComponentModel;
 using System.Text.Json.Serialization;
 
-namespace WeatherAgent.Agents;
+namespace SemanticKernelMultiturn.Agents;
 
 public enum WeatherForecastAgentResponseContentType
 {

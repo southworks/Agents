@@ -9,9 +9,9 @@ using System;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using WeatherAgent.Plugins;
+using SemanticKernelMultiturn.Plugins;
 
-namespace WeatherAgent.Agents;
+namespace SemanticKernelMultiturn.Agents;
 
 public class WeatherForecastAgent
 {

@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "WeatherAgent": {
+    "SemanticKernelMultiturn": {
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {
