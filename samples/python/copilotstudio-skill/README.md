@@ -50,3 +50,6 @@ Take note of the tunnelUrl
 
 1. Once the app is running, in localhost or in Azure
 1. Use the CopilotStudio _Test your agent_ chat UI, and use the trigger defined to invoke the skill
+
+## Further Reading
+For more information on logging configuration, see the [logging section](https://github.com/microsoft/Agents/blob/main/samples/python/empty-agent/README.md) in the Empty Agent sample README.
