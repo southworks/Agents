@@ -1,4 +1,4 @@
-﻿# WeatherBot Sample with Semantic Kernel
+﻿# Semantic Kernel multi-turn with weatherbot sample
 
 This is a sample of a simple Weather Forecast Agent that is hosted on an Asp.net core web service.  This Agent is configured to accept a request asking for information about a weather forecast and respond to the caller with an Adaptive Card.
 
