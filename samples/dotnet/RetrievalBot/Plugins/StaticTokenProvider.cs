@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License.using System.Threading.Tasks;
+// Licensed under the MIT License.
+
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Linq;
 using System.Threading;
 using Microsoft.Kiota.Abstractions.Authentication;

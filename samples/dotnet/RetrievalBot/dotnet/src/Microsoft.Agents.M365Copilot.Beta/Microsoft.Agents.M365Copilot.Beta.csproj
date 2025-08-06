@@ -6,6 +6,8 @@
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <LangVersion>latest</LangVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
 
   <ItemGroup>
