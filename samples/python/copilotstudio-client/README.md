@@ -79,3 +79,6 @@ python -m src.main
 ```
 
 This should challenge you to login and connect to the Copilot Studio Hosted agent, allowing you to communicate via a console interface.
+
+## Further Reading
+For more information on logging configuration, see the [logging section](https://github.com/microsoft/Agents/blob/main/samples/python/empty-agent/README.md) in the Empty Agent sample README.
