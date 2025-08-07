@@ -5,7 +5,7 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Threading.Tasks;
 
-namespace WeatherAgent.Plugins;
+namespace SemanticKernelMultiturn.Plugins;
 
 public class AdaptiveCardPlugin
 {

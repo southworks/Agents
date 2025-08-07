@@ -1,8 +1,8 @@
-﻿# WeatherAgent Sample with LangChain
+﻿# LangChain multi-turn WeatherAgent aample
 
-This is a sample of a simple Weather Forecast Agent that is hosted on a express core web service.  This Agent is configured to accept a request asking for information about a weather forecast and respond to the caller with an Adaptive Card.
+This is a sample of a simple weather forecast agent that is hosted on a express core web service. This agent is configured to accept a request asking for information about a weather forecast and respond to the caller with an Adaptive Card.
 
-This Agent Sample is intended to introduce you the basics of integrating LangChain with the Microsoft 365 Agents SDK in order to build powerful Agents. It can also be used as a the base for a custom Agent that you choose to develop.
+This agent sample is intended to introduce you the basics of integrating LangChain with the Microsoft 365 Agents SDK in order to build powerful agents. It can also be used as a the base for a custom agent that you choose to develop.
 
 ***Note:*** This sample requires JSON output from the model which works best from newer versions of the model such as gpt-4o-mini.
 
@@ -27,13 +27,13 @@ OPENAI_API_KEY=
 USE_AZURE_OPENAI_API=true
 ```
 
-## Getting Started with WeatherBot Sample
+## Getting Started with langchain-multiturn sample
 
 Read more about [Running an Agent](../../../docs/HowTo/running-an-agent.md)
 
 ### QuickStart using Teams app test tool
 
-1. Open the weatherbot Sample in Visual Studio Code
+1. Open the `langchain-multiturn` sample in Visual Studio Code
 1. Start the application with  `npm start`
 1. Start the test tool with `npm run test-tool`
 
@@ -68,7 +68,7 @@ clientId=
 clientSecret=
 ```
    
-1. Run `dev tunnels`. Please follow [Create and host a dev tunnel](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
+1. Run `dev tunnels`. Please follow [Create and host a dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
 
    ```bash
    devtunnel host -p 3978 --allow-anonymous

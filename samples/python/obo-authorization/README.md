@@ -8,7 +8,7 @@ This Agent has been created using [Microsoft 365 Agents SDK](https://github.com/
 ## Prerequisites
 
 - [Python](https://www.python.org/) version 3.9 or higher
-- [dev tunnel](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows) (for local development)
+- [dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows) (for local development)
 
 ## Local Setup
 
@@ -42,7 +42,7 @@ This Agent has been created using [Microsoft 365 Agents SDK](https://github.com/
     In this sample, this is the only auth handler.
       
 
-1. Run `dev tunnels`. See [Create and host a dev tunnel](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
+1. Run `dev tunnels`. See [Create and host a dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
 
    ```bash
    devtunnel host -p 3978 --allow-anonymous

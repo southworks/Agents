@@ -18,6 +18,10 @@ using Microsoft.SemanticKernel.Agents;
 using System.Collections.Generic;
 using System.Text;
 using Newtonsoft.Json;
+using Microsoft.Agents.M365Copilot.Beta;
+using Microsoft.Agents.M365Copilot.Beta.Copilot.Retrieval;
+using Microsoft.Kiota.Abstractions.Authentication;
+using Microsoft.Kiota.Http.HttpClientLibrary;
 using System.Text.Json.Nodes;
 using Microsoft.Agents.M365Copilot.Beta;
 using Microsoft.Agents.M365Copilot.Beta.Copilot.Retrieval;
@@ -45,15 +49,15 @@ namespace RetrievalBot.Plugins
             string accessToken = _app.Authorization.GetTurnToken("graph");
             var tokenProvider = new StaticTokenProvider(accessToken);
             var authProvider = new BaseBearerTokenAuthenticationProvider(tokenProvider);
-            var baseURL = "https://graph.microsoft.com/beta";
-            var apiClient = new AgentsM365CopilotBetaServiceClient(authProvider, baseURL);
+            var requestAdapter = new HttpClientRequestAdapter(authProvider);
+            requestAdapter.BaseUrl = "https://graph.microsoft.com/beta";
+            var apiClient = new BaseM365CopilotClient(requestAdapter);
 
             try
             {
                 var response = await apiClient.Copilot.Retrieval.PostAsync(new RetrievalPostRequestBody()
                 {
                     QueryString = userquery,
-                    DataSource = RetrievalDataSource.SharePoint,
                     FilterExpression = "(path:\"https://<tenantname>.sharepoint.com/sites/\")", // replace <tenantname> with your tenant name
                     ResourceMetadata = [string.Empty],
                     MaximumNumberOfResults = 1

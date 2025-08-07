@@ -14,8 +14,8 @@
     "outline": "outline.png"
   },
   "name": {
-    "short": "AgentSDK EmptyAgent",
-    "full": "AgentSDK EmptyAgent"
+    "short": "AgentSDK QuickStart",
+    "full": "AgentSDK QuickStart"
   },
   "description": {
     "short": "Sample demonstrating a simple Agent that echos back user messages.",

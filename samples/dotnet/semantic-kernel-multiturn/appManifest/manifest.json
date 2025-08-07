@@ -14,8 +14,8 @@
     "outline": "outline.png"
   },
   "name": {
-    "short": "AgentSDK WeatherAgent",
-    "full": "AgentSDK WeatherAgent"
+    "short": "SK Multiturn Agent",
+    "full": "AgentSDK SemanticKernelMultiturn"
   },
   "description": {
     "short": "Sample demonstrating AgentSDK, Teams, and SemanticKernel",
