@@ -42,19 +42,19 @@ jobs:
           npm ci
           npm run build
 
-      - name: build Node Empty Agent
+      - name: build Node QuickStart
         working-directory: ./samples/nodejs/quickstart
         run: |
           npm ci
           npm run build
 
-      - name: Build  Node Cards bot
+      - name: Build  Node Cards Agent
         working-directory: ./samples/nodejs/cards/
         run: |
           npm ci
           npm run build
 
-      - name: Build  iamge Node Skill bot
+      - name: Build  iamge Node Skill Agent
         working-directory: ./samples/nodejs/copilotstudio-skill/
         run: |
           npm ci
@@ -72,13 +72,13 @@ jobs:
           npm ci
           npm run build
 
-      - name: Build Node auto signin
+      - name: Build Node auto signin Agent
         working-directory: ./samples/nodejs/auto-signin/
         run: |
           npm ci
           npm run build
 
-      - name: Build Node OBO
+      - name: Build Node OBO Agent
         working-directory: ./samples/nodejs/obo-authorization/
         run: |
           npm ci
