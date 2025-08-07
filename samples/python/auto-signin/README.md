@@ -103,4 +103,4 @@ The agent is ready to accept messages.
 ## Further reading
 To learn more about building Agents, see our [Microsoft 365 Agents SDK](https://github.com/microsoft/agents) repo.
 
-For more information on logging configuration, see the [logging section](https://github.com/microsoft/Agents/blob/main/samples/python/empty-agent/README.md) in the Empty Agent sample README.
+For more information on logging configuration, see the logging section in the Quickstart Agent sample README.
