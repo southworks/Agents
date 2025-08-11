@@ -32,6 +32,8 @@ This Agent has been created using [Microsoft 365 Agents Framework](https://githu
     
    > Be sure to follow the **Next Steps** at the end of these docs to configure your agent settings.
 
+   > **IMPORTANT:** If you want to run your agent locally via devtunnels, the only support auth type is ClientSecrets and Certificates
+
 3. Setting up OAuth
 
    > **IMPORTANT:** For Teams SSO, OAuth is always setup on the same App Registration used for the agent.  To make setting this sample up easier for other channels, do not create another App Registration; Do it all on the agents App Registration.

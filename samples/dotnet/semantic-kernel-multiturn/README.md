@@ -57,6 +57,8 @@ This Agent Sample is intended to introduce you the basics of integrating Semanti
     
    > Be sure to follow the **Next Steps** at the end of these docs to configure your agent settings.
 
+   > **IMPORTANT:** If you want to run your agent locally via devtunnels, the only support auth type is ClientSecrets and Certificates
+
 1. Running the Agent
    1. Running the Agent locally
       - Requires a tunneling tool to allow for local development and debugging should you wish to do local development whilst connected to a external client such as Microsoft Teams.

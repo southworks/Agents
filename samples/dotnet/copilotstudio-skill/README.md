@@ -38,6 +38,8 @@ This sample is intended to introduce you to:
     
    > Be sure to follow the **Next Steps** at the end of these docs to configure your agent settings.
 
+   > **IMPORTANT:** If you want to run your agent locally via devtunnels, the only support auth type is ClientSecrets and Certificates
+
 1. Updating the Agent Manifest
    - Open the [sample manifest](./wwwroot/manifest/echoskill-manifest-1.0.json)
    - Update the `privacyUrl`, `iconUrl`, `msAppId`, and `endpointUrl`

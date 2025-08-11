@@ -40,6 +40,8 @@ This is a sample of a simple Agent that is hosted on an Asp.net core web service
     
    > Be sure to follow the **Next Steps** at the end of these docs to configure your agent settings.
 
+   > **IMPORTANT:** If you want to run your agent locally via devtunnels, the only support auth type is ClientSecrets and Certificates
+
 1. Configure Azure OpenAI in appsettings
    ```json
    "AzureOpenAI": {

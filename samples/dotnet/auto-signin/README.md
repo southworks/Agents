@@ -30,6 +30,8 @@ The sample uses the bot OAuth capabilities in [Azure Bot Service](https://docs.b
     
    > Be sure to follow the **Next Steps** at the end of these docs to configure your agent settings.
 
+   > **IMPORTANT:** If you want to run your agent locally via devtunnels, the only support auth type is ClientSecrets and Certificates
+
 1. [Add OAuth to your bot](https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/azure-bot-user-authorization-federated-credentials)
    1. For ease of setup, you can use just one OAuth Connection for both handlers (below).
 
