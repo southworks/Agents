@@ -3,7 +3,7 @@
 This Agent has been created using [Microsoft 365 Agents SDK](https://github.com/microsoft/agents-for-net), it shows how to use authorization in your Agent using OAuth and OBO.
 
 - The sample uses the Agent SDK User Authorization capabilities in [Azure Bot Service](https://docs.botframework.com), providing features to make it easier to develop an Agent that authorizes users with various identity providers such as Azure AD (Azure Active Directory), GitHub, Uber, etc.
-- This sample shows how to use an OBO Exchange to update the default token with a custom scope on behalf of the user.
+- This sample shows how to use an OBO Exchange to communicate with Microsoft Copilot Studio using the CopilotStudioClient class.
 
 ## Prerequisites
 
@@ -57,8 +57,6 @@ This Agent has been created using [Microsoft 365 Agents SDK](https://github.com/
    1. **Client id** and **Client Secret** are the values created in step #4.
    1. Enter the **Tenant ID**
    1. **Scopes** is `api://botid-{{appid}}/defaultScope`. appid is the **Client id** value from #4.
-  
-1. [Add OAuth to your bot](https://aka.ms/AgentsSDK-AddAuth) using the _Azure Active Directory v2_ Provider.
 
 1. Configure the authorization handlers
    1. Open the `.env` file and update:
