@@ -4,7 +4,7 @@ This Agent has been created using [Microsoft 365 Agents Framework](https://githu
 
 This sample:
 - Gets an OAuth token automatically for every message sent by the user
-  > This is done by setting the `AgentApplication:UserAuthorization:AutoSign` setting to true.  This will use the default UserAuthorization Handler to automatically get a token for all incoming Activities.  Use this when your Agents needs the same token for much of it's functionality.
+  > This is done by setting the `AgentApplication:UserAuthorization:AutoSignin` setting to true.  This will use the default UserAuthorization Handler to automatically get a token for all incoming Activities.  Use this when your Agents needs the same token for much of it's functionality.
 - Per-Route sign in .  In this sample, this is the `-me` message.
   > Messages the user sends are routed to a handler of your choice.  This feature allows you to indicate that a particular token is needed for the handler.  Per-Route user authorization will automatically handle the OAuth flow to get the token and make it available to your Agent.  Keep in mind that if the the Auto SignIn option is enabled, you actually have two tokens available in the handler.
 
