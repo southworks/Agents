@@ -13,8 +13,8 @@ Multiple internal actions can take place within a turn, such as using internal s
 
 There is information available to the agent per turn based on the `turn context`
 
-```
-    await turnContext.SendActivityAsync(MessageFactory.Text({response}"), cancellationToken);
+```python
+    await turnContext.SendActivityAsync(MessageFactory.Text({response}), cancellationToken);
 ```
 
 The `turn context` is how activities are sent using the `SendActivityAync` method
