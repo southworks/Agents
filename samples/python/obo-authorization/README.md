@@ -3,7 +3,7 @@
 This Agent has been created using [Microsoft 365 Agents SDK](https://github.com/microsoft/agents-for-net), it shows how to use authorization in your Agent using OAuth and OBO.
 
 - The sample uses the Agent SDK User Authorization capabilities in [Azure Bot Service](https://docs.botframework.com), providing features to make it easier to develop an Agent that authorizes users with various identity providers such as Azure AD (Azure Active Directory), GitHub, Uber, etc.
-- This sample shows how to use an OBO Exchange to communicate with Microsoft Copilot Studio using the CopilotStudioClient class.
+- This sample shows how to use an OBO Exchange to communicate with Microsoft Copilot Studio using the [CopilotClient class](https://learn.microsoft.com/python/api/microsoft-agents-copilotstudio-client/microsoft.agents.copilotstudio.client.copilotclient).
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ This Agent has been created using [Microsoft 365 Agents SDK](https://github.com/
 
 1. Create an Agent in Copilot Studio.
    1. Publish your newly created Agent
-   1. Got o Settings => Advanced => Metadata and copy the following values. You will need them later:
+   1. Got to Settings => Advanced => Metadata and copy the following values. You will need them later:
       1. Schema name
       1. Environment ID
 
@@ -29,7 +29,7 @@ This Agent has been created using [Microsoft 365 Agents SDK](https://github.com/
    2. Set the **CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTSECRET** to the Secret that was created for your identity. *This is the `Secret Value` shown in the AppRegistration*.
    3. Set the **CONNECTIONS__SERVICE_CONNECTION__SETTINGS__TENANTID** to the Tenant Id where your application is registered.
 
-4. Setting up OAuth for an exchangeable token 
+1. Setting up OAuth for an exchangeable token 
    1. Create a new App Registration
       1. SingleTenant
       1. Give it a name and click **Register**
@@ -50,7 +50,7 @@ This Agent has been created using [Microsoft 365 Agents SDK](https://github.com/
       1. **Certificates & secrets**
          1. Create a new secret and record the value. This will be used later.
 
-5. Create Azure Bot **OAuth Connection**
+1. Create Azure Bot **OAuth Connection**
    1. On the Azure Bot created in Step #2, Click **Configuration** tab then the **Add OAuth Connection Settings** button.
    1. Enter a **Name**.  This will be used later.
    1. For **Service Provider** select **Azure Active Directory v2**
