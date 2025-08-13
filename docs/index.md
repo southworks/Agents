@@ -46,8 +46,8 @@ Some specific concepts that are important to the SDK are:
 
 ## Fundamentals
 
-- [Quickstart C#](./docs/quickstart-csharp.md) (JavaScript & Python Quickstarts coming soon) 
-- [Building an Agent](./docs/buildingagents.md)
-- [Managing Turns](./docs/managingturns.md)
-- [Using Activities](./docs/usingactivities.md)
-- [Creating Messages](./docs/creatingmessages.md)
+- [Quickstart C#](./quickstart-csharp.md) (JavaScript & Python Quickstarts coming soon)
+- [Building an Agent](./buildingagents.md)
+- [Managing Turns](./managingturns.md)
+- [Using Activities](./usingactivities.md)
+- [Creating Messages](./creatingmessages.md)
