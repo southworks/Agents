@@ -5,7 +5,7 @@ from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 from semantic_kernel.contents import ChatHistory
 
-from microsoft.agents.hosting.core import (
+from microsoft_agents.hosting.core import (
     Authorization,
     AgentApplication,
     TurnState,
@@ -13,10 +13,10 @@ from microsoft.agents.hosting.core import (
     MessageFactory,
     MemoryStorage,
 )
-from microsoft.agents.hosting.aiohttp import CloudAdapter
-from microsoft.agents.authentication.msal import MsalConnectionManager
+from microsoft_agents.hosting.aiohttp import CloudAdapter
+from microsoft_agents.authentication.msal import MsalConnectionManager
 
-from microsoft.agents.activity import Attachment, load_configuration_from_env
+from microsoft_agents.activity import Attachment, load_configuration_from_env
 
 from .agent import WeatherForecastAgent
 
