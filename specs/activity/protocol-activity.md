@@ -1233,6 +1233,7 @@ The `role` field indicates the treatment of the Channel Account. The value of th
 Known roles are:
 
 role | description 
+-----|-------------
 agent | indicates that this channel account is describing the agent identity in the channel.
 agenticInstance | indicates that this channel account is describing an Agentic Instance in the channel.
 agenticUser | indicates that this channel account is describing an Agentic User in this channel. 
