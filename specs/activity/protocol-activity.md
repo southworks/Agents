@@ -1234,11 +1234,12 @@ Known roles are:
 
 Role | Description 
 :-----|:-------------
-**agent** | indicates that this channel account is describing the agent identity in the channel.
+**agent** | indicates that this channel account is describing the agent identity in the channel. Legacy agents may see this as `bot`
 **agenticInstance** | indicates that this channel account is describing an Agentic Instance in the channel.
 **agenticUser** | indicates that this channel account is describing an Agentic User in this channel. 
-**user** | indicates that this channel account is describing a end user account.
 **connectoruser** | indicates that this channel account is describing a connector user from Microsoft Copilot Studio
+**user** | indicates that this channel account is describing a end user account.
+
 
 This field is intended for use in the [Transcript format](../transcript/transcript.md) [[15](#references)] to distinguish between activities sent by users and activities sent by Agents. 
 
