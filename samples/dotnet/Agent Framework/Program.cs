@@ -1,6 +1,5 @@
-using Agent_Demo1;
-using Agent_Demo1.Bot;
 using Azure.AI.OpenAI;
+using AgentFrameworkWeather;
 using Microsoft.Agents.Builder;
 using Microsoft.Agents.Hosting.AspNetCore;
 using Microsoft.Agents.Storage;
@@ -8,6 +7,8 @@ using Microsoft.Agents.Storage.Transcript;
 using Microsoft.Extensions.AI;
 using System.Reflection;
 using Azure;
+using Microsoft.Agents.Core;
+using AgentFrameworkWeather.Agent;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +16,6 @@ builder.Configuration.AddUserSecrets(Assembly.GetExecutingAssembly());
 builder.Services.AddControllers();
 builder.Services.AddHttpClient("WebClient", client => client.Timeout = TimeSpan.FromSeconds(600));
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddCloudAdapter();
 builder.Logging.AddConsole();
 
 // Add AspNet token validation
@@ -31,21 +31,35 @@ builder.Services.AddSingleton<IStorage, MemoryStorage>();
 builder.AddAgentApplicationOptions();
 
 // Add the bot (which is transient)
-builder.AddAgent<EchoBot>();
-
-var endpoint = builder.Configuration["AIServices:AzureOpenAI:Endpoint"];
-var apiKey = builder.Configuration["AIServices:AzureOpenAI:ApiKey"];
-var deployment = builder.Configuration["AIServices:AzureOpenAI:DeploymentName"];
-
-// Convert endpoint to Uri
-var endpointUri = new Uri(endpoint);
-
-// Convert apiKey to ApiKeyCredential
-var apiKeyCredential = new AzureKeyCredential(apiKey);
+builder.AddAgent<WeatherAgent>();
 
 // Register IChatClient with correct types
-builder.Services.AddSingleton<IChatClient>(sp => { return new AzureOpenAIClient(endpointUri, apiKeyCredential).GetChatClient(deployment).AsIChatClient(); });
+builder.Services.AddSingleton<IChatClient>(sp => {
 
+    var confSvc = sp.GetRequiredService<IConfiguration>();
+    var endpoint = confSvc["AIServices:AzureOpenAI:Endpoint"] ?? string.Empty;
+    var apiKey = confSvc["AIServices:AzureOpenAI:ApiKey"] ?? string.Empty;
+    var deployment = confSvc["AIServices:AzureOpenAI:DeploymentName"] ?? string.Empty;
+
+    // Validate OpenWeatherAPI key. 
+    var openWeatherApiKey = confSvc["OpenWeatherApiKey"] ?? string.Empty;
+
+    AssertionHelpers.ThrowIfNullOrEmpty(endpoint, "AIServices:AzureOpenAI:Endpoint configuration is missing and required.");
+    AssertionHelpers.ThrowIfNullOrEmpty(apiKey, "AIServices:AzureOpenAI:ApiKey configuration is missing and required.");
+    AssertionHelpers.ThrowIfNullOrEmpty(deployment, "AIServices:AzureOpenAI:DeploymentName configuration is missing and required.");
+    AssertionHelpers.ThrowIfNullOrEmpty(openWeatherApiKey, "OpenWeatherApiKey configuration is missing and required.");
+
+    // Convert endpoint to Uri
+    var endpointUri = new Uri(endpoint);
+
+    // Convert apiKey to ApiKeyCredential
+    var apiKeyCredential = new AzureKeyCredential(apiKey);
+
+    // Create and return the AzureOpenAIClient's ChatClient
+    return new AzureOpenAIClient(endpointUri, apiKeyCredential).GetChatClient(deployment).AsIChatClient(); 
+});
+
+// Uncomment to add transcript logging middleware to log all conversations to files
 builder.Services.AddSingleton<Microsoft.Agents.Builder.IMiddleware[]>([new TranscriptLoggerMiddleware(new FileTranscriptLogger())]);
 
 var app = builder.Build();
@@ -59,6 +73,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+
 // Map the /api/messages endpoint to the AgentApplication
 app.MapPost("/api/messages", async (HttpRequest request, HttpResponse response, IAgentHttpAdapter adapter, IAgent agent, CancellationToken cancellationToken) =>
 {
@@ -67,9 +82,13 @@ app.MapPost("/api/messages", async (HttpRequest request, HttpResponse response, 
 
 if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Playground")
 {
-    app.MapGet("/", () => "Echo Agent");
+    app.MapGet("/", () => "Agent Framework Example Weather Agent");
     app.UseDeveloperExceptionPage();
     app.MapControllers().AllowAnonymous();
+
+    // Hardcoded for brevity and ease of testing. 
+    // In production, this should be set in configuration.
+    app.Urls.Add($"http://localhost:3978");
 }
 else
 {

@@ -9,7 +9,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 
-namespace Agent_Demo1;
+namespace AgentFrameworkWeather;
 
 public static class AspNetExtensions
 {
