@@ -1,14 +1,14 @@
-using Azure.AI.OpenAI;
 using AgentFrameworkWeather;
+using AgentFrameworkWeather.Agent;
+using Azure;
+using Azure.AI.OpenAI;
 using Microsoft.Agents.Builder;
+using Microsoft.Agents.Core;
 using Microsoft.Agents.Hosting.AspNetCore;
 using Microsoft.Agents.Storage;
 using Microsoft.Agents.Storage.Transcript;
 using Microsoft.Extensions.AI;
 using System.Reflection;
-using Azure;
-using Microsoft.Agents.Core;
-using AgentFrameworkWeather.Agent;
 
 var builder = WebApplication.CreateBuilder(args);
 

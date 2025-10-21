@@ -26,24 +26,6 @@ namespace AgentFrameworkWeather.Agent
         You should use the {{DateTimePlugin.GetDateTime}} to get the current date and time.
         """;
 
-        private const string AgentInstructions_AdaptiveCard = """
-        You are a friendly feline assistant that helps people find the current weather or a weather forecast for a given place.
-        Location is a city name, 2 letter US state codes should be resolved to the full name of the United States State.
-        You may ask follow up questions until you have enough information to answer the customers question, but once you have the current weather or a forecast, make sure to format it nicely using an adaptive card.
-        For current weather, Use the {{WeatherLookupTool.GetCurrentWeatherForLocation}}, you should include the current temperature, low and high temperatures, wind speed, humidity, and a short description of the weather.
-        For forecast's, Use the {{WeatherLookupTool.GetWeatherForecastForLocation}}, you should report on the next 5 days, including the current day, and include the date, high and low temperatures, and a short description of the weather.
-        You should use the {{DateTimePlugin.GetDateTime}} to get the current date and time.
-        You should use adaptive JSON format to display the information in a concise, yet visually appealing way and include a button for more details that points at https://www.msn.com/en-us/weather/forecast/in-{location}
-        You should use adaptive cards version 1.5 or later.
-
-        Respond in JSON format with the following JSON schema:
-        
-        {
-            "contentType": "'Text' or 'AdaptiveCard' only",
-            "content": "{The content of the response, may be plain text, or JSON based adaptive card}"
-        }
-        """;
-
         private readonly IChatClient? _chatClient = null;
         private readonly IConfiguration? _configuration = null;
 
@@ -85,29 +67,16 @@ namespace AgentFrameworkWeather.Agent
                 // Stream the response back to the user as we receive it from the agent.
                 await foreach (var response in _agent.RunStreamingAsync(userText, thread, cancellationToken: cancellationToken))
                 {
-                    // Log out tool calls so you know what is going on: 
-                    if (response.Role == ChatRole.Tool)
-                    {
-                        // System.Diagnostics.Trace.WriteLine($"Tool called: {response.} with input: {response.Text}");
-                    }
-
-
                     if (response.Role == ChatRole.Assistant && !string.IsNullOrEmpty(response.Text))
                     {
                         turnContext.StreamingResponse.QueueTextChunk(response.Text);
                     }
-                    // Log tool calls if needed
-                    //Console.WriteLine($"Tool called: {toolCall.ToolName} with input: {toolCall.Input}");
                 }
                 turnState.Conversation.SetValue("conversation.threadInfo", ProtocolJsonSerializer.ToJson(thread.Serialize()));
-
-                //await turnContext.SendActivityAsync("done", cancellationToken: cancellationToken);
             }
             finally
             {
                 await turnContext.StreamingResponse.EndStreamAsync(cancellationToken).ConfigureAwait(false); // End the streaming response
-                var a = Activity.CreateEndOfConversationActivity(); 
-                //await turnContext.SendActivityAsync(Activity.CreateEndOfConversationActivity());
             }
         }
 
@@ -159,7 +128,7 @@ namespace AgentFrameworkWeather.Agent
         /// <param name="agent">ChatAgent</param>
         /// <param name="turnState">State Manager for the Agent.</param>
         /// <returns></returns>
-        private AgentThread GetConversationThread(ChatClientAgent agent, ITurnState turnState)
+        private static AgentThread GetConversationThread(ChatClientAgent agent, ITurnState turnState)
         {
             AgentThread thread;
             string? agentThreadInfo = turnState.Conversation.GetValue<string?>("conversation.threadInfo", () => null);
