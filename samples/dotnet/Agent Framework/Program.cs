@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
 using AgentFrameworkWeather;
 using AgentFrameworkWeather.Agent;
 using Azure;
