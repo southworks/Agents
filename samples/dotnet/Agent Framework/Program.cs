@@ -86,7 +86,7 @@ if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Playg
     app.UseDeveloperExceptionPage();
     app.MapControllers().AllowAnonymous();
 
-    // Hardcoded for brevity and ease of testing. 
+    // Hard coded for brevity and ease of testing. 
     // In production, this should be set in configuration.
     app.Urls.Add($"http://localhost:3978");
 }

@@ -1,4 +1,4 @@
-﻿using AgentFrameworkWeather.Plugins;
+﻿using AgentFrameworkWeather.Tools;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.Builder;
 using Microsoft.Agents.Builder.App;
@@ -13,14 +13,16 @@ namespace AgentFrameworkWeather.Agent
 {
     public class WeatherAgent : AgentApplication
     {
+        private readonly string AgentWelcomeMessage = "Hello! I'm your friendly weather cat assistant. I can help you find the current weather or a weather forecast for any city. Just tell me the city name and, if you're in the US, the 2-letter state code. Meow!";
+
         private readonly string AgentInstructions = """
         You are a friendly feline assistant that helps people find the current weather or a weather forecast for a given place.
         You will always speak like a cat.
         Location is a city name, 2 letter US state codes should be resolved to the full name of the United States State.
         You may ask follow up questions until you have enough information to answer the customers question, but once you have the current weather or a forecast, make sure to format it nicely in text.
         
-        For current weather, Use the {{WeatherForecastPlugin.GetCurrentWeatherForLocation}}, you should include the current temperature, low and high temperatures, wind speed, humidity, and a short description of the weather.
-        For forecast's, Use the {{WeatherForecastPlugin.GetWeatherForecastForLocation}}, you should report on the next 5 days, including the current day, and include the date, high and low temperatures, and a short description of the weather.
+        For current weather, Use the {{WeatherLookupTool.GetCurrentWeatherForLocation}}, you should include the current temperature, low and high temperatures, wind speed, humidity, and a short description of the weather.
+        For forecast's, Use the {{WeatherLookupTool.GetWeatherForecastForLocation}}, you should report on the next 5 days, including the current day, and include the date, high and low temperatures, and a short description of the weather.
         You should use the {{DateTimePlugin.GetDateTime}} to get the current date and time.
         """;
 
@@ -28,8 +30,8 @@ namespace AgentFrameworkWeather.Agent
         You are a friendly feline assistant that helps people find the current weather or a weather forecast for a given place.
         Location is a city name, 2 letter US state codes should be resolved to the full name of the United States State.
         You may ask follow up questions until you have enough information to answer the customers question, but once you have the current weather or a forecast, make sure to format it nicely using an adaptive card.
-        For current weather, Use the {{WeatherForecastPlugin.GetCurrentWeatherForLocation}}, you should include the current temperature, low and high temperatures, wind speed, humidity, and a short description of the weather.
-        For forecast's, Use the {{WeatherForecastPlugin.GetWeatherForecastForLocation}}, you should report on the next 5 days, including the current day, and include the date, high and low temperatures, and a short description of the weather.
+        For current weather, Use the {{WeatherLookupTool.GetCurrentWeatherForLocation}}, you should include the current temperature, low and high temperatures, wind speed, humidity, and a short description of the weather.
+        For forecast's, Use the {{WeatherLookupTool.GetWeatherForecastForLocation}}, you should report on the next 5 days, including the current day, and include the date, high and low temperatures, and a short description of the weather.
         You should use the {{DateTimePlugin.GetDateTime}} to get the current date and time.
         You should use adaptive JSON format to display the information in a concise, yet visually appealing way and include a button for more details that points at https://www.msn.com/en-us/weather/forecast/in-{location}
         You should use adaptive cards version 1.5 or later.
@@ -63,15 +65,15 @@ namespace AgentFrameworkWeather.Agent
             {
                 if (member.Id != turnContext.Activity.Recipient.Id)
                 {
-                    await turnContext.SendActivityAsync(MessageFactory.Text("ADD IN YOUR PROMPT FOR YOUR AGENT HERE"), cancellationToken);
+                    await turnContext.SendActivityAsync(AgentWelcomeMessage);
                 }
             }
         }
         protected async Task OnMessageAsync(ITurnContext turnContext, ITurnState turnState, CancellationToken cancellationToken)
         {
             // Start a Streaming Process to let clients that support streaming know that we are processing the request. 
-            await turnContext.StreamingResponse.QueueInformativeUpdateAsync("Just a moment please..", cancellationToken).ConfigureAwait(false);
-
+            await turnContext.StreamingResponse.QueueInformativeUpdateAsync("Just a moment please..").ConfigureAwait(false);
+          
             try
             {
                 var userText = turnContext.Activity.Text?.Trim() ?? string.Empty;
@@ -104,6 +106,8 @@ namespace AgentFrameworkWeather.Agent
             finally
             {
                 await turnContext.StreamingResponse.EndStreamAsync(cancellationToken).ConfigureAwait(false); // End the streaming response
+                var a = Activity.CreateEndOfConversationActivity(); 
+                //await turnContext.SendActivityAsync(Activity.CreateEndOfConversationActivity());
             }
         }
 

@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel;
 
-namespace AgentFrameworkWeather.Plugins
+namespace AgentFrameworkWeather.Tools
 {
     public static class DateTimeFunctionTool
     {

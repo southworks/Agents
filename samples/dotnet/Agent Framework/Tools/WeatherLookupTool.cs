@@ -5,7 +5,7 @@ using OpenWeatherMapSharp;
 using OpenWeatherMapSharp.Models;
 using System.ComponentModel;
 
-namespace AgentFrameworkWeather.Plugins
+namespace AgentFrameworkWeather.Tools
 {
     public class WeatherLookupTool(ITurnContext turnContext, IConfiguration configuration)
     {
@@ -80,6 +80,10 @@ namespace AgentFrameworkWeather.Plugins
                     return wInfo;
                 }
             }
+            else
+            {
+                System.Diagnostics.Trace.WriteLine($"Failed to complete API Call to OpenWeather: {openWeatherLocation!.Error}");
+            }
             return null;
         }
 
@@ -140,6 +144,10 @@ namespace AgentFrameworkWeather.Plugins
                     var result = weather.Response.Items;
                     return result;
                 }
+            }
+            else
+            {
+                System.Diagnostics.Trace.WriteLine($"Failed to complete API Call to OpenWeather: {openWeatherLocation!.Error}");
             }
             return null;
         }
