@@ -4,6 +4,7 @@ import { TurnState, MemoryStorage, TurnContext, AgentApplication, AttachmentDown
   from '@microsoft/agents-hosting'
 import { version } from '@microsoft/agents-hosting/package.json'
 import { ActivityTypes } from '@microsoft/agents-activity'
+import { startServer } from '@microsoft/agents-hosting-express'
 
 interface ConversationState {
   count: number;
@@ -14,7 +15,8 @@ const downloader = new AttachmentDownloader()
 
 // Define storage and application
 const storage = new MemoryStorage()
-export const agentApp = new AgentApplication<ApplicationTurnState>({
+
+const agentApp = new AgentApplication<ApplicationTurnState>({
   storage,
   fileDownloaders: [downloader]
 })
@@ -72,3 +74,5 @@ agentApp.onActivity(
     await context.sendActivity(`Matched function: ${context.activity.type}`)
   }
 )
+
+startServer(agentApp)
