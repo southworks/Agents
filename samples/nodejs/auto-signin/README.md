@@ -33,8 +33,10 @@ The sample uses the bot OAuth capabilities in [Azure Bot Service](https://docs.b
 1. Configuring the token connection in the Agent settings
    > The instructions for this sample are for a SingleTenant Azure Bot using ClientSecrets.  The token connection configuration will vary if a different type of Azure Bot was configured.  For more information see [MSAL Authentication provider](https://learn.microsoft.com/microsoft-365/agents-sdk/azure-bot-authentication-for-javascript)
 
-  1. Open the `env.TEMAPLTE` file in the root of the sample project and rename it to `.env`
-  1. Update **clientId**, **tenantId** and **clientSecret**
+  1. Open the `env.TEMPLATE` file in the root of the sample project, rename it to `.env` and configure the following values:
+      1. Set the **connections__serviceConnection__settings__clientId** to the AppId of the bot identity.
+      2. Set the **connections__serviceConnection__settings__clientSecret** to the Secret that was created for your identity. *This is the `Secret Value` shown in the AppRegistration*.
+      3. Set the **connections__serviceConnection__settings__tenantId** to the Tenant Id where your application is registered.
   
 
 1. Configure the UserAuthorization handlers
