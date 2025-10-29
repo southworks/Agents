@@ -1,3 +1,4 @@
+import { startServer } from '@microsoft/agents-hosting-express'
 import { AgentApplication, MessageFactory } from '@microsoft/agents-hosting'
 import pjson from '@microsoft/agents-hosting/package.json'
 
@@ -14,3 +15,5 @@ skillAgent.onActivity('message', async (context) => {
     await context.sendActivity(MessageFactory.text('Running on version ' + pjson.version, 'Running on version ' + pjson.version))
   }
 })
+
+startServer(skillAgent)
