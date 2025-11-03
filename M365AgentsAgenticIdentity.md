@@ -73,7 +73,7 @@ The format for the URLs should be:
 
 https://github.com/microsoft/Agents/blob/{BranchName}/M365AgentsAgenticIdentity.md#TagName
 
-The branchname in the template above is "users/cleemullins/ConfigurationAndErrors
+The branchname in the template above is "users/cleemullins/ConfigurationAndErrors"
 
 In the example above "TagName" is generated as part of this prompt. Emit this as markdown for suitable for paste it into the document in Appendix 2. 
 ```
