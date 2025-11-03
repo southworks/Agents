@@ -7,7 +7,7 @@ To create an AI Teammate who works alongside humans, Microsoft introduced few ke
 
 **Agent ID Blueprint** is an application that holds the business logic and orchestration for an agent and has the ability to create and manage agent identities. These agent identities are tied to their parent Agent ID Blueprint and can only be managed by that specific Blueprint. 
 
-[TODO - Confirm] This value will match the Agent ID configured in the Azure Bot Sevice.
+[TODO - Confirm] This value will match the Agent ID configured in the Azure Bot Service.
 
 **Agent Identity** is an app-like identity, derived from service principal that represents an autonomous agent. An Agent ID Blueprint can get tokens for its child Agent Identities through FIC impersonation. Agent Identities are single tenant, created in the tenant where the Agent ID Blueprint is installed, but a given Agent ID Blueprint can create and manage multiple Agent Identities within a single tenant.
 
