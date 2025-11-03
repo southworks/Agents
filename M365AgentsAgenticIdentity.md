@@ -75,7 +75,7 @@ https://github.com/microsoft/Agents/blob/{BranchName}/M365AgentsAgenticIdentity.
 
 The branchname in the template above is "users/cleemullins/ConfigurationAndErrors"
 
-In the example above "TagName" is generated as part of this prompt. Emit this as markdown for suitable for paste it into the document in Appendix 2. 
+In the example above "TagName" is generated as part of this prompt. Emit this as markdown suitable for pasting into the document in Appendix 2. 
 ```
 
 ### Top-Level Headers
