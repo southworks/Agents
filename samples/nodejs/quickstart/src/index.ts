@@ -5,6 +5,8 @@ import { TurnState, MemoryStorage, TurnContext, AgentApplication }
   from '@microsoft/agents-hosting'
 import { ActivityTypes } from '@microsoft/agents-activity'
 
+// Create custom conversation state properties.  This is
+// used to store customer properties in conversation state.
 interface ConversationState {
   count: number;
 }
@@ -36,4 +38,3 @@ agentApp.onActivity(ActivityTypes.Message, async (context: TurnContext, state: A
 })
 
 startServer(agentApp)
-
