@@ -18,7 +18,33 @@ ErrorMessage(
 
 That link redirects to this document, using the error code as deep link. 
 
-## Agentic Users and Terms
+## Quick Navigation
+
+## Python Error Codes (-60000 to -66999)
+
+- [Authentication Errors (-60000 to -60999)](#authentication-errors--60000-to--60999) - Token acquisition, MSAL configuration, and agentic identity authentication
+- [Storage - Cosmos DB Errors (-61000 to -61999)](#storage---cosmos-db-errors--61000-to--61999) - Cosmos DB configuration, partition keys, and storage operations
+- [Storage - Blob Errors (-61100 to -61199)](#storage---blob-errors--61100-to--61199) - Azure Blob Storage configuration and container management
+- [Teams Errors (-62000 to -62999)](#teams-errors--62000-to--62999) - Microsoft Teams context, channels, meetings, and participants
+- [Hosting Errors (-63000 to -63999)](#hosting-errors--63000-to--63999) - Adapter configuration, turn context, authentication, and streaming
+- [Activity Errors (-64000 to -64999)](#activity-errors--64000-to--64999) - Bot Framework activity validation and channel configuration
+- [Copilot Studio Errors (-65000 to -65999)](#copilot-studio-errors--65000-to--65999) - Power Platform connections and agent configuration
+- [General/Validation Errors (-66000 to -66999)](#generalvalidation-errors--66000-to--66999) - Configuration validation, serialization, and state management
+
+## C# Error Codes
+
+- [Authentication Errors (-40000 to -40100)](#authentication-errors--40000-to--40100) - MSAL configuration, authentication modules, connection management, and provider configuration
+- [Builder/Hosting Errors (-50000 to -50100)](#builderhosting-errors--50000-to--50100) - Token providers, routing attributes, streaming responses, user authorization handlers, OBO token exchange, agentic authentication, and connector user authorization
+- [Connector/Channel Errors (-60000 to -60100)](#connectorchannel-errors--60000-to--60100) - Bot Framework connector operations including conversations, activities, members, attachments, and token service operations
+- [Client/Agent Errors (-90000 to -90100)](#clientagent-errors--90000-to--90100) - Agent host configuration, agent discovery, agent communication, and token provider management
+
+## Using This Document
+
+When an exception is thrown in the M365 Agents SDK, it includes an error code and a link (via aka.ms) that deep-links directly to the relevant section in this document. Simply click the link in your exception message or search for the error code to find detailed troubleshooting information.
+
+---
+
+# Agentic Users and Terms
 To create an AI Teammate who works alongside humans, Microsoft introduced few key concepts like Agent Blueprint (AB), Agent Identity (AI), Agentic User (AU). Agentic Users are autonomous agents that want to behave like user accounts.
 
 **Agentic User** is an identity for an autonomous agent that acts like a user to access resources. Each agentic user is tied to a particular agent instance "parent", and from there to a specific Agent ID Blueprint. Agentic users support the features of normal user accounts -- they can have mailboxes and participate in chats, etc., with some small restrictions for security.
@@ -1046,7 +1072,10 @@ Verify the data being deserialized is in the correct format. Check for schema ve
 _This documentation is current as of the latest version of the Microsoft 365 Agents SDK for Python. For the most up-to-date information, refer to the official SDK documentation and release notes._
 
 # C# Error Codes
-## -40000
+
+## Authentication Errors (-40000 to -40100)
+
+### -40000
 Missing Authentication Configuration
 
 No connections found in for this Agent in the Connections Configuration
@@ -1059,7 +1088,7 @@ Review your appsettings (or equivalent configuration). Ensure at least one valid
 
 ---
 
-## -40001
+### -40001
 Connection Not Found By Name
 
 Connection '{0}' not found in configuration
@@ -1072,7 +1101,7 @@ Check your caller's request for typos in the connection name. Confirm that your 
 
 ---
 
-## -40002
+### -40002
 Failed To Create Auth Module Provider
 
 Failed to create authentication provider for connection name '{0}'
@@ -1085,7 +1114,7 @@ Check the configuration for correct assembly and type names for custom authentic
 
 ---
 
-## -40003
+### -40003
 Auth Provider Type Not Found
 
 Type '{0}' not found in Assembly '{1}' or is the wrong type for '{2}'
@@ -1098,7 +1127,7 @@ Check your configuration for typos in the type or assembly names. Make sure your
 
 ---
 
-## -40004
+### -40004
 Auth Provider Type Invalid Constructor
 
 Type '{0},{1}' does not have the required constructor.
@@ -1111,7 +1140,7 @@ Ensure the custom authentication provider exposes a public constructor with appr
 
 ---
 
-## -40005
+### -40005
 Configuration Section Not Found
 
 Authentication configuration section '{0}' not Found.
@@ -1124,7 +1153,7 @@ Add or correct the named configuration section in your appsettings or configurat
 
 ---
 
-## -40006
+### -40006
 Configuration Section Not Provided
 
 No configuration section provided. An authentication configuration section is required to create a connection settings object.
@@ -1134,6 +1163,24 @@ This error occurs when an operation that requires a configuration section to ini
 
 **Likely Fix:**  
 Ensure that the calling code supplies a valid IConfigurationSection when constructing this settings object. Review how configuration is loaded and passed into the component, and consider adding null-checks upstream.
+
+---
+
+## Builder/Hosting Errors (-50000 to -50100)
+
+_(Error codes in this range will be documented as they are implemented in the SDK)_
+
+---
+
+## Connector/Channel Errors (-60000 to -60100)
+
+_(Error codes in this range will be documented as they are implemented in the SDK)_
+
+---
+
+## Client/Agent Errors (-90000 to -90100)
+
+_(Error codes in this range will be documented as they are implemented in the SDK)_
 
 ---
 
