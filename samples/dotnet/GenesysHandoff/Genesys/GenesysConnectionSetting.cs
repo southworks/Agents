@@ -1,9 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
-
 using Microsoft.Extensions.Configuration;
 
-namespace GenesysHandoff
+namespace GenesysHandoff.Genesys
 {
 
     /// <summary>
@@ -12,7 +11,7 @@ namespace GenesysHandoff
     /// <remarks>This class encapsulates the OAuth URL, API URL, integration ID, client ID, and client secret
     /// necessary for authenticating and interacting with the Genesys platform. The settings are typically loaded from a
     /// configuration section.</remarks>
-    internal class GenesysConnectionSetting
+    internal class GenesysConnectionSetting : IGenesysConnectionSettings
     {
         /// <summary>
         /// Gets or sets the OAuth URL used for authentication.

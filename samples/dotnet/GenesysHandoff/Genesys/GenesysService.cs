@@ -14,11 +14,11 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace GenesysHandoff
+namespace GenesysHandoff.Genesys
 {
-    internal class GenesysClient(GenesysConnectionSetting setting, IHttpClientFactory httpClientFactory, IStorage storage)
+    internal class GenesysService(IGenesysConnectionSettings setting, IHttpClientFactory httpClientFactory, IStorage storage) : IGenesysService
     {
-        private readonly GenesysConnectionSetting _setting = setting ?? throw new ArgumentNullException(nameof(setting));
+        private readonly IGenesysConnectionSettings _setting = setting ?? throw new ArgumentNullException(nameof(setting));
         private readonly IHttpClientFactory _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         private readonly IStorage _storage = storage ?? throw new ArgumentNullException(nameof(storage));
 
@@ -35,14 +35,14 @@ namespace GenesysHandoff
         private DateTime _tokenExpiryTime;
         private readonly SemaphoreSlim _tokenSemaphore = new(1, 1);
 
-        internal async Task SendMessageToGenesysAsync(IActivity activity, string mcsConversationId, CancellationToken cancellationToken)
+        public async Task SendMessageToGenesysAsync(IActivity activity, string mcsConversationId, CancellationToken cancellationToken)
         {
             var authToken = await AuthenticateAsync(cancellationToken);
             await StoreConversationReferenceAsync(activity, mcsConversationId, cancellationToken);
             await SendMessageAsync(activity, mcsConversationId, authToken, cancellationToken);
         }
 
-        internal async Task RetrieveMessageFromGenesysAsync(HttpRequest request, IChannelAdapter channelAdapter, CancellationToken cancellationToken)
+        public async Task RetrieveMessageFromGenesysAsync(HttpRequest request, IChannelAdapter channelAdapter, CancellationToken cancellationToken)
         {
             var payload = await JsonSerializer.DeserializeAsync<GenesysOutboundPayload>(request.Body, cancellationToken: cancellationToken);
 
@@ -52,7 +52,7 @@ namespace GenesysHandoff
             }
 
             var c2ConversationId = payload.Channel.To.Id;
-            var state = await storage.ReadAsync([c2ConversationId], cancellationToken);
+            var state = await _storage.ReadAsync([c2ConversationId], cancellationToken);
 
             if (!state.TryGetValue(c2ConversationId, out var referenceObj) || referenceObj is not ConversationReference conversationReference)
             {

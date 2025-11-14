@@ -16,6 +16,7 @@ Ensure you have access to the following software and platform credentials:
 | **Platforms** | [Azure Subscription](https://azure.microsoft.com/en-us/free/) | Required for hosting the agent infrastructure. |
 | | [Microsoft Copilot Studio Platform](https://copilotstudio.microsoft.com) | Access to configure and publish the Copilot. |
 | | [Genesys Dashboard](https://www.genesys.com) | Access credentials for managing and monitoring Genesys interactions. |
+| | [Genesys Open Messaging](https://developer.genesys.cloud/commdigital/digital/openmessaging/openmessaging-apis) | Required for setting up messaging flows and configurations. Genesys Open Messaging API v2 is getting used in this sample. |
 
 ---
 
