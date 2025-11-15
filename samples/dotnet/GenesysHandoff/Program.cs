@@ -10,11 +10,10 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Net.Http;
 using System.Threading;
 
 var builder = WebApplication.CreateBuilder(args);
-
-IGenesysService? globalGenesysClient = null;
 
 builder.Services.AddHttpClient();
 
@@ -29,9 +28,16 @@ builder.Services.AddSingleton<IStorage, MemoryStorage>();
 
 // Add the AgentApplication, which contains the logic for responding to
 // user messages.
-builder.AddAgent(sp =>
-    Agent.CreateAgentApplication(sp, builder.Configuration)
-);
+builder.AddAgent<GenesysHandoffAgent>();
+
+// Register GenesysService as a singleton.
+GenesysService? genesysService = null;
+builder.Services.AddSingleton(sp =>
+{
+    var settings = new GenesysConnectionSetting(builder.Configuration.GetSection("Genesys"));
+    genesysService = new GenesysService(settings, sp.GetService<IHttpClientFactory>()!, sp.GetService<IStorage>()!);
+    return genesysService;
+});
 
 // Configure the HTTP request pipeline.
 
@@ -55,17 +61,17 @@ var incomingRoute = app.MapPost("/api/messages", async (
     await adapter.ProcessAsync(request, response, agent, cancellationToken);
 });
 
-// This receives outgoing messages from Genesys and relays them to the user via the Agent.
+// This receives outbound proactive messages from Genesys to be sent to users
 var genesysOutboundRoute = app.MapPost("/api/outbound", async (HttpRequest request, HttpResponse response, IChannelAdapter channelAdapter, CancellationToken cancellationToken) =>
 {
-    if (globalGenesysClient == null)
+    if (genesysService == null)
     {
         response.StatusCode = StatusCodes.Status500InternalServerError;
-        await response.WriteAsync("GenesysService not initialized", cancellationToken);
+        await response.WriteAsync("GenesysClient not initialized", cancellationToken);
         return;
     }
 
-    await globalGenesysClient.RetrieveMessageFromGenesysAsync(request, channelAdapter, cancellationToken);
+    await genesysService.RetrieveMessageFromGenesysAsync(request, channelAdapter, cancellationToken);
     response.StatusCode = StatusCodes.Status200OK;
     await response.WriteAsync("Proactive message sent.", cancellationToken);
 });

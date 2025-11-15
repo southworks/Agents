@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 
 namespace GenesysHandoff.Genesys
 {
-    internal class GenesysService(IGenesysConnectionSettings setting, IHttpClientFactory httpClientFactory, IStorage storage) : IGenesysService
+    public class GenesysService(IGenesysConnectionSettings setting, IHttpClientFactory httpClientFactory, IStorage storage)
     {
         private readonly IGenesysConnectionSettings _setting = setting ?? throw new ArgumentNullException(nameof(setting));
         private readonly IHttpClientFactory _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
@@ -295,12 +295,6 @@ namespace GenesysHandoff.Genesys
                 "application/pdf" => "File",
                 _ => "File"
             };
-        }
-
-        private static string ExtractConversationId(string activityId)
-        {
-            var separatorIndex = activityId.IndexOf('|');
-            return separatorIndex > 0 ? activityId[..separatorIndex] : activityId;
         }
     }
 }

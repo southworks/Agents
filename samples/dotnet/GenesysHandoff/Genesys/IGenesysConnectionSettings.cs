@@ -1,6 +1,6 @@
 ﻿namespace GenesysHandoff.Genesys
 {
-    internal interface IGenesysConnectionSettings
+    public interface IGenesysConnectionSettings
     {
         /// <summary>
         /// Gets or sets the OAuth URL used for authentication.
