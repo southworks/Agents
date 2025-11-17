@@ -35,7 +35,7 @@ That link redirects to this document, using the error code as deep link.
 
 - [Authentication Errors (-40000 to -40100)](#authentication-errors--40000-to--40100) - MSAL configuration, authentication modules, connection management, and provider configuration
 - [Builder/Hosting Errors (-50000 to -50100)](#builderhosting-errors--50000-to--50100) - Token providers, routing attributes, streaming responses, user authorization handlers, OBO token exchange, agentic authentication, and connector user authorization
-- [Connector/Channel Errors (-60000 to -60100)](#connectorchannel-errors--60000-to--60100) - Bot Framework connector operations including conversations, activities, members, attachments, and token service operations
+- [Connector/Channel Errors (-50500 to -50600)](#connectorchannel-errors--50500-to--50600) - Bot Framework connector operations including conversations, activities, members, attachments, and token service operations
 - [Client/Agent Errors (-90000 to -90100)](#clientagent-errors--90000-to--90100) - Agent host configuration, agent discovery, agent communication, and token provider management
 
 ## Using This Document
@@ -1168,21 +1168,825 @@ Ensure that the calling code supplies a valid IConfigurationSection when constru
 
 ## Builder/Hosting Errors (-50000 to -50100)
 
-_(Error codes in this range will be documented as they are implemented in the SDK)_
+### -50000
+**IAccessTokenProvider Not Found**
+
+An instance of IAccessTokenProvider not found for {0}
+
+**Description & Context:**  
+This error occurs when the system attempts to retrieve an access token provider for a specific connection or service URL but cannot find one. The `IAccessTokenProvider` is responsible for obtaining authentication tokens needed to communicate with various Microsoft services including the Azure Bot Service, Teams, and other backend services. This error typically surfaces when making authenticated requests without a properly configured connection or when the connection mapping fails to resolve to a valid provider.
+
+**Likely Fix:**  
+Ensure that your `IConnections` instance has been properly configured with the required connection. Verify that `AgentApplicationOptions.Connections` is set and contains a connection that matches the requested identifier. If using configuration-based setup, check that your connection settings in `appsettings.json` or environment variables are correct and properly registered in dependency injection. Review the connection name being requested and ensure it matches a configured connection in your `IConnections` registry.
 
 ---
 
-## Connector/Channel Errors (-60000 to -60100)
+### -50001
+**User Token Provider IAccessTokenProvider Not Found**
 
-_(Error codes in this range will be documented as they are implemented in the SDK)_
+An instance of IAccessTokenProvider not found for {0}
+
+**Description & Context:**  
+This error is specific to user token providers and occurs when attempting to obtain a user-specific access token but the corresponding provider cannot be located. This is distinct from -50000 as it specifically relates to user authentication flows rather than general service-to-service authentication. The error typically appears during user authorization scenarios where the system needs to acquire tokens on behalf of a user.
+
+**Likely Fix:**  
+Verify that your user authorization configuration includes the necessary token provider. If using `UserAuthorizationOptions`, ensure that the handlers are properly configured with valid `IAccessTokenProvider` instances. Check that the `IConnections` service is registered in DI and contains the appropriate user token connection. Review your OAuth connection settings if using Azure Bot OAuth connections, and ensure the connection name matches what's configured in your Azure Bot resource.
+
+---
+
+### -50002
+**RouteAttribute Selector Not Found**
+
+The RouteAttribute.Selector method '{0}' is not found.
+
+**Description & Context:**  
+This error occurs during `AgentApplication` initialization when a `[Route]` attribute references a selector method by name, but that method cannot be found on the `AgentApplication` class or its subclasses. The `RouteAttribute` allows decorating handler methods with routing configuration, and when a custom `Selector` is specified, the framework uses reflection to find and bind to that method. This error indicates the method name doesn't match any accessible method.
+
+**Likely Fix:**  
+Ensure that the selector method name specified in the `[Route(Selector = "MethodName")]` attribute exactly matches the name of a method defined in your `AgentApplication` subclass. The method must be accessible (public, protected, or private) and match the `RouteSelector` delegate signature: `Task<bool> MethodName(ITurnContext turnContext, CancellationToken cancellationToken)`. Check for typos in the method name and verify the method is defined in the correct class.
+
+---
+
+### -50003
+**RouteAttribute Selector Invalid**
+
+The RouteAttribute.Selector method '{0}' does not match the RouteSelector delegate definition.
+
+**Description & Context:**  
+This error occurs when a selector method referenced by a `RouteAttribute` is found but has an incorrect signature that doesn't match the expected `RouteSelector` delegate. The `RouteSelector` delegate requires a specific signature to function properly within the routing framework. Even if a method with the correct name exists, if its parameters or return type don't match, the framework cannot use it as a selector.
+
+**Likely Fix:**  
+Verify that your selector method signature exactly matches the `RouteSelector` delegate: `Task<bool> MethodName(ITurnContext turnContext, CancellationToken cancellationToken)`. Common mistakes include: incorrect return type (must be `Task<bool>`), wrong number of parameters, incorrect parameter types (especially including `ITurnState` which is not part of the selector signature), or incorrect access modifiers. Adjust the method signature to match the required delegate definition.
+
+---
+
+### -50004
+**RouteAttribute Handler Invalid**
+
+The method does not match the RouteHandler delegate definition.
+
+**Description & Context:**  
+This error occurs when a method decorated with a `RouteAttribute` doesn't match the expected `RouteHandler` delegate signature. When using the `[Route]` attribute to decorate methods that should handle specific activities or messages, those methods must conform to the `RouteHandler` signature. This ensures the framework can properly invoke them when the route condition is met.
+
+**Likely Fix:**  
+Ensure your route handler method matches the `RouteHandler` delegate signature: `Task MethodName(ITurnContext turnContext, ITurnState turnState, CancellationToken cancellationToken)`. All three parameters must be present in the correct order with the correct types. The method must return `Task`. If the error occurs with specialized routes like handoff, verify you're using the appropriate handler signature for that route type (e.g., `HandoffHandler` for handoff routes).
+
+---
+
+### -50005
+**RouteAttribute Missing Arguments**
+
+A RouteAttribute is missing required arguments.
+
+**Description & Context:**  
+This error occurs when a `RouteAttribute` is applied to a method but doesn't include the necessary arguments to define a valid route. Different `RouteType` values require different combinations of properties. For example, an `Activity` route needs either a `Type`, `Regex`, or `Selector`; a `Message` route needs `Text`, `Regex`, or `Selector`; and so on. Without these required properties, the framework cannot determine when to invoke the handler.
+
+**Likely Fix:**  
+Review your `[Route]` attribute and ensure it includes the required properties for the specified `RouteType`. For `RouteType.Activity`, provide either `Type`, `Regex`, or `Selector`. For `RouteType.Message`, provide either `Text`, `Regex`, or `Selector`. For `RouteType.Event`, provide `EventName`, `Regex`, or `Selector`. For `RouteType.Conversation`, provide `EventName` or `Selector`. Check the RouteAttribute documentation for your specific RouteType to understand which properties are required.
+
+---
+
+### -50006
+**Streaming Response Ended**
+
+StreamingResponse instance has already ended.
+
+**Description & Context:**  
+This error occurs when attempting to queue additional content or updates to a `StreamingResponse` that has already been finalized by calling `EndStreamAsync()`. The `StreamingResponse` class manages chunked message delivery for streaming scenarios (like AI-generated responses), and once the stream is ended, it enters a terminal state where no further modifications are allowed. This prevents inconsistent state and ensures the final message has been delivered.
+
+**Likely Fix:**  
+Ensure you're not calling methods like `QueueTextChunk()` or `QueueInformativeUpdateAsync()` after calling `EndStreamAsync()`. If you need to reuse a streaming response instance, call `ResetAsync()` before attempting to queue new content. Review your streaming logic to ensure proper sequencing: queue all chunks first, then call `EndStreamAsync()` once. If you encounter this in a retry scenario, consider creating a new `StreamingResponse` instance or properly resetting the existing one.
+
+---
+
+### -50008
+**User Authorization Not Configured**
+
+The AgentApplication.UserAuthorization feature is unavailable because no user Authorization handlers were configured in AgentApplication:UserAuthorization:Handlers.
+
+**Description & Context:**  
+This error occurs when code attempts to use the `AgentApplication.UserAuthorization` feature but no user authorization handlers have been configured. User authorization requires at least one handler to be defined that can manage the OAuth flow, token acquisition, and user sign-in process. Without configured handlers, the system cannot perform user authentication operations.
+
+**Likely Fix:**  
+Configure at least one user authorization handler in your `AgentApplicationOptions.UserAuthorization` or in your configuration under `AgentApplication:UserAuthorization:Handlers`. This can be done programmatically by passing `UserAuthorizationOptions` with configured handlers, or via configuration by defining handler sections. Ensure your handler configuration includes the necessary settings such as OAuth connection names, scopes, and other provider-specific properties. If you don't need user authorization, avoid accessing `AgentApplication.UserAuthorization` in your code.
+
+---
+
+### -50009
+**User Authorization Requires Adapter**
+
+AgentApplication.UserAuthorization requires AgentApplicationOptions.Adapter set.
+
+**Description & Context:**  
+This error occurs during `AgentApplication` initialization when `UserAuthorization` is configured but `AgentApplicationOptions.Adapter` is null. User authorization flows often require multi-turn conversations and proactive messaging capabilities (such as sending OAuth cards and continuing conversation after token acquisition), which require an `IChannelAdapter` instance. Without an adapter, the framework cannot manage the necessary conversation flows.
+
+**Likely Fix:**  
+Ensure that `AgentApplicationOptions.Adapter` is set to a valid `IChannelAdapter` instance before enabling user authorization. This is typically done by passing the adapter to your `AgentApplicationOptions` constructor or setting the Adapter property. If using dependency injection, verify that your `IChannelAdapter` is properly registered and being injected into your application options. The adapter is essential for managing the OAuth callback flow and continuing conversations after authentication.
+
+---
+
+### -50010
+**User Authorization Handler Not Found**
+
+Handler name '{0}' not found in configuration under AgentApplication:UserAuthorization:Handlers, or AgentApplication:UserAuthorization:DefaultHandlerName is invalid.
+
+**Description & Context:**  
+This error occurs when code requests a specific user authorization handler by name, but that handler cannot be found in the configured handlers collection. This typically happens when using named handlers for different OAuth flows (e.g., "graph", "sharepoint") but the requested name doesn't match any configured handler. It can also occur if the default handler name is misconfigured.
+
+**Likely Fix:**  
+Verify that the handler name being requested matches a handler defined in your configuration under `AgentApplication:UserAuthorization:Handlers` or in your `UserAuthorizationOptions`. Check for typos in handler names and ensure consistency between configuration and code. If using a default handler, verify that `AgentApplication:UserAuthorization:DefaultHandlerName` points to a valid handler. Review your configuration structure to ensure handler definitions are properly nested under the Handlers section.
+
+---
+
+### -50011
+**Failed to Create User Authorization Handler**
+
+Failed to create user Authorization provider for handler name '{0}'
+
+**Description & Context:**  
+This error occurs when the framework successfully locates a user authorization handler definition but fails to instantiate it. This can happen due to constructor failures, missing dependencies, invalid configuration settings, or type loading issues. The handler definition may be correct, but the actual creation of the handler instance encounters an exception.
+
+**Likely Fix:**  
+Review the inner exception for specific details about what failed during handler construction. Common issues include: missing or invalid configuration settings required by the handler constructor, unavailable dependencies (like `IStorage` or `IConnections`), incorrect assembly or type names if using custom handlers, or configuration values that fail validation. Ensure all required services are registered in dependency injection and that configuration values match the handler's expected settings schema.
+
+---
+
+### -50012
+**No User Authorization Handlers**
+
+No UserAuthorization Handlers were defined.
+
+**Description & Context:**  
+This error occurs when creating a `UserAuthorizationDispatcher` but no handlers have been provided. The dispatcher requires at least one handler to function, as it's responsible for routing user authorization requests to the appropriate handler. This error typically occurs during application initialization when `UserAuthorizationOptions` is misconfigured or empty.
+
+**Likely Fix:**  
+Ensure that your `UserAuthorizationOptions` includes at least one handler definition. If using configuration-based setup, verify that your `appsettings.json` has a `UserAuthorization:Handlers` section with at least one handler defined. If using programmatic setup, ensure you pass at least one `IUserAuthorization` instance to the `UserAuthorizationOptions` constructor. Check that your configuration is being loaded correctly and that the handlers section is not empty.
+
+---
+
+### -50013
+**User Authorization Type Not Found**
+
+Type '{0}' not found in Assembly '{1}' or is the wrong type for '{2}'.
+
+**Description & Context:**  
+This error occurs when using custom user authorization handlers with type loading, and the specified type cannot be found in the specified assembly or doesn't implement the required interface. The framework uses reflection to load custom handler types, and this error indicates the type name, assembly name, or interface implementation is incorrect.
+
+**Likely Fix:**  
+Verify that the assembly name and type name specified in your handler configuration are correct and fully qualified. Ensure the assembly is available and loadable at runtime. Confirm that the type implements `IUserAuthorization` interface. Check for version mismatches between referenced assemblies. If using a custom handler, ensure it's compiled into an assembly that's deployed with your application. Review the namespace and assembly qualifications for accuracy.
+
+---
+
+### -50014
+**User Authorization Failed**
+
+Error occurred while trying to authenticate user with '{0}'
+
+**Description & Context:**  
+This error occurs when a user authorization flow encounters a critical error during the sign-in process. This is a general authentication failure that wraps more specific exceptions that occurred during token acquisition, OAuth callbacks, or other authentication operations. The error indicates that the sign-in attempt could not be completed successfully.
+
+**Likely Fix:**  
+Review the inner exception and `Cause` property for specific details about what failed. Common issues include: OAuth connection misconfiguration, expired or invalid client secrets, incorrect scopes, network connectivity issues to authentication endpoints, or user cancellation. Verify your OAuth connection settings in Azure Bot Service, check that redirect URLs are properly configured, and ensure your application has the necessary permissions for the requested scopes. Test the OAuth connection independently through the Azure Portal to isolate configuration issues.
+
+---
+
+### -50015
+**User Authorization Already Active**
+
+UserAuthorization sign in for '{0}' is already in progress.
+
+**Description & Context:**  
+This error occurs when attempting to start a new user sign-in flow while one is already in progress for the same handler. The framework prevents concurrent sign-in flows for the same user and handler to avoid state conflicts and confusion. This can happen if duplicate requests are processed or if logic incorrectly attempts to restart authentication while waiting for user input.
+
+**Likely Fix:**  
+Ensure your code doesn't attempt to initiate sign-in multiple times concurrently. If using auto sign-in, the framework handles this automatically, so avoid manually calling sign-in methods while auto sign-in is active. Check for duplicate message handling or race conditions that might trigger multiple sign-in attempts. If a sign-in is legitimately stuck, consider implementing logic to reset the authentication state after a timeout or explicit user action.
+
+---
+
+### -50016
+**OBO Not Exchangeable Token**
+
+OBO for '{0}' is not setup for exchangeable tokens. For Token Service handlers, the 'Scopes' field on the Azure Bot OAuth Connection should be in the format of 'api://{{appid_uri}}/{{scopeName}}'.
+
+**Description & Context:**  
+This error occurs when attempting On-Behalf-Of (OBO) token exchange with a handler that's not configured to return exchangeable tokens. OBO flow requires tokens that can be exchanged for tokens with different scopes or audiences. For Azure Bot OAuth connections, the scopes must be formatted in a specific way to enable token exchange. A non-exchangeable token (like one for `User.Read` directly) cannot be used for OBO scenarios.
+
+**Likely Fix:**  
+Review your Azure Bot OAuth Connection configuration and ensure the Scopes are formatted as `api://{appid_uri}/{scopeName}` for your backend API. This format creates an exchangeable token that can be used with OBO. Update your handler configuration to specify the correct `OBOConnectionName` and `OBOScopes`. Ensure your backend API is registered in Azure AD and configured to accept tokens from your bot's app registration. Verify that the API permissions are granted in Azure AD for the required scopes.
+
+---
+
+### -50017
+**OBO Not Supported**
+
+OBO not supported on '{0}'
+
+**Description & Context:**  
+This error occurs when attempting to perform an On-Behalf-Of (OBO) token exchange with a user authorization handler that doesn't implement the `IOBOExchange` interface. Not all authentication providers support OBO flows. For example, managed identity-based handlers or some custom authentication flows may not support exchanging tokens on behalf of users.
+
+**Likely Fix:**  
+Verify that the handler you're using supports OBO exchange by checking if it implements `IOBOExchange`. If using a custom handler, implement the `IOBOExchange` interface with the `AcquireTokenOnBehalfOf` method. If the handler fundamentally cannot support OBO (like system managed identity), consider using a different handler that supports this flow, such as one based on confidential client credentials. For Azure Bot OAuth connections, ensure you're using a handler type that supports OBO exchange.
+
+---
+
+### -50018
+**OBO Exchange Failed**
+
+OBO exchange failed for connection '{0}' with scopes '{1}'. Check your OBOConnectionName and scope(s).
+
+**Description & Context:**  
+This error occurs when an On-Behalf-Of token exchange operation fails. The OBO flow attempts to exchange a user token obtained through one OAuth connection for a new token with different scopes or for a different resource. Failure can occur due to misconfiguration, insufficient permissions, invalid tokens, or expired tokens.
+
+**Likely Fix:**  
+Verify that your `OBOConnectionName` points to a valid connection configuration with the correct client ID and secret. Check that the requested scopes are valid and that your application has been granted permission to those scopes in Azure AD. Ensure the initial user token is valid and not expired. Verify that the `appid_uri` in your scopes matches your backend API's application ID URI. Review the Azure AD app registration for both the bot and the backend API to ensure proper permission grants and API exposure settings.
+
+---
+
+### -50019
+**Unexpected Authorization State**
+
+Unexpected state for handler '{0}'
+
+**Description & Context:**  
+This error occurs when the authentication system encounters an unexpected state during token refresh or exchange operations. Specifically, it's raised when attempting to refresh a cached token that's near expiration but receiving a null or invalid token response. This indicates a logic error or inconsistent state in the authentication flow where a token was expected but not received.
+
+**Likely Fix:**  
+This error typically indicates a deeper issue with the authentication handler or connection. Check logs for any preceding errors that might explain why token refresh failed. Verify that OAuth connections are still valid and credentials haven't expired. Consider implementing retry logic with exponential backoff. Review the handler's token refresh logic to ensure it properly handles edge cases. If this occurs consistently, it may indicate a need to sign the user out and restart the authentication flow.
+
+---
+
+### -50020
+**User Token Client Not Available**
+
+An instance of IUserTokenClient is not available. This is most likely due to the registered IChannelServiceClientFactory not creating one.
+
+**Description & Context:**  
+This error occurs when user authorization code attempts to interact with the Azure Bot Token Service through `IUserTokenClient`, but the client instance is not available. The `IUserTokenClient` is typically created by the `IChannelServiceClientFactory`, and this error indicates the factory didn't provide one. This can happen if the adapter or client factory is not properly configured for user token operations.
+
+**Likely Fix:**  
+Ensure your `IChannelServiceClientFactory` implementation creates and returns an `IUserTokenClient` instance. Verify that your adapter is properly configured with the necessary services. If using the default adapters, check that all required dependencies are registered in DI. Review your Azure Bot configuration to ensure the bot has the necessary OAuth connection settings configured. If using a custom adapter, ensure it supports user token operations and properly initializes the user token client.
+
+---
+
+### -50021
+**Exchange Token Unexpected Null**
+
+ExchangeToken returned an empty token.
+
+**Description & Context:**  
+This error occurs when a token exchange operation completes without throwing an exception but returns a null or empty token. This unexpected result indicates a successful API call that didn't produce the expected token, suggesting a configuration issue or unexpected API behavior rather than an outright failure.
+
+**Likely Fix:**  
+Review your token exchange configuration, particularly OAuth connection settings and scopes. Verify that the exchangeable token being provided is valid and properly formatted. Check Azure Bot OAuth Connection settings to ensure they're complete and correct. Review API permissions in Azure AD to ensure the necessary permissions are granted for token exchange. Enable detailed logging to capture the full request and response to identify why a token wasn't returned despite no error being raised.
+
+---
+
+### -50022
+**Extension Already Registered**
+
+An instance of this extention has allready been registred for this application. {0}
+
+**Description & Context:**  
+This error occurs when attempting to register an agent extension that has already been registered with the `AgentApplication`. Extensions are typically registered once during application initialization, and duplicate registration could lead to handlers being executed multiple times or conflicting behavior. The framework prevents this by tracking registered extensions.
+
+**Likely Fix:**  
+Review your application initialization code to ensure each extension is only registered once. Check for duplicate calls to `RegisterExtension()` or similar registration methods. If you have modular initialization code, ensure extensions aren't being registered in multiple places. Consider using conditional logic to check if an extension is already registered before attempting registration, or structure your initialization to prevent duplicate calls.
+
+---
+
+### -50023
+**Agentic Token Provider Not Found**
+
+An instance of IAgenticTokenProvider not found or not supported for '{0}'
+
+**Description & Context:**  
+This error occurs when attempting to obtain an agentic token (used for agent-to-agent communication or specialized authorization scenarios) but the configured connection doesn't support or provide an `IAgenticTokenProvider`. Agentic tokens are specialized tokens used in advanced scenarios, and not all authentication providers support them.
+
+**Likely Fix:**  
+Verify that your `IConnections` configuration includes a connection that implements `IAgenticTokenProvider`. Check that you're using an authentication provider that supports agentic scenarios (such as MSAL-based providers configured appropriately). Review your connection configuration to ensure it's set up for the correct authentication type. If using custom connections, ensure the connection implements `IAgenticTokenProvider` interface with the necessary token acquisition methods for agentic scenarios.
+
+---
+
+### -50024
+**Agentic Token Provider Failed**
+
+Unable to get Agentic token for Tenant '{0}', InstanceId '{1}', UPN '{2}', Role '{3}'
+
+**Description & Context:**  
+This error occurs when an attempt to acquire an agentic token fails. Agentic tokens are specialized tokens used for agent instance authentication and authorization. The error provides context about the specific tenant, instance ID, user principal name, and role for which the token acquisition failed. This typically indicates configuration issues or permission problems in the agentic authentication flow.
+
+**Likely Fix:**  
+Verify that the tenant ID, agent instance ID, UPN, and role are all correct and properly configured. Check Azure AD app registration for the agent to ensure it has the necessary API permissions for agentic scenarios. Review federated identity credentials if using workload identity or managed identity. Ensure the `api://AzureAdTokenExchange/.default` scope is properly configured. Check that the agent app instance ID is valid and registered. Review authentication logs for more specific error details about what failed during token acquisition.
+
+---
+
+### -50025
+**Not An Agentic Request**
+
+Invalid operation '{0}' on a non-Agentic request.
+
+**Description & Context:**  
+This error occurs when code attempts to perform an agentic-specific operation on an activity or request that is not an agentic request. Agentic requests have specific properties and context that distinguish them from regular bot conversations. Attempting agentic operations on non-agentic requests will fail because the necessary context and authorization structures are not present.
+
+**Likely Fix:**  
+Ensure you're checking whether a request is agentic before attempting agentic-specific operations. Use `turnContext.IsAgenticRequest()` or similar methods to determine if the current activity is an agentic request before calling agentic-specific APIs. Review your routing logic to ensure agentic operations are only executed for agentic routes. If implementing custom agentic logic, verify that the incoming activity contains the necessary agentic properties and context.
+
+---
+
+### -50030
+**Unexpected Connector Request Token**
+
+Unexpected request token for handler '{0}'.
+
+**Description & Context:**  
+This error occurs when processing tokens supplied by Copilot Studio Connectors and receiving a token in an unexpected format or at an unexpected time. Copilot Studio Connectors have specific expectations about token handling and validation. This error indicates that a token was provided in a context or format that doesn't match the expected Connector authentication flow.
+
+**Likely Fix:**  
+Review your Copilot Studio Connector configuration to ensure it's sending tokens in the expected format. Verify that your handler is correctly configured to work with Copilot Studio Connectors. Check the token validation logic to ensure it aligns with Connector requirements. Review any customizations you've made to token handling to ensure they're compatible with the Connector token flow. Consult Copilot Studio Connector documentation for the expected token format and validation requirements.
+
+---
+
+### -50031
+**Unexpected Connector Token Expiration**
+
+The token for handler '{0}' has expired.
+
+**Description & Context:**  
+This error occurs when a token provided by a Copilot Studio Connector has expired before it could be used. Connectors provide tokens with specific validity periods, and if processing takes too long or tokens are cached inappropriately, they may expire before use. This is particularly problematic in connector scenarios where token refresh may not be available.
+
+**Likely Fix:**  
+Review your token caching and handling logic to ensure tokens are used promptly and not cached beyond their expiration time. Implement token expiration checks before using tokens. Consider reducing processing time between token receipt and use. If using cached tokens, implement proper expiration validation and refresh logic. For Copilot Studio Connector scenarios, ensure your handler processes requests quickly to avoid token expiration. Check if the token expiration time is too short and if it can be adjusted in the Connector configuration.
+
+---
+
+### -50032
+**User Authorization Default Handler Not Found**
+
+Handler name '{0}' not found in configuration under AgentApplication:UserAuthorization:Handlers, or AgentApplication:UserAuthorization:DefaultHandlerName is invalid.
+
+**Description & Context:**  
+This error occurs specifically when the default user authorization handler cannot be found or created. Unlike -50010 which can occur for any named handler, this error is raised during initialization when the framework attempts to validate and instantiate the default handler. A valid default handler is critical for auto sign-in and other automatic authentication scenarios.
+
+**Likely Fix:**  
+Verify that `AgentApplication:UserAuthorization:DefaultHandlerName` in your configuration points to a valid handler defined in `AgentApplication:UserAuthorization:Handlers`. If you haven't specified a default handler name, ensure that at least one handler is defined (the first will be used as default). Check the handler configuration for completeness and ensure all required settings are provided. Verify that the default handler can be successfully instantiated by checking its dependencies and configuration settings. Review initialization logs for any preceding errors that might explain why the default handler failed to create.
+
+---
+
+
+## Connector/Channel Errors (-50500 to -50600)
+
+---
+
+### -50500
+**Invalid Access Token For Agent Callback**
+
+The Access Token created to respond to a request from the agent was rejected by the remote endpoint. This can be caused by the incorrect connection configuration. Please verify that configuration against the expected configuration.
+
+**Description & Context:**  
+This error occurs when the agent attempts to respond to an incoming request but the access token it generated for authentication is rejected by the Azure Bot Service or the remote endpoint. This typically happens during outbound communication when the agent needs to send activities back to the conversation. The token validation failure indicates a mismatch between the credentials being used and what the remote endpoint expects, often stemming from incorrect connection configuration, expired credentials, or mismatched app IDs.
+
+**Likely Fix:**  
+Verify that your connection configuration (typically in `IConnections` or `AgentApplicationOptions.Connections`) is correctly configured with valid credentials that match the Azure Bot Service registration. Check that the App ID and App Password/Secret match what's registered in Azure. Ensure that the connection you're using to respond to requests is the correct one for the channel/endpoint you're communicating with. Review your authentication configuration to ensure the token provider is generating tokens for the correct audience and with the proper claims. If using multiple connections, verify that the connection mapping logic correctly selects the appropriate connection for the service URL.
+
+---
+
+### -50501
+**Get Conversations Error**
+
+GetConversations operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when calling the GetConversations API operation on the Bot Connector service and receiving an HTTP status code that indicates failure. The GetConversations operation retrieves a list of conversations for the bot. The error includes the HTTP status code and status description, providing insight into what went wrong during the API call. Common causes include authentication failures, network issues, service unavailability, or insufficient permissions.
+
+**Likely Fix:**  
+Review the specific HTTP status code returned in the error message. For 401 (Unauthorized), verify your authentication credentials and ensure the access token is valid. For 403 (Forbidden), check that your bot has the necessary permissions. For 404 (Not Found), verify the service URL and endpoint are correct. For 5xx errors, the Azure Bot Service may be experiencing issues; check Azure status and retry with exponential backoff. Ensure your `IAccessTokenProvider` is correctly configured and generating valid tokens for the Bot Connector API.
+
+---
+
+### -50502
+**Create Conversation Error**
+
+CreateConversation operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to create a new conversation through the Bot Connector API and receiving a failure status code. The CreateConversation operation is used to initiate new conversations, often for proactive messaging scenarios. The error captures the HTTP status code and description returned by the service, which indicates why the conversation creation failed. This can happen due to authentication issues, invalid conversation parameters, service limitations, or configuration problems.
+
+**Likely Fix:**  
+Check the HTTP status code in the error message to diagnose the specific issue. For authentication errors (401/403), verify your bot credentials and token generation. Ensure the conversation parameters being passed are valid, including member lists and conversation properties. If creating conversations proactively, verify that your bot has the necessary permissions and that the target channel supports proactive messaging. Review the service URL to ensure you're calling the correct endpoint. For rate limiting errors (429), implement retry logic with exponential backoff.
+
+---
+
+### -50503
+**Send To Conversation Error**
+
+SendToConversation operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when sending an activity to an existing conversation through the Bot Connector API fails with an error status code. The SendToConversation operation is one of the most common operations, used to send messages, cards, and other activities to users. The error provides the HTTP status code and description, helping identify whether the issue is related to authentication, conversation state, message content, or service availability. This is a critical operation for bot functionality, and failures here directly impact the user experience.
+
+**Likely Fix:**  
+Examine the returned HTTP status code for specific guidance. For 401/403 errors, verify authentication credentials and token validity. For 404 errors, ensure the conversation ID is valid and the conversation still exists. For 400 (Bad Request) errors, validate the activity payload to ensure it conforms to the Bot Framework schema and channel-specific requirements. Check that required fields like `Type`, `From`, and conversation references are properly set. For 413 (Payload Too Large), reduce the size of attachments or message content. Implement retry logic for transient failures (5xx status codes).
+
+---
+
+### -50504
+**Send Conversation History Error**
+
+SendConversationHistory operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to send conversation history through the Bot Connector API and receiving a failure response. The SendConversationHistory operation is used to send a transcript or batch of historical activities to a conversation. This is less commonly used than SendToConversation but is important for scenarios like conversation migration or transcript replay. The error includes the HTTP status code and description to help diagnose the failure cause.
+
+**Likely Fix:**  
+Review the HTTP status code to identify the issue. Verify that the conversation ID is valid and the conversation is active. Ensure the history payload is properly formatted as an array of activities that conform to the Bot Framework schema. Check authentication credentials if receiving 401/403 errors. Validate that the activities in the history have valid timestamps and proper conversation references. If the payload is large, consider breaking it into smaller batches. Ensure the target channel supports conversation history operations.
+
+---
+
+### -50505
+**Update Activity Error**
+
+UpdateActivity operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to update an existing activity in a conversation and the Bot Connector API returns a failure status code. The UpdateActivity operation allows modifying previously sent messages, which is useful for editing messages or updating dynamic content like adaptive cards. Not all channels support activity updates, and the operation requires the original activity ID. The error captures the HTTP status and description to help identify whether the issue is channel-specific, authentication-related, or due to invalid parameters.
+
+**Likely Fix:**  
+Check the HTTP status code for specific guidance. For 404 errors, verify that the activity ID exists and is still available for updates (some channels have time limits). Ensure you're providing a valid activity ID from a previously sent message. For 501 (Not Implemented) or similar errors, the channel may not support activity updates; check channel capabilities. Verify authentication credentials for 401/403 errors. Ensure the updated activity payload is valid and includes required fields. Some channels only allow updates to certain activity types or within specific time windows.
+
+---
+
+### -50506
+**Reply To Activity Error**
+
+ReplyToActivity operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to reply to a specific activity and the Bot Connector API returns a failure status code. The ReplyToActivity operation sends a new activity as a reply to an existing activity, creating a threaded conversation in channels that support it. This operation is commonly used to maintain conversation context and threading. The error includes the HTTP status code and description, helping identify whether the failure is due to authentication, invalid activity references, or service issues.
+
+**Likely Fix:**  
+Review the HTTP status code to diagnose the issue. For 404 errors, verify that the activity ID you're replying to is valid and still exists. Ensure the conversation ID in the reply matches the original activity's conversation. For authentication errors (401/403), verify your bot credentials and token. Validate that the reply activity is properly formatted with required fields. Check that the `ReplyToId` field correctly references the activity you're responding to. For channels that don't support threading, consider using SendToConversation instead.
+
+---
+
+### -50507
+**Delete Activity Error**
+
+DeleteActivity operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to delete an activity from a conversation and receiving a failure status code from the Bot Connector API. The DeleteActivity operation removes a previously sent message, which can be useful for implementing message recall or cleaning up temporary messages. Not all channels support activity deletion, and there may be time constraints on when activities can be deleted. The error provides the HTTP status code and description to help determine the cause of the failure.
+
+**Likely Fix:**  
+Check the HTTP status code for details. For 404 errors, the activity may no longer exist or the activity ID may be invalid. Verify you're using the correct activity ID from a previously sent message. For 501 (Not Implemented) or similar errors, the channel may not support deletion; check channel capabilities before attempting deletion. Ensure authentication credentials are valid for 401/403 errors. Some channels only allow deletion within a specific time window after sending, so check if the activity is too old to delete. Verify the conversation reference is correct.
+
+---
+
+### -50508
+**Get Conversation Members Error**
+
+GetConversationMembers operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to retrieve the list of members in a conversation and the Bot Connector API returns a failure status code. The GetConversationMembers operation is used to enumerate all participants in a conversation, which is useful for features like @mentions, roster displays, or permission checks. The operation requires appropriate permissions and is subject to privacy controls in some channels. The error includes the HTTP status code and description to aid in troubleshooting.
+
+**Likely Fix:**  
+Review the HTTP status code in the error. For 404 errors, verify the conversation ID is valid and the conversation exists. For 403 (Forbidden) errors, the bot may lack permission to enumerate members in the channel (some channels restrict this for privacy). Ensure authentication credentials are valid for 401 errors. In Teams, the bot must be installed in the conversation to retrieve members. Some channels may not support member enumeration; check channel-specific documentation. Consider using GetConversationPagedMembers for large conversations to handle pagination properly.
+
+---
+
+### -50509
+**Get Conversation Member Error**
+
+GetConversationMember operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to retrieve information about a specific member in a conversation and receiving a failure status code from the Bot Connector API. The GetConversationMember operation fetches details about an individual participant, which is useful for getting user profiles or verifying member presence. Like GetConversationMembers, this operation is subject to privacy and permission controls. The error captures the HTTP status code and description to help identify the issue.
+
+**Likely Fix:**  
+Check the HTTP status code for guidance. For 404 errors, verify that both the conversation ID and member ID are valid and that the member exists in the conversation. For 403 errors, ensure the bot has permission to access member information (some channels restrict this). Verify authentication credentials for 401 errors. In Microsoft Teams, the bot must be installed in the conversation to retrieve member details. Ensure the member ID format is correct for the specific channel. Some channels may not provide detailed member information; check channel capabilities.
+
+---
+
+### -50510
+**Delete Conversation Member Error**
+
+DeleteConversationMember operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to remove a member from a conversation and the Bot Connector API returns a failure status code. The DeleteConversationMember operation is used to remove participants from conversations, though this capability is highly restricted and not supported on most channels due to security and policy considerations. The error provides the HTTP status code and description to help understand why the operation failed.
+
+**Likely Fix:**  
+Review the HTTP status code carefully. For 501 (Not Implemented) or 403 (Forbidden) errors, the channel likely doesn't support member removal or the bot doesn't have the necessary permissions. Most channels don't allow bots to remove users. Verify the conversation ID and member ID are valid for 404 errors. Ensure authentication credentials are correct for 401 errors. Check channel-specific documentation to confirm if member removal is supported. This operation typically requires elevated bot permissions and may only work in specific channel types or with owner/admin privileges.
+
+---
+
+### -50511
+**Get Conversation Paged Members Error**
+
+GetConversationPagedMembers operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to retrieve a paged list of conversation members and the Bot Connector API returns a failure status code. The GetConversationPagedMembers operation is designed for conversations with large numbers of participants, allowing retrieval in pages rather than all at once. This is particularly important for Teams channels or large group conversations where member lists can be extensive. The error includes the HTTP status code and description for troubleshooting.
+
+**Likely Fix:**  
+Check the HTTP status code for details. For 404 errors, verify the conversation ID is valid. For 403 (Forbidden) errors, ensure the bot has permission to enumerate members (required in Teams and subject to privacy controls). Verify authentication credentials for 401 errors. Check that pagination parameters (page size, continuation token) are valid if provided. In Microsoft Teams, the bot must be installed in the team/conversation to access the member roster. Some channels may not support paging; check channel capabilities. Ensure you're properly handling continuation tokens for multi-page results.
+
+---
+
+### -50512
+**Get Activity Members Error**
+
+GetActivityMembers operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to retrieve the list of members who received a specific activity and the Bot Connector API returns a failure status code. The GetActivityMembers operation is used to determine which users were part of the conversation when a particular message was sent. This can be useful for tracking message distribution or understanding conversation participation at a specific point in time. The error provides the HTTP status code and description to help diagnose the failure.
+
+**Likely Fix:**  
+Review the HTTP status code for guidance. For 404 errors, verify that both the conversation ID and activity ID are valid and that the activity exists. Ensure the activity ID references a real message that was sent to the conversation. For 403 errors, the bot may lack permission to access this information. Verify authentication credentials for 401 errors. Some channels may not support this operation; check channel-specific capabilities. The activity must have been sent to a conversation where the bot has access. Consider caching member information at the time messages are sent rather than querying later.
+
+---
+
+### -50513
+**Upload Attachment Error**
+
+UploadAttachment operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to upload an attachment to the Bot Connector service and receiving a failure status code. The UploadAttachment operation is used to upload files, images, or other binary content that can then be referenced in activities sent to users. This is particularly useful for sending large files or content that should be hosted by the Bot Framework rather than inline in messages. The error captures the HTTP status code and description to help identify upload failures related to size limits, format issues, or service problems.
+
+**Likely Fix:**  
+Check the HTTP status code for specific guidance. For 413 (Payload Too Large) errors, the attachment exceeds size limits; reduce file size or use external hosting. For 400 (Bad Request) errors, verify the attachment content type and metadata are correctly specified. Ensure authentication credentials are valid for 401/403 errors. Verify the attachment content is properly encoded and the content type header matches the actual file type. Check channel-specific attachment size and type restrictions. For large files, consider using external storage (Azure Blob Storage) and sending URLs instead. Ensure the conversation ID is valid.
+
+---
+
+### -50514
+**Get SignIn Resource Bad Request**
+
+Unable to locate the OAuth Configuration. If you are using Azure Bot Service, please verify that the OAuth configuration exists
+
+**Description & Context:**  
+This error occurs when attempting to retrieve OAuth sign-in resources but the required OAuth connection configuration cannot be found. This typically happens during user authentication flows when the bot tries to obtain a sign-in URL or resource for OAuth-based authentication. The error indicates that the OAuth connection name referenced in the code doesn't match any connection configured in the Azure Bot Service. This is a configuration issue rather than a runtime authentication failure.
+
+**Likely Fix:**  
+Verify that the OAuth connection name being requested matches exactly with a connection configured in your Azure Bot Service. In the Azure Portal, navigate to your Bot Service resource and check the OAuth Connection Settings to see configured connections. Ensure the connection name is spelled correctly and matches the case (if case-sensitive). If the connection doesn't exist, create it in the Azure Bot Service with the appropriate OAuth provider settings. If using multiple environments (dev, staging, production), ensure the connection exists in the target environment. Check that your connection configuration in code or appsettings.json matches the Azure configuration.
+
+---
+
+### -50515
+**Get Attachment Error**
+
+GetAttachment operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to retrieve or download an attachment from the Bot Connector service and receiving a failure status code. The GetAttachment operation is used to download attachment content that was previously uploaded or referenced in incoming activities. This is important for processing files, images, or other binary content sent by users or retrieved from the conversation. The error includes the HTTP status code and description to help diagnose download failures.
+
+**Likely Fix:**  
+Review the HTTP status code for details. For 404 errors, verify the attachment ID is valid and the attachment still exists (attachments may have expiration times). Ensure you're using the correct attachment URL or ID from the activity. For 401/403 errors, verify authentication credentials and ensure the bot has permission to access the attachment. For 410 (Gone) errors, the attachment may have expired; check attachment retention policies. Verify the attachment URL is properly formatted. If downloading user-submitted content, ensure the attachment ID comes from a trusted source. Implement retry logic for transient failures.
+
+---
+
+### -50516
+**Get Attachment Info Error**
+
+GetAttachmentInfo operation returned an invalid status code '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when attempting to retrieve metadata about an attachment without downloading the full content and the Bot Connector API returns a failure status code. The GetAttachmentInfo operation provides information such as file name, content type, and size without downloading the entire attachment, which is useful for validation before downloading. The error captures the HTTP status code and description to help identify why the metadata request failed.
+
+**Likely Fix:**  
+Check the HTTP status code for guidance. For 404 errors, verify the attachment ID is valid and the attachment exists. Ensure you're using the correct attachment reference from an activity or upload response. For 401/403 errors, verify authentication credentials. The attachment may have expired if you receive 410 (Gone); check retention policies. Validate that the attachment ID format is correct for the channel. If the attachment was part of an incoming activity, ensure you're extracting the ID correctly from the attachment object. Use this operation before downloading large files to verify size and type.
+
+---
+
+### -50517
+**Token Service Exchange Failed**
+
+The Token Service was unable to exchange the token. Check OAuth Connection configuration for '{0}' on the Azure Bot and try again.
+
+**Description & Context:**  
+This error occurs when attempting to exchange a token through the Azure Bot Token Service and the exchange operation fails. Token exchange is commonly used in Single Sign-On (SSO) scenarios or when obtaining tokens with different scopes or for different resources. The error indicates that the token exchange request was processed but failed, often due to OAuth connection misconfiguration, invalid tokens, or permission issues. This is distinct from unexpected HTTP responses as it represents a business logic failure in the token exchange process.
+
+**Likely Fix:**  
+Verify that the OAuth connection specified in the error message is correctly configured in your Azure Bot Service. Check that the connection has the appropriate OAuth provider settings, client ID, client secret, and scopes configured. Ensure the token being exchanged is valid and hasn't expired. For SSO scenarios, verify that the token exchange URL and parameters are correct. Check that the Azure AD application registration has the necessary API permissions for token exchange. Verify that delegated permissions or application permissions are properly granted and admin-consented where required. Review the OAuth connection's token exchange settings and ensure they match your authentication provider's requirements.
+
+---
+
+### -50518
+**Token Service Exchange Unexpected**
+
+The Token Service returned an unexpected response for Exchange: '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when calling the Azure Bot Token Service's exchange endpoint and receiving an unexpected HTTP status code that indicates failure. Unlike -50517 which represents a business logic failure, this error indicates an unexpected HTTP response from the service itself, suggesting infrastructure issues, service unavailability, or malformed requests. The error includes the status code and description to help identify the nature of the unexpected response.
+
+**Likely Fix:**  
+Review the HTTP status code to determine the issue. For 5xx (Server Error) responses, the Azure Bot Token Service may be experiencing issues; check Azure service status and implement retry logic with exponential backoff. For 400 (Bad Request) errors, verify that the exchange request payload is properly formatted with required parameters. Ensure authentication to the token service itself is valid for 401 errors. Check that the OAuth connection name and other identifiers are correct. For 404 errors, verify the token service endpoint URL is correct. Review request headers and parameters to ensure they conform to the Token Service API requirements.
+
+---
+
+### -50519
+**Token Service Get Token Unexpected**
+
+The Token Service returned an unexpected response for GetToken: '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when calling the Azure Bot Token Service's GetToken endpoint and receiving an unexpected HTTP status code. The GetToken operation retrieves a user token for a specific OAuth connection, and unexpected responses indicate issues with the request, service availability, or configuration. This is different from scenarios where the user isn't signed in (which would return normally with no token); this represents actual HTTP failures from the service.
+
+**Likely Fix:**  
+Check the HTTP status code for specific guidance. For 5xx errors, the Token Service may be experiencing issues; implement retry logic and check Azure service status. For 400 errors, verify the request parameters including connection name, user ID, and channel ID are correctly formatted. Ensure the OAuth connection name exists in your Azure Bot Service for 404 errors. Verify authentication credentials for accessing the Token Service for 401 errors. Check that the conversation reference and user identifier are valid. Review the Token Service endpoint URL to ensure it's correct for your bot's region.
+
+---
+
+### -50520
+**Token Service Get AAD Token Unexpected**
+
+The Token Service returned an unexpected response for GetAadToken: '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when calling the Azure Bot Token Service's GetAadToken endpoint and receiving an unexpected HTTP status code. The GetAadToken operation is specifically for retrieving Azure Active Directory tokens, often used for accessing Microsoft Graph or other Azure AD-protected resources. Unexpected responses indicate issues with the AAD token request, OAuth configuration, or service availability.
+
+**Likely Fix:**  
+Review the HTTP status code for details. For 5xx errors, check Azure service health and implement retry logic. For 400 errors, verify that AAD-specific parameters are correctly provided, including resource URLs and scopes. Ensure the OAuth connection is configured for Azure AD in your Bot Service for 404 errors. Verify authentication credentials for 401/403 errors. Check that the requested resource or scopes are valid and that the Azure AD application has the necessary permissions. Ensure the user has consented to the requested permissions. Review the OAuth connection's AAD configuration including tenant ID, client ID, and scopes.
+
+---
+
+### -50521
+**Token Service Sign Out Unexpected**
+
+The Token Service returned an unexpected response for SignOut: '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when calling the Azure Bot Token Service's SignOut endpoint to sign out a user and receiving an unexpected HTTP status code. The SignOut operation removes stored user tokens from the Token Service, and unexpected responses indicate issues with the sign-out request or service availability. This error suggests the sign-out operation couldn't complete successfully, which may leave tokens cached on the service.
+
+**Likely Fix:**  
+Check the HTTP status code for guidance. For 5xx errors, the Token Service may be experiencing issues; the sign-out may succeed on retry. For 400 errors, verify the sign-out request parameters including connection name and user ID are correct. Ensure the OAuth connection name exists for 404 errors. Verify authentication for accessing the Token Service for 401 errors. Even if sign-out fails, the user's tokens will eventually expire. Consider implementing retry logic for transient failures. If the error persists, the user can still sign in again to replace existing tokens.
+
+---
+
+### -50522
+**Token Service Get Token Status Unexpected**
+
+The Token Service returned an unexpected response for GetTokenStatus: '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when calling the Azure Bot Token Service's GetTokenStatus endpoint to check if a user has a valid token and receiving an unexpected HTTP status code. The GetTokenStatus operation checks token availability without retrieving the actual token, which is useful for conditional authentication flows. Unexpected responses indicate issues with the status check request or service availability.
+
+**Likely Fix:**  
+Review the HTTP status code for details. For 5xx errors, implement retry logic and check Azure service status. For 400 errors, verify request parameters including connection name, user ID, and channel ID are correctly formatted. Ensure the OAuth connection exists in your Bot Service for 404 errors. Verify authentication credentials for 401 errors. Check that the conversation reference and user identifier are valid. This operation is often used before attempting GetToken; if status checks fail, you might proceed to initiate sign-in directly rather than checking status first.
+
+---
+
+### -50523
+**Token Service Get Token Or SignIn Resource Unexpected**
+
+The Token Service returned an unexpected response for GetTokenOrSignInResource: '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when calling the Azure Bot Token Service's GetTokenOrSignInResource endpoint and receiving an unexpected HTTP status code. This operation attempts to retrieve a user's token if available, or return sign-in resources if the user needs to authenticate. It's a convenience method that combines token retrieval and sign-in initiation. Unexpected responses indicate issues with either the token retrieval or sign-in resource generation.
+
+**Likely Fix:**  
+Check the HTTP status code for guidance. For 5xx errors, implement retry logic and check service health. For 400 errors, verify all request parameters are correct including connection name, sign-in link settings, and user information. Ensure the OAuth connection exists for 404 errors. Verify authentication credentials for 401 errors. Check that the sign-in URL parameters and final redirect settings are valid. Review the OAuth connection configuration to ensure it supports both token retrieval and sign-in flows. Consider separating into distinct GetToken and GetSignInResource calls for better error handling.
+
+---
+
+### -50524
+**Token Service Get SignIn URL Unexpected**
+
+The Token Service returned an unexpected response for GetSignInUrl: '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when calling the Azure Bot Token Service's GetSignInUrl endpoint to generate an OAuth sign-in URL and receiving an unexpected HTTP status code. The GetSignInUrl operation creates the URL that users visit to complete OAuth authentication. Unexpected responses indicate issues with the sign-in URL generation request, OAuth connection configuration, or service availability.
+
+**Likely Fix:**  
+Review the HTTP status code for details. For 5xx errors, check Azure service status and implement retry logic. For 400 errors, verify that sign-in URL parameters including state, final redirect URL, and code challenge are correctly formatted. Ensure the OAuth connection name exists in your Bot Service for 404 errors. Verify authentication credentials for 401 errors. Check that the OAuth connection is properly configured with valid OAuth provider settings. Ensure redirect URLs are whitelisted in both the Azure Bot OAuth connection and the OAuth provider (Azure AD, Google, etc.). Review state parameter generation to ensure it's properly formatted and encoded.
+
+---
+
+### -50525
+**Token Service Get SignIn Resource Unexpected**
+
+The Token Service returned an unexpected response for GetSignInResource: '({0}) {1}'
+
+**Description & Context:**  
+This error occurs when calling the Azure Bot Token Service's GetSignInResource endpoint to retrieve sign-in resources (typically including a sign-in URL and token exchange resources) and receiving an unexpected HTTP status code. This operation provides comprehensive sign-in information needed to initiate OAuth flows, including SSO token exchange support. Unexpected responses indicate issues with resource generation, OAuth configuration, or service availability.
+
+**Likely Fix:**  
+Check the HTTP status code for guidance. For 5xx errors, check service health and implement retry logic. For 400 errors, verify request parameters including connection name and sign-in settings are correct. Ensure the OAuth connection exists for 404 errors. Verify authentication credentials for 401 errors. Check that the OAuth connection is properly configured for both traditional OAuth flow and token exchange (for SSO). Verify that token exchange URLs and resources are correctly configured in the OAuth connection settings. Review the request to ensure all required parameters for sign-in resource generation are provided.
+
+---
+
+### -50526
+**Token Service Exchange Error Response**
+
+The Token Service was unable to exchange the token. Check OAuth Connection configuration for '{0}' on the Azure Bot and try again. The response is '{1}'
+
+**Description & Context:**  
+This error occurs when the Azure Bot Token Service's token exchange operation fails and returns a detailed error response. This is similar to -50517 but includes the actual error response from the service, providing more specific information about why the exchange failed. Token exchange failures can occur due to invalid tokens, misconfigured OAuth connections, missing permissions, or issues with the target resource or authentication provider.
+
+**Likely Fix:**  
+Review the error response message included in the error for specific details about the failure. Common issues include: invalid or expired input tokens, misconfigured OAuth connection settings, missing API permissions in Azure AD, consent not granted for requested scopes, or incompatible token types. Verify the OAuth connection configuration in Azure Bot Service matches your authentication provider's requirements. Check that the token being exchanged is valid and for an exchangeable resource (often formatted as `api://{app-id}/{scope}`). Ensure Azure AD application permissions are granted and admin-consented where required. Verify the target resource or scopes are correctly specified. Review the authentication provider's documentation for token exchange requirements.
 
 ---
 
 ## Client/Agent Errors (-90000 to -90100)
 
-_(Error codes in this range will be documented as they are implemented in the SDK)_
-
 ---
+## -90000
+### Agent Host Missing Property
+A required property on AgentHost is missing: {0}
+
+**Description & Context:**
+
+This error occurs during the initialization of `ConfigurationAgentHost` when a required property is not provided or is null/whitespace. The error is raised when essential configuration values needed to set up the agent host are missing. Specifically, this is thrown when either the `DefaultResponseEndpoint` or `HostClientId` is not supplied in the configuration. These properties are critical for the agent host to function correctly - the default response endpoint defines where agents should send their responses, and the host client ID identifies the calling agent in agent-to-agent communications.
+
+**Likely Fix:**
+
+Ensure that your configuration includes both the `DefaultResponseEndpoint` and `HostClientId` values. If using the configuration-based constructor, verify that your appsettings.json or configuration source contains the appropriate values under the path `Agent:Host:DefaultResponseEndpoint` and `Agent:ClientId`. Review the configuration loading code and confirm that these values are being properly read from the configuration source before the `ConfigurationAgentHost` is instantiated.
+
+================================
+
+## -90001
+### Agent Missing Property
+A required property on Agent '{0}' settings is missing: {1}
+
+**Description & Context:**
+
+This error occurs when validating agent client settings and a required property is missing or invalid. The error is raised during agent configuration validation when an agent's settings object lacks essential properties. In the codebase, this is specifically seen when the `Name` property of an `AgentClientSettings` is null or empty. Each agent must have a name to be properly identified and referenced within the agent host system.
+
+**Likely Fix:**
+
+Review the agent configuration in your appsettings.json or wherever agent settings are defined. Ensure that each agent defined under `Agent:Host:Agents` has all required properties set. The `Name` property is automatically assigned from the configuration key (e.g., "Echo" in `Agent:Host:Agents:Echo`), but if you're manually constructing `AgentClientSettings`, explicitly set the `Name` property before calling `ValidateClientSettings()`.
+
+================================
+
+## -90002
+### Agent Not Found
+Agent '{0}' not found.
+
+**Description & Context:**
+
+This error occurs when attempting to retrieve an agent client by name, but no agent with that name has been registered with the agent host. The error is thrown by the `GetClient` method in `ConfigurationAgentHost` when the requested agent name either doesn't exist in the configured agents dictionary or is null/empty. This typically happens when code tries to send messages to an agent that hasn't been properly configured or when there's a mismatch between the agent name used in code and the name defined in configuration.
+
+**Likely Fix:**
+
+Verify that the agent name being requested matches exactly (case-sensitive) with an agent defined in your configuration under `Agent:Host:Agents`. Check your appsettings.json to ensure the agent you're trying to access is listed there. If the agent should exist, review the configuration loading process to ensure agents are being properly loaded into the `_agents` dictionary during `ConfigurationAgentHost` initialization. Also verify that you're not passing a null or empty string as the agent name.
+
+================================
+
+## -90003
+### Send To Agent Failed
+SendToAgent '{0}' failed
+
+**Description & Context:**
+
+This error occurs when an HTTP request to send an activity to a remote agent fails at the network or transport level. The error is raised in `HttpAgentClient` when the `SendAsync` call throws an exception, indicating that the communication with the agent endpoint could not be established or completed. This can happen due to network connectivity issues, the remote agent being unavailable, DNS resolution failures, or other HTTP client errors that prevent the request from being sent or receiving a response.
+
+**Likely Fix:**
+
+First, verify that the agent's endpoint URL is correct and accessible from your environment. Check that the remote agent service is running and listening on the configured endpoint. Review network connectivity, firewall rules, and DNS settings to ensure the agent host can reach the remote agent. Examine the inner exception details to understand the specific cause of the failure. If using HTTPS, verify SSL/TLS certificate validity. Consider implementing retry logic with exponential backoff for transient network issues.
+
+================================
+
+## -90004
+### Send To Agent Unsuccessful
+SendToAgent '{0}' failed with an unsuccessful response '{1}'.
+
+**Description & Context:**
+
+This error occurs when an HTTP request to a remote agent completes but returns an unsuccessful HTTP status code (anything outside the 2xx range). The error is raised in `HttpAgentClient` after receiving a non-success status code from the remote agent endpoint. This indicates that while network communication was successful, the remote agent rejected or could not process the request. Common causes include the remote agent returning 4xx client errors (bad request, not found) or 5xx server errors (internal server error, service unavailable).
+
+**Likely Fix:**
+
+Examine the HTTP status code returned in the error message to diagnose the specific issue. For 4xx errors, review the activity being sent to ensure it's properly formatted and contains all required fields. For 5xx errors, check the remote agent's logs to identify internal processing failures. Verify that the agent endpoint URL is correct and points to the intended service. Review the remote agent's API requirements and ensure your request payload matches expected schemas and validation rules.
+
+================================
+
+## -90005
+### Send To Agent Unauthorized
+SendToAgent '{0}' failed: Unauthorized
+
+**Description & Context:**
+
+This error occurs when an HTTP request to a remote agent returns a 403 Forbidden status code, indicating an authorization failure. The error is raised in `HttpAgentClient` when the remote agent rejects the request due to insufficient permissions or authentication issues. This typically happens when the calling agent's credentials are not recognized by the remote agent, when the calling agent's AppId is not included in the remote agent's `AllowedCallers` list, or when the authentication token is invalid, expired, or missing the required scopes.
+
+**Likely Fix:**
+
+Verify that the remote agent's `AllowedCallers` configuration includes your host agent's AppId/ClientId. Ensure the token provider for this agent connection is properly configured and returning valid tokens. Check that the authentication configuration (under the `ConnectionSettings:TokenProvider` for the specific agent) points to a valid connection provider. Review the agent-to-agent authentication flow to confirm tokens are being correctly acquired and added to request headers. If the issue persists, examine the remote agent's authentication middleware logs to identify why the authorization is failing.
+
+================================
+
+## -90006
+### Agent Token Provider Not Found
+Token Provider '{0}' for Agent '{1}' not found.
+
+**Description & Context:**
+
+This error occurs when attempting to create an `HttpAgentClient` but the configured token provider cannot be found in the connections registry. The error is raised in `CreateClient` within `ConfigurationAgentHost` when the `IConnections.TryGetConnection` call fails to locate a token provider with the name specified in the agent's `ConnectionSettings.TokenProvider` configuration. Each agent requires an associated token provider to authenticate when communicating with remote agents, and this error indicates that the connection mapping is broken or misconfigured.
+
+**Likely Fix:**
+
+Verify that your configuration includes a valid connection provider with a name matching the `TokenProvider` value specified in the agent's connection settings. Check your appsettings.json to ensure the connection provider is properly registered under the `Connections` section and that the name exactly matches what's referenced in `Agent:Host:Agents:{AgentName}:ConnectionSettings:TokenProvider`. Ensure that the connection provider is being loaded during application startup before the `ConfigurationAgentHost` attempts to create agent clients. Review the dependency injection configuration to confirm that `IConnections` is properly populated with all required token providers.
+
 
 
 # Appendix 1 - Linking to this document. 
