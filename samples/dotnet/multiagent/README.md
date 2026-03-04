@@ -11,18 +11,10 @@ This demonstrates an Agent that implements multiple AgentApplication instances.
   builder.AddAgent<Agent1>();
   builder.AddAgent<Agent2>();
   ``` 
-- Http endpoint mapped for each agent
-  ```csharp
-  app.MapPost("/api/1/messages", async (HttpRequest request, HttpResponse response, IAgentHttpAdapter adapter, Agent1 agent, CancellationToken cancellationToken) =>
-  {
-      await adapter.ProcessAsync(request, response, agent, cancellationToken);
-  });
-
-  app.MapPost("/api/2/messages", async (HttpRequest request, HttpResponse response, IAgentHttpAdapter adapter, Agent2 agent, CancellationToken cancellationToken) =>
-  {
-      await adapter.ProcessAsync(request, response, agent, cancellationToken);
-  });
-  ``` 
+- Http endpoints are mapped for each agent
+  - Automatically via `MapAgentApplicationEndpoints` in Program.cs
+  - `/api/1/messages` -> `Agent1`
+  - `/api/2/messages` -> `Agent2`
 
 ## Prerequisites
 
