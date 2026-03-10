@@ -16,7 +16,7 @@ You can get started right here by scolling up and clicking the 'samples' folder 
 
 Microsoft 365 Copilot is one of many channels supported by this SDK, and a *Microsoft 365 Copilot subscription is *not* required* to get started with or use this SDK unless your working specifically with that channel (or others, that require a subscription/service to use their client).
 
-## C#, JavaScript & Python Repository links
+## C#, JavaScript, & Python Repository links
 
 The source for the client libraries exists for the most part in repositories for each language. This repository is meant to be a jumping off point into those language specific repositories. Issues related to a specific language should be opened in the corresponding repository but cross cutting issues can be opened in this repository.
 
