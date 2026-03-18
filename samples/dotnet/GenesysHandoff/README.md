@@ -119,48 +119,63 @@ Configure Genesys Cloud to handle the incoming chat from the bot and route it to
 
 The bot will use Genesys Cloud's API to start conversations and send messages:
 
-1. In **Genesys Cloud Admin**, navigate to **Admin** > **Integrations** > **OAuth**.
-2. Create a **New OAuth Client** with **Client Credentials** grant type.
-3. **Permissions:** Assign the **Admin** role (simplest for testing) or specifically add permissions for:
-   - `Conversation > Open Messaging > Publish`
-   - `Conversation > Open Messaging > Read`
-4. After creation, **copy the Client ID and Client Secret** safely.
-5. Note the **OAuth Token URL** for your Genesys region (e.g., `https://login.usw2.pure.cloud/oauth/token` for US West).
+1. In **Genesys Cloud Admin**, navigate to **IT AND INTEGRATIONS** > **OAuth**.
+2. Click on **Add Client**.
+3. Provide the following details:
+   - **App Name**: A descriptive name for your application (e.g., "Copilot Handoff").
+   - **Description**: A brief description of the app's purpose.
+   - **Grant Type**: Select **Client Credentials**.
+   ![Genesys OAuth Client Configuration](./Images/OAuth.png)
+4. Click on **Next**.
+5. In the **Assign Roles** section, assign a custom role with the following permissions:
+   - `Integrations`
+   - `Integrations > Integrations > View`
+   - `Integrations > Integrations > Add`
+   - `Integrations > Integrations > Edit`
+   - `Messaging`
+   - `Messaging > Platforms > View`
+   - `Messaging > Platforms > Add`
+   - `Messaging > Platforms > Edit`
+   - `Architect` (if routing inbound messages)
+   - `Architect > Inbound Message Flows > View`
+   - `Architect > Inbound Message Flows > Edit`
+6. After creation, **copy the Client ID and Client Secret** safely.
+7. Note the **OAuth Token URL** for your Genesys region (e.g., `https://login.usw2.pure.cloud/oauth/token` for US West).
 
-### 3.2. Configure Platform for Messaging Flow
+### 3.2. Create a Platform Configuration
 
-1. Go to **Admin** > **Message** > **Platform Configs**.
-2. Create a new **Platform Config** specific to this flow.
-3. ![Genesys Platform Configurations](./Images/GenesysPlatformConfig.png)
+1. Go to **DIGITAL AND TELEPHONY** > **Message** > **Platform Configurations**.
+2. Create a new **Profile**.
+   ![Genesys Platform Configurations](./Images/GenesysPlatformConfig.png)
 
-### 3.3. Configure Open Messaging Integration
+### 3.3. Create a Platform Integration
 
-1. Go to **Admin** > **Message** > **Platforms**.
-2. Create a new **Open Messaging** configuration.
+1. Go to **DIGITAL AND TELEPHONY** > **Message** > **Platform Integrations**.
+2. Create a new **Integration**.
 3. **Name:** Give it a name like "Copilot Bot Handoff".
 4. **Update the Outbound Notifications Webhook URL** to point to your Azure hosting endpoint (or dev tunnel URL for local testing):
    ```
    https://{{appServiceEndpoint}}/api/outbound
    ```
-5. ![Genesys Open Messaging Configuration](./Images/OpenMessagingImage.png)
-6. **Copy the Integration GUID** from the Open Messaging configuration page URL. This GUID is required in the Agent SDK's `appsettings.json`.
-7. **Outbound Webhook Secret (Token):** Copy this secret for verifying incoming webhook requests.
+   ![Genesys Open Messaging Configuration](./Images/OpenMessagingImage.png)
+5. **Copy the Integration GUID** from the Open Messaging configuration page URL. This GUID is required in the Agent SDK's `appsettings.json`.
+6. **Outbound Webhook Secret (Token):** Copy this secret for verifying incoming webhook requests.
 
 ### 3.4. Configure Inbound Message Flow (Genesys Architect)
 
-1. Go to **Admin** > **Architect** > **Inbound Messages**.
+1. Go to **Orchestration** > **Architects** > **Inbound Messages**.
 2. Create a **New Flow** for processing incoming messages.
 3. In the flow, use the **"Transfer to ACD"** action.
 4. Select the specific **Queue** where escalated messages should be routed to human agents.
-5. ![Genesys Inbound Message Flow Configuration](./Images/MessagingFlow.png)
-6. Publish the flow.
+   ![Genesys Inbound Message Flow Configuration](./Images/MessagingFlow.png)
+5. **Publish** the flow.
 
 ### 3.5. Configure Message Routing
 
-1. Go to **Admin** > **Routing** > **Message Routing**.
-2. Create a **New Message Routing** configuration.
+1. Go to **Orchestration** > **Routing** > **Message Routing**.
+2. Click on **Attach New Address to a Flow**.
 3. Associate it with your **Platform Configuration** (from step 3.2) and the **Inbound Message Flow** (from step 3.4).
-4. ![Genesys Message Routing Configuration](./Images/MessageRouting.png)
+   ![Genesys Message Routing Configuration](./Images/MessageRouting.png)
 
 ### 3.6. Add Genesys Configurations to Agent SDK
 
