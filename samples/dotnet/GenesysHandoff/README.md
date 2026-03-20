@@ -74,49 +74,45 @@ Set up the dialog logic so the bot knows when and how to hand off to Genesys Clo
    - `This tool can handle queries like these: Talk to agent, Talk to a person, Talk to someone, Call back, Call customer service`
 
 3. **Create a customize response node:**
-   - Add a **Customize response** node to summarize the conversation for the human agent.
+   - Add a **Customize Response Node** to summarize the conversation for the human agent.
    ![Copilot Studio Customize Response Node Configuration](./Images/MCSCustomizeResponseNode.png)
-   > **Note:** If you do not see **Customize response** in the **Advanced** section, open the topic in code editor mode by selecting **More** > **Open code editor** and add the following **kind** in the actions section.
+   > **Note:** In case you don't find **Customize Response Node** in the advanced section. You can open the topic in code editor mode by clicking **More** > **Open code editor** and add below **kind** in the actions section.
    ```yaml
    - kind: AnswerQuestionWithAI
-      ```
-                      (normal flow)                         (escalation flow)
+      id: o0xpvl
+      variable: Topic.ConversationSummary
+      userInput: Detailed summary of the conversation happened so far
+      additionalInstructions: "You should first summarize the what was the issue User is facing. Than explain what were the suggestions provided by the Bot. Afterwards the reason why the User wants to escalate to live agent. "
+   ```
+   - **Save the bot response** into a variable (e.g., `EscalationSummary`). This variable will be passed to Genesys.
+   - **Content Moderation Settings:**
+   - Click on three dots on Customize response node. Go to properies.
+   ![Copilot Studio Content Moderation Properies](./Images/MCSCustomizeResponseNodeProperties.png) 
+   - Uncheck the **"Send a message"** checkbox under **"Content moderation level"** to prevent the node from sending an automatic message to the user.
+    ![Copilot Studio Content Moderation Configuration](./Images/MCSCustomizeResponseNodeContentModeration.png)
 
-       ┌──────────────┐           HTTPS (Bot Framework)           ┌─────────────────────┐
-       │  Microsoft    │ ────────────────────────────────────────► │  Web app / Agent SDK │
-       │  Teams client │ ◄──────────────────────────────────────── │  (GenesysHandoff)    │
-       └──────────────┘                                           └─────────┬───────────┘
-                                                                              │
-                                                                              │ HTTPS (Agents SDK)
-                                                                              ▼
-                                                                   ┌───────────────────────┐
-                                                                   │ Copilot Studio runtime│
-                                                                   │ (agent, env/schema)   │
-                                                                   └───────────────────────┘
+4. **Create an Event Node:**
+   - Add an **Event Node** and name it **"GenesysHandoff"**.
+   - Set its value to the bot response variable created in the previous step (e.g., `EscalationSummary`).
+   ![Copilot Studio Event Node Configuration](./Images/MCSCreateEventNode.png)
 
-                                                                              │
-                                                                              │ HTTPS (Open Messaging APIs
-                                                                              │  + outbound webhooks)
-                                                                              ▼
-                                                                  ┌────────────────────────┐
-                                                                  │   Genesys Cloud CX     │
-                                                                  │  (queue, agent UI,     │
-                                                                  │   open messaging)      │
-                                                                  └────────────────────────┘
+5. **Verify Topic Flow:** The final structure of your Escalate topic should be:
+   - User trigger → (optional confirmation) → **Customize Response (summarize)** → **Event: GenesysHandoff**
 
-                                 ┌─────────────────────────────┐
-                                 │ Azure Cosmos DB (or other   │
-                                 │ persistent storage)         │
-                                 │ - conversation metadata     │
-                                 │ - handoff state             │
-                                 └─────────────────────────────┘
-                                             ▲
-                                             │
-                                             │ state read/write from Agent SDK
-      ```
+### 2.3. Publish the Agent
+
+1. Click **Publish** (usually in the top-right of Copilot Studio).
+2. After publishing, test quickly in the Copilot Studio chat canvas: type a phrase like "I want a human." The bot should trigger the event (you may see no response, which indicates the event was triggered).
+
+### 2.4. Retrieve Agent and Environment Metadata
+
+We need two pieces of info from Copilot Studio to configure the integration code:
+
+1. Go to **Settings** > **Advanced** > **Metadata** and record the following:
+   - `Schema name`
    - `Environment Id`
 
-2. **Update appsettings.json (Copilot Studio agent):** Set the collected values in the configuration file:
+2. **Update `appsettings.json` (Copilot Studio Agent):** Set the collected values in the configuration file:
 
    ```json
    "CopilotStudioAgent": {
@@ -188,6 +184,7 @@ The bot uses Genesys Cloud APIs to start conversations and send messages:
 2. Create a **new flow** for processing incoming messages.
 3. In the flow, use the **"Transfer to ACD"** action.
 4. Select the specific **Queue** where escalated messages should be routed to human agents.
+
    ![Genesys Inbound Message Flow Configuration](./Images/MessagingFlow.png)
 5. **Publish** the flow.
 
