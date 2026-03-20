@@ -79,37 +79,41 @@ Set up the dialog logic so the bot knows when and how to hand off to Genesys Clo
    > **Note:** If you do not see **Customize response** in the **Advanced** section, open the topic in code editor mode by selecting **More** > **Open code editor** and add the following **kind** in the actions section.
    ```yaml
    - kind: AnswerQuestionWithAI
-      id: o0xpvl
-      variable: Topic.ConversationSummary
-      userInput: Detailed summary of the conversation happened so far
-      additionalInstructions: "First summarize the issue the user is facing. Then explain the suggestions provided by the bot. Finally, describe why the user wants to escalate to a live agent."
       ```
-   - **Save the bot response** in a variable (for example, `EscalationSummary`). This variable will be passed to Genesys Cloud.
-   - **Content moderation settings:**
-   - On the **Customize response** node, select the **More options** (three dots) menu and then select **Properties**.
-   ![Copilot Studio Content Moderation Properies](./Images/MCSCustomizeResponseNodeProperties.png) 
-   - Clear the **Send a message** checkbox under **Content moderation level** to prevent the node from sending an automatic message to the user.
-    ![Copilot Studio Content Moderation Configuration](./Images/MCSCustomizeResponseNodeContentModeration.png)
+                      (normal flow)                         (escalation flow)
 
-4. **Create an event node:**
-   - Add an **Event** node and name it **GenesysHandoff**.
-   - Set its value to the bot response variable created in the previous step (for example, `EscalationSummary`).
-   ![Copilot Studio Event Node Configuration](./Images/MCSCreateEventNode.png)
+       ┌──────────────┐           HTTPS (Bot Framework)           ┌─────────────────────┐
+       │  Microsoft    │ ────────────────────────────────────────► │  Web app / Agent SDK │
+       │  Teams client │ ◄──────────────────────────────────────── │  (GenesysHandoff)    │
+       └──────────────┘                                           └─────────┬───────────┘
+                                                                              │
+                                                                              │ HTTPS (Agents SDK)
+                                                                              ▼
+                                                                   ┌───────────────────────┐
+                                                                   │ Copilot Studio runtime│
+                                                                   │ (agent, env/schema)   │
+                                                                   └───────────────────────┘
 
-5. **Verify topic flow:** The final structure of your Escalate topic should be:
-   - User trigger → (optional confirmation) → **Customize response (summarize)** → **Event: GenesysHandoff**
+                                                                              │
+                                                                              │ HTTPS (Open Messaging APIs
+                                                                              │  + outbound webhooks)
+                                                                              ▼
+                                                                  ┌────────────────────────┐
+                                                                  │   Genesys Cloud CX     │
+                                                                  │  (queue, agent UI,     │
+                                                                  │   open messaging)      │
+                                                                  └────────────────────────┘
 
-### 2.3. Publish the Agent
-
-1. Click **Publish** (usually in the top-right of Copilot Studio).
-2. After publishing, do a quick test in the Copilot Studio chat canvas. Type a phrase like "I want a human." The bot should trigger the event (you might not see a response, which indicates that the event was triggered).
-
-### 2.4. Retrieve Agent and Environment Metadata
-
-You need two pieces of information from Copilot Studio to configure the integration code:
-
-1. In Copilot Studio, go to **Settings** > **Advanced** > **Metadata** and record the following values:
-   - `Schema name`
+                                 ┌─────────────────────────────┐
+                                 │ Azure Cosmos DB (or other   │
+                                 │ persistent storage)         │
+                                 │ - conversation metadata     │
+                                 │ - handoff state             │
+                                 └─────────────────────────────┘
+                                             ▲
+                                             │
+                                             │ state read/write from Agent SDK
+      ```
    - `Environment Id`
 
 2. **Update appsettings.json (Copilot Studio agent):** Set the collected values in the configuration file:
@@ -556,36 +560,43 @@ With the basics in place, you can use this foundation to further integrate and f
 ### Component diagram
 
 ```
- ┌──────────────┐        ┌───────────────────────┐        ┌─────────────────────┐
- │  Microsoft    │  HTTPS │  Azure Bot Service    │  HTTPS │  Web app / Agent SDK │
- │  Teams client │◄──────►│  (bot registration)   │◄──────►│  (GenesysHandoff)    │
- └──────────────┘        └───────────────────────┘        └─────────┬───────────┘
-                                                                      │
-                                                                      │ HTTPS (Agents SDK)
-                                                                      ▼
-                                                           ┌───────────────────────┐
-                                                           │ Copilot Studio agent  │
-                                                           │ (environment/schema)  │
-                                                           └─────────┬─────────────┘
-                                                                      │
-                                                                      │ HTTPS (Open Messaging APIs
-                                                                      │  + outbound webhooks)
-                                                                      ▼
-                                                          ┌────────────────────────┐
-                                                          │   Genesys Cloud CX     │
-                                                          │  (queue, agent UI,     │
-                                                          │   open messaging)      │
-                                                          └────────────────────────┘
+                     (normal flow)                      (escalation flow)
+
+ ┌──────────────┐       HTTPS (Bot Framework)        ┌─────────────────────┐
+ │  Microsoft    │ ─────────────────────────────────►│  Web app / Agent SDK │
+ │  Teams client │ ◄─────────────────────────────────│  (GenesysHandoff)    │
+ └──────────────┘                                     └─────────┬───────────┘
+                                                                │
+                                  HTTPS (Agents SDK, OAuth)    │ HTTPS (Open Messaging
+                                                                │  + outbound webhooks)
+                                                                │
+                                               ┌────────────────┴───────────────┐
+                                               │                                │
+                                   ┌──────────────────────┐        ┌──────────────────────┐
+                                   │ Copilot Studio       │        │  Genesys Cloud CX     │
+                                   │ runtime (agent/env)  │        │  (queue, agent UI,    │
+                                   └──────────────────────┘        │   open messaging)     │
+                                                                   └──────────────────────┘
+
+                           ┌─────────────────────────────┐
+                           │ Azure Cosmos DB (or other   │
+                           │ persistent storage)         │
+                           │ - conversation metadata     │
+                           │ - handoff state             │
+                           └─────────────────────────────┘
+                                       ▲
+                                       │
+                                       │ state read/write from Agent SDK
 ```
 
 ### High-level flow
 
-1. **User in Teams** starts a conversation with the custom Teams app that wraps the Azure Bot.
-2. **Teams → Azure Bot Service:** Teams sends user messages to the Azure Bot Service using the bot ID from your app manifest.
-3. **Azure Bot Service → web app (GenesysHandoff):** The bot service forwards activities to the web app endpoint (`/api/messages`), where the GenesysHandoff Agent SDK code runs.
-4. **Web app ↔ Copilot Studio:** When the user triggers normal topics, the Agent SDK obtains an OAuth token and calls the Copilot Studio agent (using the environment ID and schema name) to get responses.
-5. **Escalation to Genesys Cloud:** When the Escalate topic fires and raises the `GenesysHandoff` event, the web app uses **Genesys Open Messaging APIs** to create or continue a conversation in Genesys Cloud and posts the conversation summary.
-6. **Genesys Cloud agent interaction:** A human agent in Genesys Cloud receives the message in the configured queue and replies from the Genesys agent UI.
-7. **Genesys outbound webhook → web app:** Genesys Cloud sends outbound webhook notifications to the web app `/api/outbound` endpoint. The web app validates the webhook (optionally via `WebhookSignatureSecret`), looks up the conversation mapping, and sends the agent’s message back to the Teams user through Azure Bot Service.
+1. **User in Teams → Agent SDK:** The Teams client talks to the GenesysHandoff web app (Agent SDK) through the Bot Framework endpoint (`/api/messages`).
+2. **Normal operation – Agent SDK ↔ Copilot Studio runtime:** For regular topics, the Agent SDK obtains an OAuth token and calls the Copilot Studio runtime using the configured environment ID and schema name. The runtime returns responses to the Agent SDK, which sends them back to the Teams user.
+3. **Escalation event from Copilot Studio:** Inside the Escalate topic, the Copilot Studio runtime raises the `GenesysHandoff` event and returns it to the Agent SDK along with the conversation summary.
+4. **Escalation – Agent SDK → Genesys Cloud:** Based on that event, the Agent SDK calls Genesys Cloud CX directly using Genesys Open Messaging APIs to create or continue a conversation and posts the conversation summary. Copilot Studio is no longer in the message path once the user is handed off.
+5. **Genesys Cloud agent interaction:** A human agent in Genesys Cloud receives the message in the configured queue and replies from the Genesys agent UI.
+6. **Genesys outbound webhook → Agent SDK → Teams:** Genesys Cloud sends outbound webhook notifications to the web app `/api/outbound` endpoint. The Agent SDK validates the webhook (optionally via `WebhookSignatureSecret`), looks up the conversation mapping, and sends the agent’s message back to the Teams user.
+7. **State persistence in Cosmos DB:** Throughout the flow, the Agent SDK reads and writes conversation metadata (for example, mappings between Teams and Genesys conversations, handoff flags) in persistent storage such as Azure Cosmos DB, so state survives restarts and scales beyond a single instance.
 
-This architecture lets the user stay in a single Teams conversation while the Copilot Studio agent, Azure Bot, web app, and Genesys Cloud coordinate the escalation and message exchange behind the scenes.
+This architecture lets the user stay in a single Teams conversation while the Agent SDK, Copilot Studio runtime, Genesys Cloud, and persistent storage coordinate the escalation and message exchange behind the scenes. During escalation, Copilot Studio’s role is limited to raising the `GenesysHandoff` event; the actual Genesys conversation is managed directly between the Agent SDK and Genesys Cloud.
