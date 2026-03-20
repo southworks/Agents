@@ -131,33 +131,26 @@ Configure Genesys Cloud to handle incoming chat from the bot and route it to a h
 
 The bot uses Genesys Cloud APIs to start conversations and send messages:
 
+> **Developer account permissions (for setup):** Before creating the OAuth client, ensure your Genesys Cloud developer account has the following permissions to perform the setup steps in this section and in sections 3.2–3.5:
+> - `Integrations > All`
+> - `Architect > Flow > All Permissions`
+>
+> These are permissions for the person doing the configuration work, not for the OAuth connection itself.
+
 1. In **Genesys Cloud Admin**, go to **IT AND INTEGRATIONS** > **OAuth**.
 2. Click on **Add Client**.
 3. Provide the following details:
    - **App Name**: A descriptive name for your application (e.g., "Copilot Handoff").
-   - **Description**: A brief description of the app's purpose.
+   - **Description**: A brief description of the app’s purpose.
    - **Grant Type**: Select **Client Credentials**.
    ![Genesys OAuth Client Configuration](./Images/OAuth.png)
 4. Click on **Next**.
-5. In the **Assign roles** section, assign a custom role with the following permissions:
-   - `Integrations`
-   - `Integrations > Integrations > View`
-   - `Integrations > Integrations > Add`
-   - `Integrations > Integrations > Edit`
-   - `Messaging`
-   - `Messaging > Platforms > View`
-   - `Messaging > Platforms > Add`
-   - `Messaging > Platforms > Edit`
-   - `Architect` (if routing inbound messages)
-   - `Architect > Inbound Message Flows > View`
-   - `Architect > Inbound Message Flows > Edit`
+5. In the **Assign roles** section, assign a custom role (for example, "Chat Integrations") with the following permission:
+   - `Conversation > Message > Receive` – required for the bot to receive inbound messages
 6. After creation, **copy the Client ID and Client Secret** safely.
 7. Note the **OAuth token URL** for your Genesys region (for example, `https://login.usw2.pure.cloud/oauth/token` for US West).
 
-> **Minimal permission example:** Some customers have successfully used a single custom role (for example, "Chat Integration") with only the following permission in Genesys Cloud CX 2:
-> - **Conversation > Message > Receive** – *Create an inbound message*
->
-> Your organization’s security and compliance requirements may differ. If in doubt, start with the broader set of permissions listed above and then tighten to a minimal role in collaboration with your Genesys administrator.
+> **Important – custom role assignment:** If you create a custom role (for example, "Chat Integrations"), the **developer account must also be assigned to that role** in Genesys Cloud. Otherwise, the role will not appear as an option when configuring the OAuth client.
 
 ### 3.2. Create a platform configuration
 
