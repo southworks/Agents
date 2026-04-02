@@ -87,5 +87,18 @@ namespace GenesysHandoff.Services
 
             return responseActivity;
         }
+
+        internal IActivity CreateInvokeResponseActivity(IActivity activity, string v)
+        {
+            return new Activity
+            {
+                Type = ActivityTypes.InvokeResponse,
+                Value = new InvokeResponse
+                {
+                    Status = 200,
+                }
+            };
+
+        }
     }
 }

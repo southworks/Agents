@@ -78,13 +78,9 @@ var genesysOutboundRoute = app.MapPost("/api/outbound", async (HttpRequest reque
     await genesysService.RetrieveMessageFromGenesysAsync(request, channelAdapter, cancellationToken);
     response.StatusCode = StatusCodes.Status200OK;
     await response.WriteAsync("Proactive message sent.", cancellationToken);
-});
+}).AllowAnonymous();
 
-if (!app.Environment.IsDevelopment())
-{
-    genesysOutboundRoute.RequireAuthorization();
-}
-else
+if (app.Environment.IsDevelopment())
 {
     // Hardcoded for brevity and ease of testing. 
     // In production, this should be set in configuration.

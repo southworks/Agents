@@ -1,4 +1,5 @@
 using Microsoft.Agents.Builder.State;
+using Microsoft.Agents.Core.Models;
 using System;
 
 namespace GenesysHandoff.Services
@@ -10,6 +11,7 @@ namespace GenesysHandoff.Services
     {
         private const string MCSConversationPropertyName = "MCSConversationId";
         private const string IsEscalatedPropertyName = "IsEscalated";
+        private const string LastCpsActivityPropertyName = "LastCpsActivity";
 
         /// <summary>
         /// Gets the Copilot Studio conversation ID from the turn state.
@@ -63,6 +65,29 @@ namespace GenesysHandoff.Services
         }
 
         /// <summary>
+        /// Gets the last activity received from Copilot Studio, or <c>null</c> if none has been stored.
+        /// </summary>
+        /// <param name="turnState">The turn state containing conversation properties.</param>
+        /// <returns>The last CPS activity if it exists; otherwise, <c>null</c>.</returns>
+        public Activity? GetLastCpsActivity(ITurnState turnState)
+        {
+            ArgumentNullException.ThrowIfNull(turnState);
+            return turnState.Conversation.GetValue<Activity>(LastCpsActivityPropertyName);
+        }
+
+        /// <summary>
+        /// Stores the last activity received from Copilot Studio in conversation state.
+        /// </summary>
+        /// <param name="turnState">The turn state to update.</param>
+        /// <param name="activity">The activity to store.</param>
+        public void SetLastCpsActivity(ITurnState turnState, IActivity activity)
+        {
+            ArgumentNullException.ThrowIfNull(turnState);
+            ArgumentNullException.ThrowIfNull(activity);
+            turnState.Conversation.SetValue(LastCpsActivityPropertyName, activity);
+        }
+
+        /// <summary>
         /// Clears all conversation state properties managed by this class.
         /// </summary>
         /// <param name="turnState">The turn state to clear.</param>
@@ -71,6 +96,7 @@ namespace GenesysHandoff.Services
             ArgumentNullException.ThrowIfNull(turnState);
             turnState.Conversation.DeleteValue(MCSConversationPropertyName);
             turnState.Conversation.DeleteValue(IsEscalatedPropertyName);
+            turnState.Conversation.DeleteValue(LastCpsActivityPropertyName);
         }
     }
 }

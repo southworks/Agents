@@ -4,6 +4,7 @@ using Microsoft.Agents.Builder;
 using Microsoft.Agents.Builder.App;
 using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
+using Microsoft.Agents.Core.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -65,9 +66,23 @@ namespace GenesysHandoff
 
             if (string.IsNullOrEmpty(mcsConversationId))
             {
-                await HandleNewConversation(turnContext, turnState, cpsClient, cancellationToken);
+                // Check whether the user already has an ongoing CPS conversation recorded in state.
+                // If so, stitch the new activity into that conversation instead of starting a fresh one.
+                var lastCpsActivity = _stateManager.GetLastCpsActivity(turnState);
+                if (lastCpsActivity != null
+                    && !string.IsNullOrEmpty(lastCpsActivity.Conversation?.Id)
+                    && (turnContext.Activity.IsType(ActivityTypes.Message) || turnContext.Activity.IsType(ActivityTypes.Invoke)))
+                {
+                    var existingConversationId = lastCpsActivity.Conversation.Id;
+                    _stateManager.SetConversationId(turnState, existingConversationId);
+                    await HandleCopilotStudioMessage(turnContext, turnState, cpsClient, existingConversationId, cancellationToken);
+                }
+                else
+                {
+                    await HandleNewConversation(turnContext, turnState, cpsClient, cancellationToken);
+                }
             }
-            else if (turnContext.Activity.IsType(ActivityTypes.Message))
+            else if (turnContext.Activity.IsType(ActivityTypes.Message) || turnContext.Activity.IsType(ActivityTypes.Invoke))
             {
                 var isEscalated = _stateManager.IsEscalated(turnState);
                 if (isEscalated)
@@ -83,11 +98,16 @@ namespace GenesysHandoff
 
         /// <summary>
         /// Handles starting a new conversation with Copilot Studio.
+        /// The last activity received from CPS is stored in conversation state so that
+        /// subsequent turns can be stitched to this conversation.
         /// </summary>
         private async Task HandleNewConversation(ITurnContext turnContext, ITurnState turnState, Microsoft.Agents.CopilotStudio.Client.CopilotClient cpsClient, CancellationToken cancellationToken)
         {
+            IActivity? lastCpsActivity = null;
+
             await foreach (IActivity activity in cpsClient.StartConversationAsync(emitStartConversationEvent: true, cancellationToken: cancellationToken))
             {
+                lastCpsActivity = activity;
                 if (activity.IsType(ActivityTypes.Message))
                 {
                     var responseActivity = _responseProcessor.CreateResponseActivity(activity, "StartConversation");
@@ -95,39 +115,58 @@ namespace GenesysHandoff
                     _stateManager.SetConversationId(turnState, activity.Conversation.Id);
                 }
             }
+
+            if (lastCpsActivity != null)
+            {
+                _stateManager.SetLastCpsActivity(turnState, lastCpsActivity);
+            }
         }
 
         /// <summary>
         /// Handles processing messages through Copilot Studio and checking for escalation events.
+        /// The last activity received from CPS is stored in conversation state so that
+        /// subsequent turns can be stitched to this conversation.
         /// </summary>
         private async Task HandleCopilotStudioMessage(ITurnContext turnContext, ITurnState turnState, Microsoft.Agents.CopilotStudio.Client.CopilotClient cpsClient, string mcsConversationId, CancellationToken cancellationToken)
         {
             // When a message is received from the user, it is forwarded to Copilot Studio using the conversation ID stored in state.
             // The agent then listens for responses from Copilot Studio. If a message activity is received, it is sent back to the user.
             // If an event activity with the name "GenesysHandoff" is received, it indicates that the conversation should be escalated to a human agent through Genesys.
-            var activityToMcs = new Activity
-            {
-                Type = ActivityTypes.Message,
-                Text = turnContext.Activity.Text,
-                Conversation = new ConversationAccount { Id = mcsConversationId },
-                Attachments = turnContext.Activity.Attachments,
-                Entities = turnContext.Activity.Entities,
-                Value = turnContext.Activity.Value,
-                ValueType = turnContext.Activity.ValueType,
-            };
+            IActivity lastCpsActivity = _stateManager.GetLastCpsActivity(turnState);
 
-            await foreach (IActivity activity in cpsClient.SendActivityAsync(activityToMcs, cancellationToken))
+            var activityToSend = lastCpsActivity.GetConversationReference().GetContinuationActivity();
+            activityToSend.From = turnContext.Activity.From;
+            activityToSend.Type = turnContext.Activity.Type;
+            activityToSend.Text = turnContext.Activity.Text;
+            activityToSend.Attachments = turnContext.Activity.Attachments;
+            activityToSend.Entities = turnContext.Activity.Entities;
+            activityToSend.Value = turnContext.Activity.Value;
+            activityToSend.Name = turnContext.Activity.Name;
+            activityToSend.ValueType = turnContext.Activity.ValueType;
+            await foreach (IActivity activity in cpsClient.SendActivityAsync(activityToSend, cancellationToken))
             {
+                lastCpsActivity = activity;
+
                 if (activity.IsType(ActivityTypes.Message))
-                {
+                { 
                     var responseActivity = _responseProcessor.CreateResponseActivity(activity, "AskQuestion");
                     await turnContext.SendActivityAsync(responseActivity, cancellationToken);
                 }
-
-                if (activity.IsType(ActivityTypes.Event) && activity.Name.Equals("GenesysHandoff"))
+                else if (activity.IsType(ActivityTypes.InvokeResponse))
                 {
+                    var responseActivity = _responseProcessor.CreateInvokeResponseActivity(activity, "InvokeResponse");
+                    await turnContext.SendActivityAsync(responseActivity, cancellationToken);
+                }
+                else if (activity.IsType(ActivityTypes.Event) && activity.Name.Equals("GenesysHandoff"))
+                {
+
                     await HandleEscalation(turnContext, turnState, activity, mcsConversationId, cancellationToken);
                 }
+            }
+
+            if (lastCpsActivity != null)
+            {
+                _stateManager.SetLastCpsActivity(turnState, lastCpsActivity);
             }
         }
 
