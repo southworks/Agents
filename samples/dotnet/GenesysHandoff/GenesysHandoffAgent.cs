@@ -4,6 +4,7 @@ using Microsoft.Agents.Builder;
 using Microsoft.Agents.Builder.App;
 using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -133,7 +134,25 @@ namespace GenesysHandoff
             // If an event activity with the name "GenesysHandoff" is received, it indicates that the conversation should be escalated to a human agent through Genesys.
             IActivity lastCpsActivity = _stateManager.GetLastCpsActivity(turnState) ?? new Activity();
             
-            var activityToSend = lastCpsActivity.GetConversationReference().GetContinuationActivity();
+            Activity activityToSend;
+            var conversationRef = lastCpsActivity.GetConversationReference();
+            if (!string.IsNullOrEmpty(conversationRef?.Conversation?.Id))
+            {
+                activityToSend = conversationRef.GetContinuationActivity();
+            }
+            else
+            {
+                // No valid CPS activity in state (e.g., after deployment/upgrade or partial state loss).
+                // Build a minimal activity using the known mcsConversationId so message forwarding still works.
+                activityToSend = new Activity
+                {
+                    Type = turnContext.Activity.Type,
+                    Conversation = new ConversationAccount { Id = mcsConversationId },
+                    ChannelId = turnContext.Activity.ChannelId,
+                    ServiceUrl = turnContext.Activity.ServiceUrl,
+                    Recipient = turnContext.Activity.Recipient,
+                };
+            }
             activityToSend.From = turnContext.Activity.From;
             activityToSend.Type = turnContext.Activity.Type;
             activityToSend.Text = turnContext.Activity.Text;
@@ -156,7 +175,7 @@ namespace GenesysHandoff
                     var responseActivity = _responseProcessor.CreateInvokeResponseActivity(activity, "InvokeResponse");
                     await turnContext.SendActivityAsync(responseActivity, cancellationToken);
                 }
-                else if (activity.IsType(ActivityTypes.Event) && activity.Name.Equals("GenesysHandoff"))
+                else if (activity.IsType(ActivityTypes.Event) && string.Equals(activity.Name, "GenesysHandoff", StringComparison.Ordinal))
                 {
 
                     await HandleEscalation(turnContext, turnState, activity, mcsConversationId, cancellationToken);

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System;
 using System.Net.Http;
 using System.Threading;
 
@@ -37,6 +38,12 @@ GenesysService? genesysService = null;
 builder.Services.AddSingleton(sp =>
 {
     var settings = new GenesysConnectionSetting(builder.Configuration.GetSection("Genesys"));
+    if (string.IsNullOrEmpty(settings.WebhookSignatureSecret))
+    {
+        throw new InvalidOperationException(
+            "Genesys:WebhookSignatureSecret must be configured. " +
+            "The /api/outbound endpoint is anonymous and requires webhook signature validation to prevent unauthorized access.");
+    }
     genesysService = new GenesysService(settings, sp.GetService<IHttpClientFactory>()!, sp.GetService<IStorage>()!);
     return genesysService;
 });

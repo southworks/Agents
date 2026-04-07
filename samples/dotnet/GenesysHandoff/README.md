@@ -79,15 +79,15 @@ Set up the dialog logic so the bot knows when and how to hand off to Genesys Clo
    > **Note:** In case you don't find **Customize Response Node** in the advanced section. You can open the topic in code editor mode by clicking **More** > **Open code editor** and add below **kind** in the actions section.
    ```yaml
    - kind: AnswerQuestionWithAI
-      id: o0xpvl
-      variable: Topic.ConversationSummary
-      userInput: Detailed summary of the conversation happened so far
-      additionalInstructions: "You should first summarize the what was the issue User is facing. Than explain what were the suggestions provided by the Bot. Afterwards the reason why the User wants to escalate to live agent. "
+     id: o0xpvl
+     variable: Topic.ConversationSummary
+     userInput: Detailed summary of the conversation happened so far
+     additionalInstructions: "You should first summarize the what was the issue User is facing. Then explain what were the suggestions provided by the Bot. Afterwards the reason why the User wants to escalate to live agent. "
    ```
    - **Save the bot response** into a variable (e.g., `EscalationSummary`). This variable will be passed to Genesys.
    - **Content Moderation Settings:**
-   - Click on three dots on Customize response node. Go to properies.
-   ![Copilot Studio Content Moderation Properies](./Images/MCSCustomizeResponseNodeProperties.png) 
+   - Click on three dots on Customize response node. Go to properties.
+   ![Copilot Studio Content Moderation Properties](./Images/MCSCustomizeResponseNodeProperties.png) 
    - Uncheck the **"Send a message"** checkbox under **"Content moderation level"** to prevent the node from sending an automatic message to the user.
     ![Copilot Studio Content Moderation Configuration](./Images/MCSCustomizeResponseNodeContentModeration.png)
 
@@ -199,25 +199,25 @@ Update appsettings.json with the details collected from the Genesys setup steps:
   "IntegrationId": "",              // GUID from Open Messaging Integration
   "ClientId": "",                   // OAuth Client ID created in Genesys
   "ClientSecret": "",               // OAuth Client Secret created in Genesys
-  "WebhookSignatureSecret": ""      // Optional: outboundNotificationWebhookSignatureSecretToken from Genesys integration
+  "WebhookSignatureSecret": ""      // Required: outboundNotificationWebhookSignatureSecretToken from Genesys integration
 }
 ```
 
 > **Note:** Replace `<region>` with your Genesys region code (for example, `usw2` for US-West-2 or `use2` for US-East-2).
 
-#### Webhook signature validation (optional but recommended)
+#### Webhook signature validation (required)
 
-The `WebhookSignatureSecret` setting enables HMAC-SHA256 signature validation for incoming webhook requests from Genesys Cloud. When configured:
+The `WebhookSignatureSecret` setting is **required** and enables HMAC-SHA256 signature validation for all incoming webhook requests from Genesys Cloud. Because the `/api/outbound` endpoint is anonymous (no Azure AD / Bot Framework token validation), this signature check is the sole authentication mechanism protecting the endpoint from unauthorized requests.
 
 1. **In Genesys Cloud:** When you create the Open Messaging integration, Genesys Cloud generates an `outboundNotificationWebhookSignatureSecretToken`. Copy this value.
 2. **In appsettings.json:** Set the `WebhookSignatureSecret` to this token value.
 
-When enabled, the integration will:
-- Validate the `X-Hub-Signature-256` header on each incoming webhook request.
+The integration will:
+- Validate the `X-Hub-Signature-256` header on every incoming webhook request.
 - Reject requests with invalid or missing signatures (returning a 401 Unauthorized response).
 - Use constant-time comparison to help prevent timing attacks.
 
-> **Security tip:** Configure this setting in production environments to ensure that webhook requests are genuinely from Genesys Cloud and have not been tampered with.
+> **Important:** The application will fail to start if `WebhookSignatureSecret` is not configured.
 
 ---
 
@@ -641,7 +641,7 @@ With the basics in place, you can use this foundation to further integrate and f
 3. **Escalation event from Copilot Studio:** Inside the Escalate topic, the Copilot Studio runtime raises the `GenesysHandoff` event and returns it to the Agent SDK along with the conversation summary.
 4. **Escalation – Agent SDK → Genesys Cloud:** Based on that event, the Agent SDK calls Genesys Cloud CX directly using Genesys Open Messaging APIs to create or continue a conversation and posts the conversation summary. Copilot Studio is no longer in the message path once the user is handed off.
 5. **Genesys Cloud agent interaction:** A human agent in Genesys Cloud receives the message in the configured queue and replies from the Genesys agent UI.
-6. **Genesys outbound webhook → Agent SDK → Teams:** Genesys Cloud sends outbound webhook notifications to the web app `/api/outbound` endpoint. The Agent SDK validates the webhook (optionally via `WebhookSignatureSecret`), looks up the conversation mapping, and sends the agent’s message back to the Teams user.
+6. **Genesys outbound webhook → Agent SDK → Teams:** Genesys Cloud sends outbound webhook notifications to the web app `/api/outbound` endpoint. The Agent SDK validates the webhook signature using `WebhookSignatureSecret`, looks up the conversation mapping, and sends the agent's message back to the Teams user.
 7. **State persistence in Cosmos DB:** Throughout the flow, the Agent SDK reads and writes conversation metadata (for example, mappings between Teams and Genesys conversations, handoff flags) in persistent storage such as Azure Cosmos DB, so state survives restarts and scales beyond a single instance.
 
 This architecture lets the user stay in a single Teams conversation while the Agent SDK, Copilot Studio runtime, Genesys Cloud, and persistent storage coordinate the escalation and message exchange behind the scenes. During escalation, Copilot Studio’s role is limited to raising the `GenesysHandoff` event; the actual Genesys conversation is managed directly between the Agent SDK and Genesys Cloud.

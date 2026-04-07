@@ -77,6 +77,8 @@ namespace GenesysHandoff.Services
 
         /// <summary>
         /// Stores the last activity received from Copilot Studio in conversation state.
+        /// The activity is cast to <see cref="Activity"/> to ensure consistent
+        /// serialization/deserialization with <see cref="GetLastCpsActivity"/>.
         /// </summary>
         /// <param name="turnState">The turn state to update.</param>
         /// <param name="activity">The activity to store.</param>
@@ -84,7 +86,7 @@ namespace GenesysHandoff.Services
         {
             ArgumentNullException.ThrowIfNull(turnState);
             ArgumentNullException.ThrowIfNull(activity);
-            turnState.Conversation.SetValue(LastCpsActivityPropertyName, activity);
+            turnState.Conversation.SetValue(LastCpsActivityPropertyName, (Activity)activity);
         }
 
         /// <summary>

@@ -56,13 +56,10 @@ namespace GenesysHandoff.Genesys
                 request.Body.Position = 0;
             }
 
-            // Validate webhook signature if secret is configured
-            if (!string.IsNullOrEmpty(_setting.WebhookSignatureSecret))
+            // Validate webhook signature on every incoming request
+            if (!ValidateWebhookSignature(request, requestBody))
             {
-                if (!ValidateWebhookSignature(request, requestBody))
-                {
-                    throw new UnauthorizedAccessException("Webhook signature validation failed. Request rejected.");
-                }
+                throw new UnauthorizedAccessException("Webhook signature validation failed. Request rejected.");
             }
 
             var payload = JsonSerializer.Deserialize<GenesysOutboundPayload>(requestBody);

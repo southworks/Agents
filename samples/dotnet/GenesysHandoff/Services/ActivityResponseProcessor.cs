@@ -88,17 +88,29 @@ namespace GenesysHandoff.Services
             return responseActivity;
         }
 
-        internal IActivity CreateInvokeResponseActivity(IActivity activity, string v)
+        /// <summary>
+        /// Creates an invoke response activity from the incoming Copilot Studio invoke response,
+        /// preserving the original status code and body.
+        /// </summary>
+        /// <param name="incomingActivity">The invoke response activity received from the Copilot Studio client.</param>
+        /// <param name="logContext">Optional context string to include in the log message for tracking purposes.</param>
+        /// <returns>An invoke response activity with the original status and body from CPS.</returns>
+        internal IActivity CreateInvokeResponseActivity(IActivity incomingActivity, string logContext = "")
         {
+            _logger.LogInformation("InvokeResponse received from Copilot client{LogContext}",
+                string.IsNullOrEmpty(logContext) ? "" : $" ({logContext})");
+
+            var invokeResponse = incomingActivity.Value as InvokeResponse;
+
             return new Activity
             {
                 Type = ActivityTypes.InvokeResponse,
                 Value = new InvokeResponse
                 {
-                    Status = 200,
+                    Status = invokeResponse?.Status ?? 200,
+                    Body = invokeResponse?.Body,
                 }
             };
-
         }
     }
 }
