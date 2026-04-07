@@ -11,7 +11,7 @@ namespace GenesysHandoff.Services
     {
         private const string MCSConversationPropertyName = "MCSConversationId";
         private const string IsEscalatedPropertyName = "IsEscalated";
-        private const string LastCpsActivityPropertyName = "LastCpsActivity";
+        private const string LastCpsConversationReferencePropertyName = "LastCpsConversationReference";
 
         /// <summary>
         /// Gets the Copilot Studio conversation ID from the turn state.
@@ -65,28 +65,26 @@ namespace GenesysHandoff.Services
         }
 
         /// <summary>
-        /// Gets the last activity received from Copilot Studio, or <c>null</c> if none has been stored.
+        /// Gets the last conversation reference from Copilot Studio, or <c>null</c> if none has been stored.
         /// </summary>
         /// <param name="turnState">The turn state containing conversation properties.</param>
-        /// <returns>The last CPS activity if it exists; otherwise, <c>null</c>.</returns>
-        public Activity? GetLastCpsActivity(ITurnState turnState)
+        /// <returns>The last CPS conversation reference if it exists; otherwise, <c>null</c>.</returns>
+        public ConversationReference? GetLastCpsConversationReference(ITurnState turnState)
         {
             ArgumentNullException.ThrowIfNull(turnState);
-            return turnState.Conversation.GetValue<Activity>(LastCpsActivityPropertyName);
+            return turnState.Conversation.GetValue<ConversationReference>(LastCpsConversationReferencePropertyName);
         }
 
         /// <summary>
-        /// Stores the last activity received from Copilot Studio in conversation state.
-        /// The activity is cast to <see cref="Activity"/> to ensure consistent
-        /// serialization/deserialization with <see cref="GetLastCpsActivity"/>.
+        /// Stores a conversation reference from Copilot Studio in conversation state for stitching.
         /// </summary>
         /// <param name="turnState">The turn state to update.</param>
-        /// <param name="activity">The activity to store.</param>
-        public void SetLastCpsActivity(ITurnState turnState, IActivity activity)
+        /// <param name="conversationReference">The conversation reference to store.</param>
+        public void SetLastCpsConversationReference(ITurnState turnState, ConversationReference conversationReference)
         {
             ArgumentNullException.ThrowIfNull(turnState);
-            ArgumentNullException.ThrowIfNull(activity);
-            turnState.Conversation.SetValue(LastCpsActivityPropertyName, (Activity)activity);
+            ArgumentNullException.ThrowIfNull(conversationReference);
+            turnState.Conversation.SetValue(LastCpsConversationReferencePropertyName, conversationReference);
         }
 
         /// <summary>
@@ -98,7 +96,7 @@ namespace GenesysHandoff.Services
             ArgumentNullException.ThrowIfNull(turnState);
             turnState.Conversation.DeleteValue(MCSConversationPropertyName);
             turnState.Conversation.DeleteValue(IsEscalatedPropertyName);
-            turnState.Conversation.DeleteValue(LastCpsActivityPropertyName);
+            turnState.Conversation.DeleteValue(LastCpsConversationReferencePropertyName);
         }
     }
 }

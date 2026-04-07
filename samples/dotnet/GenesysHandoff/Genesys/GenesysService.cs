@@ -45,7 +45,8 @@ namespace GenesysHandoff.Genesys
             await SendMessageAsync(activity, mcsConversationId, authToken, cancellationToken);
         }
 
-        public async Task RetrieveMessageFromGenesysAsync(HttpRequest request, IChannelAdapter channelAdapter, CancellationToken cancellationToken)
+        /// <returns><c>true</c> if the request was authentic and processed; <c>false</c> if webhook signature validation failed.</returns>
+        public async Task<bool> RetrieveMessageFromGenesysAsync(HttpRequest request, IChannelAdapter channelAdapter, CancellationToken cancellationToken)
         {
             // Read the request body and validate signature if configured
             string requestBody;
@@ -59,14 +60,14 @@ namespace GenesysHandoff.Genesys
             // Validate webhook signature on every incoming request
             if (!ValidateWebhookSignature(request, requestBody))
             {
-                throw new UnauthorizedAccessException("Webhook signature validation failed. Request rejected.");
+                return false;
             }
 
             var payload = JsonSerializer.Deserialize<GenesysOutboundPayload>(requestBody);
 
             if (payload == null || payload.Channel == null || payload.Channel.To == null || payload.Channel.To.Id == null)
             {
-                return;
+                return true;
             }
 
             var c2ConversationId = payload.Channel.To.Id;
@@ -74,7 +75,7 @@ namespace GenesysHandoff.Genesys
 
             if (!state.TryGetValue(c2ConversationId, out var referenceObj) || referenceObj is not ConversationReference conversationReference)
             {
-                return;
+                return true;
             }
 
             if (string.IsNullOrEmpty(payload.Text))
@@ -92,7 +93,7 @@ namespace GenesysHandoff.Genesys
                         await turnContext.SendActivityAsync(new Activity { Type = ActivityTypes.Typing }, ct);
                     },
                     cancellationToken: cancellationToken);
-                return;
+                return true;
             }
 
             // Send the agent's message to the user
@@ -132,6 +133,8 @@ namespace GenesysHandoff.Genesys
                 },
                 cancellationToken: cancellationToken
             );
+
+            return true;
         }
 
         public async Task DeleteConversationReferenceAsync(string mcsConversationId, CancellationToken cancellationToken)

@@ -82,7 +82,14 @@ var genesysOutboundRoute = app.MapPost("/api/outbound", async (HttpRequest reque
         return;
     }
 
-    await genesysService.RetrieveMessageFromGenesysAsync(request, channelAdapter, cancellationToken);
+    var isAuthentic = await genesysService.RetrieveMessageFromGenesysAsync(request, channelAdapter, cancellationToken);
+    if (!isAuthentic)
+    {
+        response.StatusCode = StatusCodes.Status401Unauthorized;
+        await response.WriteAsync("Webhook signature validation failed.", cancellationToken);
+        return;
+    }
+
     response.StatusCode = StatusCodes.Status200OK;
     await response.WriteAsync("Proactive message sent.", cancellationToken);
 }).AllowAnonymous();

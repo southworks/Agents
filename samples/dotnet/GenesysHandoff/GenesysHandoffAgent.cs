@@ -68,12 +68,12 @@ namespace GenesysHandoff
             {
                 // Check whether the user already has an ongoing CPS conversation recorded in state.
                 // If so, stitch the new activity into that conversation instead of starting a fresh one.
-                var lastCpsActivity = _stateManager.GetLastCpsActivity(turnState);
-                if (lastCpsActivity != null
-                    && !string.IsNullOrEmpty(lastCpsActivity.Conversation?.Id)
+                var lastCpsRef = _stateManager.GetLastCpsConversationReference(turnState);
+                if (lastCpsRef != null
+                    && !string.IsNullOrEmpty(lastCpsRef.Conversation?.Id)
                     && (turnContext.Activity.IsType(ActivityTypes.Message) || turnContext.Activity.IsType(ActivityTypes.Invoke)))
                 {
-                    var existingConversationId = lastCpsActivity.Conversation.Id;
+                    var existingConversationId = lastCpsRef.Conversation.Id;
                     _stateManager.SetConversationId(turnState, existingConversationId);
                     await HandleCopilotStudioMessage(turnContext, turnState, cpsClient, existingConversationId, cancellationToken);
                 }
@@ -103,11 +103,11 @@ namespace GenesysHandoff
         /// </summary>
         private async Task HandleNewConversation(ITurnContext turnContext, ITurnState turnState, Microsoft.Agents.CopilotStudio.Client.CopilotClient cpsClient, CancellationToken cancellationToken)
         {
-            IActivity? lastCpsActivity = null;
+            ConversationReference? lastCpsRef = null;
 
             await foreach (IActivity activity in cpsClient.StartConversationAsync(emitStartConversationEvent: true, cancellationToken: cancellationToken))
             {
-                lastCpsActivity = activity;
+                lastCpsRef = activity.GetConversationReference();
                 if (activity.IsType(ActivityTypes.Message))
                 {
                     var responseActivity = _responseProcessor.CreateResponseActivity(activity, "StartConversation");
@@ -116,9 +116,9 @@ namespace GenesysHandoff
                 }
             }
 
-            if (lastCpsActivity != null)
+            if (lastCpsRef != null)
             {
-                _stateManager.SetLastCpsActivity(turnState, lastCpsActivity);
+                _stateManager.SetLastCpsConversationReference(turnState, lastCpsRef);
             }
         }
 
@@ -132,17 +132,16 @@ namespace GenesysHandoff
             // When a message is received from the user, it is forwarded to Copilot Studio using the conversation ID stored in state.
             // The agent then listens for responses from Copilot Studio. If a message activity is received, it is sent back to the user.
             // If an event activity with the name "GenesysHandoff" is received, it indicates that the conversation should be escalated to a human agent through Genesys.
-            IActivity lastCpsActivity = _stateManager.GetLastCpsActivity(turnState) ?? new Activity();
+            var lastCpsRef = _stateManager.GetLastCpsConversationReference(turnState);
             
             Activity activityToSend;
-            var conversationRef = lastCpsActivity.GetConversationReference();
-            if (!string.IsNullOrEmpty(conversationRef?.Conversation?.Id))
+            if (lastCpsRef != null && !string.IsNullOrEmpty(lastCpsRef.Conversation?.Id))
             {
-                activityToSend = conversationRef.GetContinuationActivity();
+                activityToSend = lastCpsRef.GetContinuationActivity();
             }
             else
             {
-                // No valid CPS activity in state (e.g., after deployment/upgrade or partial state loss).
+                // No valid CPS reference in state (e.g., after deployment/upgrade or partial state loss).
                 // Build a minimal activity using the known mcsConversationId so message forwarding still works.
                 activityToSend = new Activity
                 {
@@ -161,9 +160,10 @@ namespace GenesysHandoff
             activityToSend.Value = turnContext.Activity.Value;
             activityToSend.Name = turnContext.Activity.Name;
             activityToSend.ValueType = turnContext.Activity.ValueType;
+            ConversationReference? lastCpsRef2 = null;
             await foreach (IActivity activity in cpsClient.SendActivityAsync(activityToSend, cancellationToken))
             {
-                lastCpsActivity = activity;
+                lastCpsRef2 = activity.GetConversationReference();
 
                 if (activity.IsType(ActivityTypes.Message))
                 { 
@@ -182,9 +182,9 @@ namespace GenesysHandoff
                 }
             }
 
-            if (lastCpsActivity != null)
+            if (lastCpsRef2 != null)
             {
-                _stateManager.SetLastCpsActivity(turnState, lastCpsActivity);
+                _stateManager.SetLastCpsConversationReference(turnState, lastCpsRef2);
             }
         }
 

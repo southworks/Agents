@@ -101,6 +101,18 @@ namespace GenesysHandoff.Services
                 string.IsNullOrEmpty(logContext) ? "" : $" ({logContext})");
 
             var invokeResponse = incomingActivity.Value as InvokeResponse;
+            if (invokeResponse == null && incomingActivity.Value != null)
+            {
+                try
+                {
+                    invokeResponse = ProtocolJsonSerializer.ToObject<InvokeResponse>(
+                        ProtocolJsonSerializer.ToJson(incomingActivity.Value));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to deserialize InvokeResponse from activity value. Defaulting to status 200.");
+                }
+            }
 
             return new Activity
             {
