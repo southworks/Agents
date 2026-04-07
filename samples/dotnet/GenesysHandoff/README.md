@@ -319,16 +319,71 @@ When you add the OAuth connection on the Azure Bot (this step), make sure you ar
 
 Follow the guide for [configuring your .NET agent to use OAuth](https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/agent-oauth-configuration-dotnet).
 
-### 4.4. Update Bot Framework credentials
+### 4.4. Update Token Validation
 
-Update appsettings.json with your Azure Bot registration credentials (within the `Connections.ServiceConnection.Settings` section):
+Update appsettings.json with the `TokenValidation` section to secure your bot endpoint. Set the `Audiences` to your Azure Bot App ID (the Application (client) ID from section 4.1) and `TenantId` to the Tenant ID of the app registration:
+
+```json
+"TokenValidation": {
+  "Enabled": true,
+  "Audiences": [
+    "{{ClientID}}"           // App ID from Azure Bot registration (section 4.1)
+  ],
+  "TenantId": "{{TenantID}}" // Tenant ID of the app registration
+}
+```
+
+### 4.5. Update Bot Framework credentials
+
+Update appsettings.json with your Azure Bot registration credentials (within the `Connections.ServiceConnection.Settings` section). Make sure to set `AuthType` to `"ClientSecret"` and update `AuthorityEndpoint` with your app registration's Tenant ID:
 
 ```json
 "Connections": {
   "ServiceConnection": {
     "Settings": {
-      "ClientId": "",      // App ID from Azure Bot registration
-      "ClientSecret": ""   // Client secret from Azure Bot registration
+      "AuthType": "ClientSecret",
+      "AuthorityEndpoint": "https://login.microsoftonline.com/{{TenantId}}", // Replace {{TenantId}} with the Tenant ID of the app registration
+      "ClientId": "{{ClientID}}",      // App ID from Azure Bot registration
+      "ClientSecret": "{{ClientSecret}}", // Client secret from Azure Bot registration
+      "Scopes": [
+        "https://api.botframework.com/.default"
+      ]
+    }
+  }
+}
+```
+
+### 4.6. Configure MCSConnection
+
+The `MCSConnection` is used for the On-Behalf-Of (OBO) token exchange to call Copilot Studio. Add this connection in the `Connections` section of appsettings.json. Set `AuthType` to `"ClientSecret"` and update `AuthorityEndpoint` with your app registration's Tenant ID:
+
+```json
+"Connections": {
+  "MCSConnection": {
+    "Settings": {
+      "AuthType": "ClientSecret",
+      "AuthorityEndpoint": "https://login.microsoftonline.com/{{TenantId}}", // Replace {{TenantId}} with the Tenant ID of the app registration
+      "ClientId": "{{ClientID}}", // App ID from the OAuth app registration (section 4.2)
+      "ClientSecret": "{{ClientSecret}}" // Client secret from the OAuth app registration (section 4.2)
+    }
+  }
+}
+```
+
+### 4.7. Configure AzureBotOAuthConnectionName
+
+Set the `AzureBotOAuthConnectionName` in the `AgentApplication.UserAuthorization.Handlers` section of appsettings.json. This must match the name of the OAuth connection you created on the Azure Bot in section 4.2 (under "Create Azure Bot OAuth connection"):
+
+```json
+"AgentApplication": {
+  "UserAuthorization": {
+    "Handlers": {
+      "mcs": {
+        "Settings": {
+          "AzureBotOAuthConnectionName": "{{OAuthConnectionName}}", // Name of the OAuth connection created on the Azure Bot (section 4.2)
+          "OBOConnectionName": "MCSConnection"
+        }
+      }
     }
   }
 }
