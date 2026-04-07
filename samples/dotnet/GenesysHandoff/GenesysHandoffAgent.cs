@@ -160,10 +160,10 @@ namespace GenesysHandoff
             activityToSend.Value = turnContext.Activity.Value;
             activityToSend.Name = turnContext.Activity.Name;
             activityToSend.ValueType = turnContext.Activity.ValueType;
-            ConversationReference? lastCpsRef2 = null;
+            ConversationReference? latestCpsConversationRef = null;
             await foreach (IActivity activity in cpsClient.SendActivityAsync(activityToSend, cancellationToken))
             {
-                lastCpsRef2 = activity.GetConversationReference();
+                latestCpsConversationRef = activity.GetConversationReference();
 
                 if (activity.IsType(ActivityTypes.Message))
                 { 
@@ -182,9 +182,9 @@ namespace GenesysHandoff
                 }
             }
 
-            if (lastCpsRef2 != null)
+            if (latestCpsConversationRef != null)
             {
-                _stateManager.SetLastCpsConversationReference(turnState, lastCpsRef2);
+                _stateManager.SetLastCpsConversationReference(turnState, latestCpsConversationRef);
             }
         }
 

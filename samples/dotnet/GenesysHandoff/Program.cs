@@ -38,7 +38,7 @@ GenesysService? genesysService = null;
 builder.Services.AddSingleton(sp =>
 {
     var settings = new GenesysConnectionSetting(builder.Configuration.GetSection("Genesys"));
-    if (string.IsNullOrEmpty(settings.WebhookSignatureSecret))
+    if (string.IsNullOrWhiteSpace(settings.WebhookSignatureSecret))
     {
         throw new InvalidOperationException(
             "Genesys:WebhookSignatureSecret must be configured. " +
@@ -82,16 +82,22 @@ var genesysOutboundRoute = app.MapPost("/api/outbound", async (HttpRequest reque
         return;
     }
 
-    var isAuthentic = await genesysService.RetrieveMessageFromGenesysAsync(request, channelAdapter, cancellationToken);
-    if (!isAuthentic)
+    var result = await genesysService.RetrieveMessageFromGenesysAsync(request, channelAdapter, cancellationToken);
+    switch (result)
     {
-        response.StatusCode = StatusCodes.Status401Unauthorized;
-        await response.WriteAsync("Webhook signature validation failed.", cancellationToken);
-        return;
+        case WebhookResult.Unauthorized:
+            response.StatusCode = StatusCodes.Status401Unauthorized;
+            await response.WriteAsync("Webhook signature validation failed.", cancellationToken);
+            break;
+        case WebhookResult.Accepted:
+            response.StatusCode = StatusCodes.Status200OK;
+            await response.WriteAsync("Request accepted.", cancellationToken);
+            break;
+        case WebhookResult.MessageSent:
+            response.StatusCode = StatusCodes.Status200OK;
+            await response.WriteAsync("Message sent.", cancellationToken);
+            break;
     }
-
-    response.StatusCode = StatusCodes.Status200OK;
-    await response.WriteAsync("Proactive message sent.", cancellationToken);
 }).AllowAnonymous();
 
 if (app.Environment.IsDevelopment())

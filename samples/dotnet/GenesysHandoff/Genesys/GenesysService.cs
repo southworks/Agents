@@ -19,6 +19,21 @@ using System.Threading.Tasks;
 
 namespace GenesysHandoff.Genesys
 {
+    /// <summary>
+    /// Represents the outcome of processing an inbound Genesys webhook request.
+    /// </summary>
+    public enum WebhookResult
+    {
+        /// <summary>Webhook signature validation failed — the request is not authentic.</summary>
+        Unauthorized,
+
+        /// <summary>Request was authentic but no message was forwarded (e.g., missing payload, unknown conversation, or malformed body).</summary>
+        Accepted,
+
+        /// <summary>Request was authentic and a message (or typing indicator) was forwarded to the user.</summary>
+        MessageSent
+    }
+
     public class GenesysService(IGenesysConnectionSettings setting, IHttpClientFactory httpClientFactory, IStorage storage)
     {
         private readonly IGenesysConnectionSettings _setting = setting ?? throw new ArgumentNullException(nameof(setting));
@@ -45,8 +60,8 @@ namespace GenesysHandoff.Genesys
             await SendMessageAsync(activity, mcsConversationId, authToken, cancellationToken);
         }
 
-        /// <returns><c>true</c> if the request was authentic and processed; <c>false</c> if webhook signature validation failed.</returns>
-        public async Task<bool> RetrieveMessageFromGenesysAsync(HttpRequest request, IChannelAdapter channelAdapter, CancellationToken cancellationToken)
+        /// <returns>A <see cref="WebhookResult"/> indicating whether the request was unauthorized, accepted without forwarding, or forwarded to the user.</returns>
+        public async Task<WebhookResult> RetrieveMessageFromGenesysAsync(HttpRequest request, IChannelAdapter channelAdapter, CancellationToken cancellationToken)
         {
             // Read the request body and validate signature if configured
             string requestBody;
@@ -60,14 +75,23 @@ namespace GenesysHandoff.Genesys
             // Validate webhook signature on every incoming request
             if (!ValidateWebhookSignature(request, requestBody))
             {
-                return false;
+                return WebhookResult.Unauthorized;
             }
 
-            var payload = JsonSerializer.Deserialize<GenesysOutboundPayload>(requestBody);
+            GenesysOutboundPayload? payload;
+            try
+            {
+                payload = JsonSerializer.Deserialize<GenesysOutboundPayload>(requestBody);
+            }
+            catch (JsonException)
+            {
+                // Malformed JSON from an anonymous endpoint — accept without forwarding.
+                return WebhookResult.Accepted;
+            }
 
             if (payload == null || payload.Channel == null || payload.Channel.To == null || payload.Channel.To.Id == null)
             {
-                return true;
+                return WebhookResult.Accepted;
             }
 
             var c2ConversationId = payload.Channel.To.Id;
@@ -75,7 +99,7 @@ namespace GenesysHandoff.Genesys
 
             if (!state.TryGetValue(c2ConversationId, out var referenceObj) || referenceObj is not ConversationReference conversationReference)
             {
-                return true;
+                return WebhookResult.Accepted;
             }
 
             if (string.IsNullOrEmpty(payload.Text))
@@ -93,7 +117,7 @@ namespace GenesysHandoff.Genesys
                         await turnContext.SendActivityAsync(new Activity { Type = ActivityTypes.Typing }, ct);
                     },
                     cancellationToken: cancellationToken);
-                return true;
+                return WebhookResult.MessageSent;
             }
 
             // Send the agent's message to the user
@@ -134,7 +158,7 @@ namespace GenesysHandoff.Genesys
                 cancellationToken: cancellationToken
             );
 
-            return true;
+            return WebhookResult.MessageSent;
         }
 
         public async Task DeleteConversationReferenceAsync(string mcsConversationId, CancellationToken cancellationToken)

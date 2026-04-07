@@ -97,6 +97,8 @@ namespace GenesysHandoff.Services
         /// <returns>An invoke response activity with the original status and body from CPS.</returns>
         internal IActivity CreateInvokeResponseActivity(IActivity incomingActivity, string logContext = "")
         {
+            ArgumentNullException.ThrowIfNull(incomingActivity);
+
             _logger.LogInformation("InvokeResponse received from Copilot client{LogContext}",
                 string.IsNullOrEmpty(logContext) ? "" : $" ({logContext})");
 

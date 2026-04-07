@@ -71,7 +71,11 @@ Set up the dialog logic so the bot knows when and how to hand off to Genesys Clo
 1. **Open the Escalate Topic:** In Copilot Studio's Topics list, find the **Escalate** topic (it will be under System Topics).
 
 2. **Trigger phrases:** Add user phrases that should trigger escalation, such as:
-   - `This tool can handle queries like these: Talk to agent, Talk to a person, Talk to someone, Call back, Call customer service`
+   - `Talk to agent`
+   - `Talk to a person`
+   - `Talk to someone`
+   - `Call back`
+   - `Call customer service`
 
 3. **Create a customize response node:**
    - Add a **Customize Response Node** to summarize the conversation for the human agent.
