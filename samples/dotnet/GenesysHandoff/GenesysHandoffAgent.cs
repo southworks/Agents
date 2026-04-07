@@ -4,7 +4,6 @@ using Microsoft.Agents.Builder;
 using Microsoft.Agents.Builder.App;
 using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
-using Microsoft.Agents.Core.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -44,7 +43,7 @@ namespace GenesysHandoff
 
             OnMessage("-reset", HandleResetMessage);
             OnMessage("-signout", HandleSignOut);
-            OnActivity((turnContext, cancellationToken) => Task.FromResult(true), HandleAllActivities, autoSignInHandlers: [McsHandlerName]);
+            AddRoute((turnContext, cancellationToken) => Task.FromResult(true), HandleAllActivities, autoSignInHandlers: [McsHandlerName]);
             UserAuthorization.OnUserSignInFailure(async (turnContext, turnState, handlerName, response, initiatingActivity, cancellationToken) =>
             {
                 await turnContext.SendActivityAsync($"SignIn failed with '{handlerName}': {response.Cause}/{response.Error!.Message}", cancellationToken: cancellationToken);
@@ -132,8 +131,8 @@ namespace GenesysHandoff
             // When a message is received from the user, it is forwarded to Copilot Studio using the conversation ID stored in state.
             // The agent then listens for responses from Copilot Studio. If a message activity is received, it is sent back to the user.
             // If an event activity with the name "GenesysHandoff" is received, it indicates that the conversation should be escalated to a human agent through Genesys.
-            IActivity lastCpsActivity = _stateManager.GetLastCpsActivity(turnState);
-
+            IActivity lastCpsActivity = _stateManager.GetLastCpsActivity(turnState) ?? new Activity();
+            
             var activityToSend = lastCpsActivity.GetConversationReference().GetContinuationActivity();
             activityToSend.From = turnContext.Activity.From;
             activityToSend.Type = turnContext.Activity.Type;
