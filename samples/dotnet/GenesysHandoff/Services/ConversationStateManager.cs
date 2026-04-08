@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
 using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
 using System;
@@ -11,7 +14,8 @@ namespace GenesysHandoff.Services
     {
         private const string MCSConversationPropertyName = "MCSConversationId";
         private const string IsEscalatedPropertyName = "IsEscalated";
-        private const string LastCpsConversationReferencePropertyName = "LastCpsConversationReference";
+        private const string LastCopilotStudioReferencePropertyName = "LastCopilotStudioReference";
+        private const string GenesysConversationIdPropertyName = "GenesysConversationId";
 
         /// <summary>
         /// Gets the Copilot Studio conversation ID from the turn state.
@@ -68,11 +72,11 @@ namespace GenesysHandoff.Services
         /// Gets the last conversation reference from Copilot Studio, or <c>null</c> if none has been stored.
         /// </summary>
         /// <param name="turnState">The turn state containing conversation properties.</param>
-        /// <returns>The last CPS conversation reference if it exists; otherwise, <c>null</c>.</returns>
-        public ConversationReference? GetLastCpsConversationReference(ITurnState turnState)
+        /// <returns>The last Copilot Studio conversation reference if it exists; otherwise, <c>null</c>.</returns>
+        public ConversationReference? GetLastCopilotStudioReference(ITurnState turnState)
         {
             ArgumentNullException.ThrowIfNull(turnState);
-            return turnState.Conversation.GetValue<ConversationReference>(LastCpsConversationReferencePropertyName);
+            return turnState.Conversation.GetValue<ConversationReference>(LastCopilotStudioReferencePropertyName);
         }
 
         /// <summary>
@@ -80,23 +84,37 @@ namespace GenesysHandoff.Services
         /// </summary>
         /// <param name="turnState">The turn state to update.</param>
         /// <param name="conversationReference">The conversation reference to store.</param>
-        public void SetLastCpsConversationReference(ITurnState turnState, ConversationReference conversationReference)
+        public void SetLastCopilotStudioReference(ITurnState turnState, ConversationReference conversationReference)
         {
             ArgumentNullException.ThrowIfNull(turnState);
             ArgumentNullException.ThrowIfNull(conversationReference);
-            turnState.Conversation.SetValue(LastCpsConversationReferencePropertyName, conversationReference);
+            turnState.Conversation.SetValue(LastCopilotStudioReferencePropertyName, conversationReference);
         }
 
         /// <summary>
         /// Clears all conversation state properties managed by this class.
         /// </summary>
         /// <param name="turnState">The turn state to clear.</param>
+        public string? GetGenesysConversationId(ITurnState turnState)
+        {
+            ArgumentNullException.ThrowIfNull(turnState);
+            return turnState.Conversation.GetValue<string>(GenesysConversationIdPropertyName);
+        }
+
+        public void SetGenesysConversationId(ITurnState turnState, string conversationId)
+        {
+            ArgumentNullException.ThrowIfNull(turnState);
+            ArgumentException.ThrowIfNullOrEmpty(conversationId);
+            turnState.Conversation.SetValue(GenesysConversationIdPropertyName, conversationId);
+        }
+
         public void ClearConversationState(ITurnState turnState)
         {
             ArgumentNullException.ThrowIfNull(turnState);
             turnState.Conversation.DeleteValue(MCSConversationPropertyName);
             turnState.Conversation.DeleteValue(IsEscalatedPropertyName);
-            turnState.Conversation.DeleteValue(LastCpsConversationReferencePropertyName);
+            turnState.Conversation.DeleteValue(LastCopilotStudioReferencePropertyName);
+            turnState.Conversation.DeleteValue(GenesysConversationIdPropertyName);
         }
     }
 }
