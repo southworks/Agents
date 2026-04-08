@@ -128,9 +128,18 @@ namespace GenesysHandoff.Genesys
                 cancellationToken: cancellationToken);
         }
 
+        private const string EndLiveChatAction = "End chat with agent";
+
         private static IActivity BuildAgentReply(GenesysOutboundPayload payload)
         {
             var replyActivity = MessageFactory.Text($"[Live Agent] - {payload.Text}");
+            replyActivity.SuggestedActions = new SuggestedActions
+            {
+                Actions = new List<CardAction>
+                {
+                    new() { Title = EndLiveChatAction, Type = ActionTypes.ImBack, Value = EndLiveChatAction }
+                }
+            };
 
             if (payload.ContentData != null && payload.ContentData.Count > 0)
             {

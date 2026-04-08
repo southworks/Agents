@@ -9,6 +9,7 @@ using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,6 +21,7 @@ namespace GenesysHandoff
     public class GenesysHandoffAgent : AgentApplication
     {
         private const string McsHandlerName = "mcs";
+        private const string EndLiveChatAction = "End chat with agent";
 
         private readonly GenesysMessageSender _messageSender;
         private readonly CopilotClientFactory _copilotClientFactory;
@@ -103,14 +105,22 @@ namespace GenesysHandoff
                     }
                     else
                     {
-                        try
+                        // Check if the user clicked the "End chat with agent" suggested action
+                        if (string.Equals(turnContext.Activity.Text, EndLiveChatAction, StringComparison.OrdinalIgnoreCase))
                         {
-                            await _messageSender.SendMessageToGenesysAsync(turnContext.Activity, mcsConversationId, cancellationToken);
+                            await DisconnectFromLiveAgent(turnContext, turnState, mcsConversationId, cancellationToken);
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            _logger.LogError(ex, "Failed to forward message to Genesys for conversation {ConversationId}.", mcsConversationId);
-                            await turnContext.SendActivityAsync("Sorry, there was a problem sending your message to the live agent. Please try again.", cancellationToken: cancellationToken);
+                            try
+                            {
+                                await _messageSender.SendMessageToGenesysAsync(turnContext.Activity, mcsConversationId, cancellationToken);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Failed to forward message to Genesys for conversation {ConversationId}.", mcsConversationId);
+                                await turnContext.SendActivityAsync("Sorry, there was a problem sending your message to the live agent. Please try again.", cancellationToken: cancellationToken);
+                            }
                         }
                     }
                 }
@@ -250,6 +260,42 @@ namespace GenesysHandoff
             activityToSend.ValueType = incomingActivity.ValueType;
 
             return activityToSend;
+        }
+
+        /// <summary>
+        /// Disconnects from the live agent, cleans up Genesys resources, resets state,
+        /// and starts a new Copilot Studio conversation.
+        /// </summary>
+        private async Task DisconnectFromLiveAgent(ITurnContext turnContext, ITurnState turnState, string mcsConversationId, CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("User initiated disconnect from live agent for conversation {ConversationId}.", mcsConversationId);
+
+            try
+            {
+                var genesysConversationId = _stateManager.GetGenesysConversationId(turnState);
+                if (!string.IsNullOrEmpty(genesysConversationId))
+                {
+                    await _messageSender.DisconnectConversationAsync(genesysConversationId, cancellationToken);
+
+                    if (_notificationService != null)
+                    {
+                        await _notificationService.UnsubscribeFromConversationEventsAsync(genesysConversationId, cancellationToken);
+                    }
+                }
+
+                await _messageSender.DeleteUserChannelReferenceAsync(mcsConversationId, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during live agent disconnect cleanup for conversation {ConversationId}. Continuing with reset.", mcsConversationId);
+            }
+
+            _stateManager.ClearConversationState(turnState);
+            await turnContext.SendActivityAsync("You have ended the chat with the live agent.", cancellationToken: cancellationToken);
+
+            // Start a fresh Copilot Studio conversation
+            var cpsClient = _copilotClientFactory.CreateClient(this, turnContext);
+            await HandleNewConversation(turnContext, turnState, cpsClient, cancellationToken);
         }
 
         /// <summary>
