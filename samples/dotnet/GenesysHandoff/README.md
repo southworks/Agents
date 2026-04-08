@@ -203,7 +203,8 @@ Update appsettings.json with the details collected from the Genesys setup steps:
   "IntegrationId": "",              // GUID from Open Messaging Integration
   "ClientId": "",                   // OAuth Client ID created in Genesys
   "ClientSecret": "",               // OAuth Client Secret created in Genesys
-  "WebhookSignatureSecret": ""      // Required: outboundNotificationWebhookSignatureSecretToken from Genesys integration
+  "WebhookSignatureSecret": "",     // Required: outboundNotificationWebhookSignatureSecretToken from Genesys integration
+  "EnableNotifications": true        // Enable WebSocket notifications for automatic agent disconnect detection
 }
 ```
 
@@ -416,6 +417,7 @@ Understanding how the code works helps with configuration and troubleshooting.
 | Program.cs | Application startup and dependency injection setup. |
 | GenesysHandoffAgent.cs | Main agent logic and event handling. |
 | Genesys/ | Genesys API client and related services. |
+| Genesys/GenesysNotificationService.cs | WebSocket client for Genesys notification events (agent disconnect detection). |
 
 ---
 
@@ -519,6 +521,18 @@ After a short period of time (usually a few minutes), the agent will appear in:
 The `-reset` command allows users to start a new session with a fresh conversation ID. This clears the current conversation state, any associated escalation status, and removes stored conversation references from storage.
 
 > **Note:** Genesys does not provide an event notification when a conversation ends on their platform. As a result, there is no automatic synchronization between the Genesys conversation lifecycle and the agent session. Using `-reset` is the recommended way to manually end an escalated session and return to the Copilot Studio flow.
+
+### Automatic Agent Disconnect Detection (optional)
+
+When `EnableNotifications` is set to `true` in the Genesys configuration, the sample maintains a WebSocket connection to the [Genesys Cloud Notification Service](https://developer.genesys.cloud/notificationsalerts/notifications/) and subscribes to the `v2.detail.events.conversation.{id}.user.end` topic for each escalated conversation.
+
+When a Genesys agent disconnects:
+1. The bot proactively sends a message to the Teams user: *"The live agent has left the conversation. You are now back with the bot."*
+2. On the user's next message, the escalation flag is automatically cleared and the message is routed back to Copilot Studio.
+
+This removes the need for the user to manually type `-reset` after the agent leaves.
+
+> **Note:** The Genesys OAuth client must have the `notifications` permission scope for WebSocket channel creation and topic subscription. The WebSocket connection automatically reconnects on failure, and resubscribes to existing conversations after reconnection.
 
 ---
 
@@ -647,5 +661,6 @@ With the basics in place, you can use this foundation to further integrate and f
 5. **Genesys Cloud agent interaction:** A human agent in Genesys Cloud receives the message in the configured queue and replies from the Genesys agent UI.
 6. **Genesys outbound webhook → Agent SDK → Teams:** Genesys Cloud sends outbound webhook notifications to the web app `/api/outbound` endpoint. The Agent SDK validates the webhook signature using `WebhookSignatureSecret`, looks up the conversation mapping, and sends the agent's message back to the Teams user.
 7. **State persistence in Cosmos DB:** Throughout the flow, the Agent SDK reads and writes conversation metadata (for example, mappings between Teams and Genesys conversations, handoff flags) in persistent storage such as Azure Cosmos DB, so state survives restarts and scales beyond a single instance.
+8. **Agent disconnect detection (optional):** When `EnableNotifications` is enabled, the Agent SDK maintains a WebSocket connection to the Genesys Cloud Notification Service. Upon escalation, it subscribes to the `v2.detail.events.conversation.{id}.user.end` topic. When a Genesys agent disconnects, the Agent SDK proactively notifies the Teams user and clears the escalation flag on the next user message, returning the conversation to Copilot Studio.
 
 This architecture lets the user stay in a single Teams conversation while the Agent SDK, Copilot Studio runtime, Genesys Cloud, and persistent storage coordinate the escalation and message exchange behind the scenes. During escalation, Copilot Studio’s role is limited to raising the `GenesysHandoff` event; the actual Genesys conversation is managed directly between the Agent SDK and Genesys Cloud.
