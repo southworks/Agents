@@ -7,7 +7,7 @@ description: Use when attempting to resolve problems with an agent built using M
 
 ## Overview
 
-There are a lot of things that can go wrong when building an agent, from authentication issues to coding errors. This guide will help you systematically identify and resolve common problems with agents built using the Microsoft Agents SDK.
+Most agent failures fall into one of three categories: the code doesn't build or start, the configuration is wrong, or the agent isn't reachable. Work through this checklist in order — each step confirms a prerequisite for the next.
 
 ## Checklist
 
@@ -16,14 +16,184 @@ You MUST create a task for each of these items and complete them in order:
 1. Make sure the code builds successfully.
 2. Make sure the application starts and runs without crashing.
 3. Make sure the application opens a port and listens for incoming requests.
-4. Validate the bot's credentials
-5. Use the Agents Playground to test the agent locally without needing to deploy to Azure.
+4. Validate the `.env` configuration.
+5. Validate the bot's credentials against Azure AD.
+6. Use the Agents Playground to test the agent end-to-end locally.
+
+---
+
+### 1. Build the code
+
+```bash
+npm run build
+```
+
+Expected: exits with code 0, no errors. Fix any TypeScript or import errors before continuing.
+
+---
+
+### 2. Start the application
+
+Run with debug logging enabled to get detailed output from the SDK internals:
+
+```bash
+DEBUG=agents:* npm start
+```
+
+Or for anonymous local dev:
+
+```bash
+DEBUG=agents:* node ./dist/index.js
+```
+
+The `DEBUG=agents:*` flag enables verbose logging across all SDK namespaces. Scope down to reduce noise:
+
+```bash
+DEBUG=agents:* npm start                    # everything
+DEBUG=agents:authorization:* npm start      # all auth (most useful starting point)
+DEBUG=agents:msal npm start                 # token acquisition only
+```
 
 
+#### Auth & connections
 
-### 1. Validate bot credentials (clientId / clientSecret / tenantId)
+| Namespace | What it logs |
+|---|---|
+| `agents:authorization:connections` | Auth connections loaded at startup (clientId, tenantId, authType); which connection is selected per request |
+| `agents:authorization:manager` | Auth handlers configured at startup (type, scopes); which handler is invoked per request |
+| `agents:authorization:azurebot` | Azure Bot sign-in flow detail (token exchange, magic code, SSO) |
+| `agents:authorization:agentic` | Agentic auth flow detail (token acquisition, OBO) |
+| `agents:authorization` | High-level authorization middleware decisions |
+| `agents:msal` | MSAL token acquisition (token requests, cache hits, OBO) |
+| `agents:jwt-middleware` | Incoming JWT validation |
+| `agents:authConfiguration` | Auth configuration loading |
 
-This tests that your Entra app registration credentials are correct and can authenticate with the Bot Framework. A successful response includes `access_token`; an error response includes `error` and `error_description`.
+#### Adapter & request handling
+
+| Namespace | What it logs |
+|---|---|
+| `agents:cloud-adapter` | Incoming request processing, activity dispatch |
+| `agents:base-adapter` | Base adapter lifecycle |
+| `agents:connector-client` | Outbound calls to the Bot Connector service |
+| `agents:user-token-client` | User token client requests |
+
+#### Application & state
+
+| Namespace | What it logs |
+|---|---|
+| `agents:app` | AgentApplication routing and lifecycle |
+| `agents:activity-handler` | ActivityHandler event dispatch |
+| `agents:state` | State read/write operations |
+| `agents:turnState` | Turn state access |
+| `agents:memory-storage` | MemoryStorage read/write |
+| `agents:middleware` | Middleware pipeline execution |
+
+#### Streaming, attachments & transcripts
+
+| Namespace | What it logs |
+|---|---|
+| `agents:streamingResponse` | Streaming response lifecycle |
+| `agents:attachmentDownloader` | Attachment download requests |
+| `agents:M365AttachmentDownloader` | M365-specific attachment downloads |
+| `agents:file-transcript-logger` | File transcript write operations |
+| `agents:rest-client` | REST client calls (transcript middleware) |
+
+#### Agent-to-agent
+
+| Namespace | What it logs |
+|---|---|
+| `agents:agent-client` | Outbound agent client calls and response handling |
+
+Watch for crash output. Common startup errors:
+
+- **`Cannot find module`** — missing `npm install`, or `dist/` not built yet
+- **`ERR_MODULE_NOT_FOUND`** — check `"type": "module"` in `package.json` and that imports use `.js` extensions
+- **Port already in use** — another process is on port 3978; kill it or set `PORT` in `.env`
+
+If the agent starts cleanly, you should see output like:
+
+```
+Server listening on port 3978
+```
+
+---
+
+### 3. Confirm the agent is reachable
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" \
+  -X POST http://localhost:3978/api/messages \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+| Response | Meaning |
+|---|---|
+| `401` | Agent is running, auth is active — this is correct for a configured agent |
+| `200` | Agent is running with auth disabled (blank `clientId`) — correct for anonymous local dev |
+| `000` or connection refused | Agent is not running, wrong port, or crashed on startup |
+
+---
+
+### 4. Validate `.env` configuration
+
+Configuration mistakes are the most common source of failures. Check each area below.
+
+#### 4a. Confirm the file is being loaded
+
+The SDK requires `node --env-file .env` (Node 20+) or a manual `dotenv` call. If you're using `npm start`, check that `package.json` uses `--env-file`:
+
+```json
+"start": "node --env-file .env ./dist/index.js"
+```
+
+Without `--env-file`, environment variables silently don't load and the agent starts with no auth config.
+
+#### 4b. Check for the correct env var format
+
+The SDK uses the **modern `connections__` format**. Using the legacy flat format (`clientId=`, `clientSecret=`, `tenantId=`) still works but is only for backwards compatibility. Mixing the two formats causes silent misconfiguration.
+
+**Modern format (use this):**
+```
+connections__serviceConnection__settings__clientId=<your-app-id>
+connections__serviceConnection__settings__clientSecret=<your-secret>
+connections__serviceConnection__settings__tenantId=<your-tenant-id>
+connectionsMap__0__connection=serviceConnection
+connectionsMap__0__serviceUrl=*
+```
+
+**Legacy format (avoid for new agents):**
+```
+clientId=<your-app-id>
+clientSecret=<your-secret>
+tenantId=<your-tenant-id>
+```
+
+#### 4c. Check double-underscore separators
+
+A single underscore (`_`) is not the same as a double underscore (`__`). The SDK uses `__` to separate path segments. A typo like `connections_serviceConnection_settings_clientId` will be silently ignored.
+
+#### 4d. Check `connectionsMap` entries
+
+If you have multiple connections, each must have a `connectionsMap` entry. The first entry whose `serviceUrl` pattern matches the incoming request wins. Always include a `serviceUrl=*` fallback as the last entry.
+
+With a single connection, `connectionsMap` can be omitted — the SDK defaults to `serviceUrl=*`.
+
+#### 4e. Check OAuth handler variables
+
+If your agent uses user sign-in (`authorization: { graph: { ... } }`), the OAuth connection name must be set:
+
+```
+graph_connectionName=GraphOAuthConnection
+```
+
+The prefix (`graph`) must match the key used in the `authorization` config in your code. A mismatch causes the sign-in flow to fail silently or with a cryptic error.
+
+---
+
+### 5. Validate bot credentials against Azure AD
+
+Once the `.env` looks correct, confirm the credentials actually work by requesting a token:
 
 ```bash
 curl -s -X POST \
@@ -35,37 +205,61 @@ curl -s -X POST \
   | jq '{token_type, expires_in, error, error_description}'
 ```
 
-Common errors:
-- `AADSTS700016` — `clientId` not found in tenant (wrong ID or wrong tenant)
-- `AADSTS7000215` — invalid `clientSecret` (expired or incorrect)
-- `AADSTS90002` — `tenantId` not found
+A successful response includes `access_token`. Common errors:
 
-### 2. Validate the agent is running and reachable
+| Error code | Cause |
+|---|---|
+| `AADSTS700016` | `clientId` not found in tenant — wrong ID or wrong tenant |
+| `AADSTS7000215` | Invalid `clientSecret` — expired or incorrect |
+| `AADSTS90002` | `tenantId` not found |
 
-```bash
-curl -s -o /dev/null -w "%{http_code}" \
-  -X POST http://localhost:3978/api/messages \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
+---
 
-- `401` — agent is running; JWT auth rejected the empty request (expected — means auth is working)
-- `000` or connection refused — agent is not running or wrong port
-- `200` — agent is running with auth disabled (local dev with blank `clientId`)
+### 6. Test with Agents Playground
 
-### 3. Validate an OAuth connection name
-
-OAuth connection names (used by `graph_connectionName`) can only be tested end-to-end through a real sign-in flow. Use the Azure portal:
-
-**Azure Portal → Your Bot Resource → Settings → OAuth Connection Settings → [your connection] → Test Connection**
-
-This confirms the connection name matches, the OAuth app has the right scopes, and the redirect URI is configured correctly.
-
-## Local Testing with Agents Playground
-
-The Agents Playground lets you test your agent locally without deploying to Azure or configuring a Bot resource. It acts as a mock connector service and channel client.
+The Agents Playground acts as a mock connector and channel client. It lets you test the full message flow locally without deploying to Azure or configuring a real Bot resource.
 
 **Install:**
 ```bash
 npm install -g agentsplayground
 ```
+
+**Run against an anonymous agent (no `.env` needed):**
+```bash
+npm test
+```
+
+This assumes your `package.json` has:
+```json
+"start:anon": "node ./dist/index.js",
+"test-tool": "agentsplayground -c emulator",
+"test": "npm-run-all -p -r start:anon test-tool"
+```
+
+**Run against an authenticated agent:**
+```bash
+agentsplayground -c msteams \
+  --client-id <your-app-id> \
+  --client-secret <your-secret> \
+  --tenant-id <your-tenant-id>
+```
+
+**Channel options** (`-c`): `msteams`, `webchat`, `directline`, `emulator`, `agents`
+
+If the playground connects but messages don't get responses, the agent is running but a message handler may be missing or the route isn't matching. Add a fallback handler to confirm:
+
+```typescript
+this.onActivity('message', async (ctx: TurnContext) => {
+  await ctx.sendActivity(`Echo: ${ctx.activity.text}`)
+}, [], RouteRank.Last)
+```
+
+---
+
+### Validate an OAuth connection name
+
+OAuth connection names can only be tested end-to-end through a real sign-in flow:
+
+**Azure Portal → Your Bot Resource → Settings → OAuth Connection Settings → [your connection] → Test Connection**
+
+This confirms the connection name matches, the OAuth app has the right scopes, and the redirect URI (`https://token.botframework.com/.auth/web/redirect`) is registered on the app registration.
