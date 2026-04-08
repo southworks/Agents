@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System;
 using System.Net.Http;
 using System.Threading;
 
@@ -37,6 +38,12 @@ GenesysService? genesysService = null;
 builder.Services.AddSingleton(sp =>
 {
     var settings = new GenesysConnectionSetting(builder.Configuration.GetSection("Genesys"));
+    if (string.IsNullOrWhiteSpace(settings.WebhookSignatureSecret))
+    {
+        throw new InvalidOperationException(
+            "Genesys:WebhookSignatureSecret must be configured. " +
+            "The /api/outbound endpoint is anonymous and requires webhook signature validation to prevent unauthorized access.");
+    }
     genesysService = new GenesysService(settings, sp.GetService<IHttpClientFactory>()!, sp.GetService<IStorage>()!);
     return genesysService;
 });
@@ -75,16 +82,25 @@ var genesysOutboundRoute = app.MapPost("/api/outbound", async (HttpRequest reque
         return;
     }
 
-    await genesysService.RetrieveMessageFromGenesysAsync(request, channelAdapter, cancellationToken);
-    response.StatusCode = StatusCodes.Status200OK;
-    await response.WriteAsync("Proactive message sent.", cancellationToken);
-});
+    var result = await genesysService.RetrieveMessageFromGenesysAsync(request, channelAdapter, cancellationToken);
+    switch (result)
+    {
+        case WebhookResult.Unauthorized:
+            response.StatusCode = StatusCodes.Status401Unauthorized;
+            await response.WriteAsync("Webhook signature validation failed.", cancellationToken);
+            break;
+        case WebhookResult.Accepted:
+            response.StatusCode = StatusCodes.Status200OK;
+            await response.WriteAsync("Request accepted.", cancellationToken);
+            break;
+        case WebhookResult.MessageSent:
+            response.StatusCode = StatusCodes.Status200OK;
+            await response.WriteAsync("Message sent.", cancellationToken);
+            break;
+    }
+}).AllowAnonymous();
 
-if (!app.Environment.IsDevelopment())
-{
-    genesysOutboundRoute.RequireAuthorization();
-}
-else
+if (app.Environment.IsDevelopment())
 {
     // Hardcoded for brevity and ease of testing. 
     // In production, this should be set in configuration.
