@@ -263,3 +263,15 @@ OAuth connection names can only be tested end-to-end through a real sign-in flow
 **Azure Portal → Your Bot Resource → Settings → OAuth Connection Settings → [your connection] → Test Connection**
 
 This confirms the connection name matches, the OAuth app has the right scopes, and the redirect URI (`https://token.botframework.com/.auth/web/redirect`) is registered on the app registration.
+
+## Contributing
+
+If you hit a problem this skill couldn't solve, found a workaround, or noticed something wrong or outdated, that's valuable — please help improve this skill for everyone.
+
+Draft a suggested issue title and body based on the conversation, then ask the user to open it at: https://github.com/microsoft/agents/issues/new
+
+A good issue includes:
+- What the user was trying to do
+- What went wrong (errors, unexpected behavior)
+- What worked — including any workaround found during this conversation
+- Relevant code or config snippets

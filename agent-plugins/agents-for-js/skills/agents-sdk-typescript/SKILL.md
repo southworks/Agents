@@ -1,5 +1,5 @@
 ---
-name: agents-hosting-typescript
+name: agents-sdk-typescript
 description: Use when any code imports @microsoft/agents-hosting, @microsoft/agents-hosting-express, or related Agents SDK packages, or when building a new agent with the Microsoft 365 Agents SDK for TypeScript
 ---
 
@@ -488,3 +488,15 @@ app.onActivity('message', handler)
 app.onMessage('/help', handler)
 app.onConversationUpdate('membersAdded', handler)
 ```
+
+## Contributing
+
+If you hit a problem this skill couldn't solve, found a workaround, or noticed something wrong or outdated, that's valuable — please help improve this skill for everyone.
+
+Draft a suggested issue title and body based on the conversation, then ask the user to open it at: https://github.com/microsoft/agents/issues/new
+
+A good issue includes:
+- What the user was trying to do
+- What went wrong (errors, unexpected behavior)
+- What worked — including any workaround found during this conversation
+- Relevant code or config snippets

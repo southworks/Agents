@@ -9,7 +9,7 @@ description: Use when provisioning Azure resources for a Microsoft Agents SDK ap
 
 Provisions Azure Bot resources for M365 Agents SDK apps using `az` CLI commands. Three auth types available; each produces a config block for `appsettings.json` (dotnet) or env vars (Node.js).
 
-**See `agents-hosting-typescript` skill for env var format (Node.js).**
+**See `agents-sdk-typescript` skill for env var format (Node.js).**
 
 ## Prerequisites
 
@@ -377,3 +377,15 @@ Add `--parameters exchangeableToken="true"` to the `az bot authsetting create` c
 | Client secret committed to source | Use Key Vault, env secrets, or GitHub Secrets |
 | OAuth app not found | Run `az ad sp create --id <oauth-appId>` if bot can't find the app |
 | `AADSTS500113: No reply address is registered` | Add `https://token.botframework.com/.auth/web/redirect` as a redirect URI on the app registration |
+
+## Contributing
+
+If you hit a problem this skill couldn't solve, found a workaround, or noticed something wrong or outdated, that's valuable — please help improve this skill for everyone.
+
+Draft a suggested issue title and body based on the conversation, then ask the user to open it at: https://github.com/microsoft/agents/issues/new
+
+A good issue includes:
+- What the user was trying to do
+- What went wrong (errors, unexpected behavior)
+- What worked — including any workaround found during this conversation
+- Relevant code or config snippets
