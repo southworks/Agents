@@ -25,8 +25,12 @@ docker run --rm -it -p 18888:18888 -p 4317:18889 --name aspire-dashboard mcr.mic
 
 ### Configure Azure Bot Service
 
-1. [Create an Azure Bot](https://aka.ms/AgentsSDK-CreateBot)
-   - Record the Application ID, the Tenant ID, and the Client Secret for use below
+1. Create an Azure Bot with one of these authentication types
+   - [SingleTenant, Client Secret](https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/azure-bot-create-single-secret)
+   - [SingleTenant, Federated Credentials](https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/azure-bot-create-federated-credentials) 
+   - [User Assigned Managed Identity](https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/azure-bot-create-managed-identity)
+
+   > **IMPORTANT:** If you want to run your agent locally via devtunnels, the only support auth type is ClientSecrets and Certificates
 
 1. Update `appsettings.json` with your bot credentials:
    ```json
@@ -41,23 +45,25 @@ docker run --rm -it -p 18888:18888 -p 4317:18889 --name aspire-dashboard mcr.mic
    }
    ```
 
-1. Run `dev tunnels`. See [Create and host a dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access:
+1. Running the Agent
+   1. Running the Agent locally
+      - Requires a tunneling tool to allow for local development and debugging should you wish to do local development whilst connected to a external client such as Microsoft Teams.
+      - **For ClientSecret or Certificate authentication types only.**  Federated Credentials and Managed Identity will not work via a tunnel to a local agent and must be deployed to an App Service or container.
+      
+      1. Run `dev tunnels`. Please follow [Create and host a dev tunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started?tabs=windows) and host the tunnel with anonymous user access command as shown below:
 
-   ```bash
-   devtunnel host -p 3978 --allow-anonymous
-   ```
+         ```bash
+         devtunnel host -p 3978 --allow-anonymous
+         ```
 
-1. On the Azure Bot, select **Settings**, then **Configuration**, and update the **Messaging endpoint** to `{tunnel-url}/api/messages`
+      1. On the Azure Bot, select **Settings**, then **Configuration**, and update the **Messaging endpoint** to `{tunnel-url}/api/messages`
 
-### Running the Agent
+      1. Start the Agent in Visual Studio
 
-1. Open this folder in Visual Studio or from the terminal.
+   1. Deploy Agent code to Azure
+      1. VS Publish works well for this.  But any tools used to deploy a web application will also work.
+      1. On the Azure Bot, select **Settings**, then **Configuration**, and update the **Messaging endpoint** to `https://{{appServiceDomain}}/api/messages`
 
-1. Start the agent:
-
-   ```bash
-   dotnet run
-   ```
 
 ## Accessing the Agent
 
@@ -79,7 +85,7 @@ By default, telemetry is exported to `http://localhost:4317` via OTLP gRPC. To c
 
 | Signal | Sources |
 |--------|---------|
-| **Traces** | ASP.NET Core requests, `HttpClient` outgoing calls, Agents SDK (`AgentsTelemetry.SourceName`) |
+| **Traces** | ASP.NET Core requests, `HttpClient` outgoing calls, Agents SDK (`AgentsTelemetry.ActivitySource`) |
 | **Metrics** | ASP.NET Core, `HttpClient`, .NET runtime, Agents SDK meter |
 | **Logs** | All `ILogger` log records forwarded to the OTLP log exporter |
 

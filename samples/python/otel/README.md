@@ -79,7 +79,7 @@ The agent is ready to accept messages.
 
 ## OpenTelemetry Configuration
 
-The `telemetry.py` module provides the `configure_otel_providers` function, which sets up tracing, metrics, and logging before the agent starts:
+The `telemetry.py` files provides the `configure_otel_providers` function, which sets up tracing, metrics, and logging before the agent starts:
 
 ```python
 from telemetry import configure_otel_providers
