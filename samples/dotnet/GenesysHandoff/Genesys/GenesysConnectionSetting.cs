@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
+
 using Microsoft.Extensions.Configuration;
 
 namespace GenesysHandoff.Genesys
@@ -39,6 +40,20 @@ namespace GenesysHandoff.Genesys
         public string? ClientSecret { get; set; }
 
         /// <summary>
+        /// Gets or sets the webhook signature secret used to validate incoming webhook requests from Genesys.
+        /// </summary>
+        /// <remarks>
+        /// This is the outboundNotificationWebhookSignatureSecretToken configured in the Genesys Open Messaging integration.
+        /// When set, incoming webhook requests will be validated using HMAC-SHA256 signature verification.
+        /// </remarks>
+        public string? WebhookSignatureSecret { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether the Genesys WebSocket notification service is enabled for detecting agent disconnections.
+        /// </summary>
+        public bool EnableNotifications { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="GenesysConnectionSetting"/> class.
         /// </summary>
         public GenesysConnectionSetting() { }
@@ -61,6 +76,8 @@ namespace GenesysHandoff.Genesys
                 IntegrationId = config.GetValue<string>("IntegrationId");
                 ClientId = config.GetValue<string>("ClientId");
                 ClientSecret = config.GetValue<string>("ClientSecret");
+                WebhookSignatureSecret = config.GetValue<string>("WebhookSignatureSecret");
+                EnableNotifications = config.GetValue<bool>("EnableNotifications");
             }
         }
     }

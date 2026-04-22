@@ -1,13 +1,15 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
 using GenesysHandoff.Genesys;
-using Microsoft.Agents.Authentication;
+using GenesysHandoff.Services;
 using Microsoft.Agents.Builder;
 using Microsoft.Agents.Builder.App;
 using Microsoft.Agents.Builder.State;
-using Microsoft.Agents.CopilotStudio.Client;
 using Microsoft.Agents.Core.Models;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging.Abstractions;
-using System.Net.Http;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,27 +20,38 @@ namespace GenesysHandoff
     /// </summary>
     public class GenesysHandoffAgent : AgentApplication
     {
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IConfiguration _configuration;
-        private readonly GenesysService _genesysService;
-        const string MCSConversationPropertyName = "MCSConversationId"; // Property name to store the Copilot Studio conversation ID
-        const string IsEscalatedPropertyName = "IsEscalated"; // Property name to indicate if the conversation has been escalated to a human agent
+        private const string McsHandlerName = "mcs";
+        private const string EndLiveChatAction = "End chat with agent";
+
+        private readonly GenesysMessageSender _messageSender;
+        private readonly CopilotClientFactory _copilotClientFactory;
+        private readonly ActivityResponseProcessor _responseProcessor;
+        private readonly ConversationStateManager _stateManager;
+        private readonly GenesysNotificationService? _notificationService;
+        private readonly ILogger<GenesysHandoffAgent> _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GenesysHandoffAgent"/> class.
         /// </summary>
-        /// <param name="options">The options for the agent application.</param>
-        /// <param name="httpClientFactory">The HTTP client factory for making API calls.</param>
-        /// <param name="configuration">The configuration settings for the agent.</param>
-        /// <param name="genesysService">The Genesys service for handling interactions.</param>
-        public GenesysHandoffAgent(AgentApplicationOptions options, IHttpClientFactory httpClientFactory, IConfiguration configuration, GenesysService genesysService) : base(options)
+        public GenesysHandoffAgent(
+            AgentApplicationOptions options,
+            GenesysMessageSender messageSender,
+            CopilotClientFactory copilotClientFactory,
+            ActivityResponseProcessor responseProcessor,
+            ConversationStateManager stateManager,
+            ILogger<GenesysHandoffAgent> logger,
+            GenesysNotificationService? notificationService = null) : base(options)
         {
-            _httpClientFactory = httpClientFactory;
-            _configuration = configuration;
-            _genesysService = genesysService;
+            _messageSender = messageSender;
+            _copilotClientFactory = copilotClientFactory;
+            _responseProcessor = responseProcessor;
+            _stateManager = stateManager;
+            _logger = logger;
+            _notificationService = notificationService;
+
             OnMessage("-reset", HandleResetMessage);
             OnMessage("-signout", HandleSignOut);
-            OnActivity((turnContext, cancellationToken) => Task.FromResult(true), HandleAllActivities, autoSignInHandlers: ["mcs"]);
+            AddRoute((turnContext, cancellationToken) => Task.FromResult(true), HandleAllActivities, autoSignInHandlers: [McsHandlerName]);
             UserAuthorization.OnUserSignInFailure(async (turnContext, turnState, handlerName, response, initiatingActivity, cancellationToken) =>
             {
                 await turnContext.SendActivityAsync($"SignIn failed with '{handlerName}': {response.Cause}/{response.Error!.Message}", cancellationToken: cancellationToken);
@@ -49,60 +62,240 @@ namespace GenesysHandoff
         /// Handles all incoming activities for the current conversation, including starting new conversations,
         /// processing messages, and managing escalation to a human agent as needed.
         /// </summary>
-        /// <remarks>This method coordinates between automated and human agent handling based on the
-        /// conversation state. If escalation is triggered, subsequent messages are forwarded to a human agent service.
-        /// Otherwise, messages are processed by the Copilot Studio client. The method supports both starting new
-        /// conversations and continuing existing ones.</remarks>
-        /// <param name="turnContext">The context object for the current turn of the conversation, providing access to the incoming activity and
-        /// methods for sending responses.</param>
-        /// <param name="turnState">The state object containing conversation-scoped properties and values used to track conversation flow and
-        /// escalation status.</param>
-        /// <param name="cancellationToken">A cancellation token that can be used to propagate notification that the operation should be canceled.</param>
+        /// <param name="turnContext">The context object for the current turn of the conversation.</param>
+        /// <param name="turnState">The state object containing conversation-scoped properties.</param>
+        /// <param name="cancellationToken">A cancellation token that can be used to cancel the operation.</param>
         /// <returns>A task that represents the asynchronous operation.</returns>
         private async Task HandleAllActivities(ITurnContext turnContext, ITurnState turnState, CancellationToken cancellationToken)
         {
-            var mcsConversationId = turnState.Conversation.GetValue<string>(MCSConversationPropertyName);
-            var cpsClient = GetCopilotClient(this, turnContext);
+            var mcsConversationId = _stateManager.GetConversationId(turnState);
+            var cpsClient = _copilotClientFactory.CreateClient(this, turnContext);
 
             if (string.IsNullOrEmpty(mcsConversationId))
             {
-                await foreach (IActivity activity in cpsClient.StartConversationAsync(emitStartConversationEvent: true, cancellationToken: cancellationToken))
+                // Check whether the user already has an ongoing CPS conversation recorded in state.
+                // If so, stitch the new activity into that conversation instead of starting a fresh one.
+                var lastCopilotStudioRef = _stateManager.GetLastCopilotStudioReference(turnState);
+                if (lastCopilotStudioRef != null
+                    && !string.IsNullOrEmpty(lastCopilotStudioRef.Conversation?.Id)
+                    && (turnContext.Activity.IsType(ActivityTypes.Message) || turnContext.Activity.IsType(ActivityTypes.Invoke)))
                 {
-                    if (activity.IsType(ActivityTypes.Message))
-                    {
-                        await turnContext.SendActivityAsync(activity.Text, cancellationToken: cancellationToken);
-                        turnState.Conversation.SetValue(MCSConversationPropertyName, activity.Conversation.Id);
-                    }
-                }
-            }
-            else if (turnContext.Activity.IsType(ActivityTypes.Message))
-            {
-                var isEscalated = turnState.Conversation.GetValue<bool>(IsEscalatedPropertyName);
-                // If escalated, forward message to Genesys; otherwise, send to Copilot Studio
-                if (isEscalated)
-                {
-                    await _genesysService.SendMessageToGenesysAsync(turnContext.Activity, mcsConversationId, cancellationToken);
+                    var existingConversationId = lastCopilotStudioRef.Conversation.Id;
+                    _stateManager.SetConversationId(turnState, existingConversationId);
+                    await HandleCopilotStudioMessage(turnContext, turnState, cpsClient, existingConversationId, cancellationToken);
                 }
                 else
                 {
-                    await foreach (IActivity activity in cpsClient.AskQuestionAsync(turnContext.Activity.Text, mcsConversationId, cancellationToken))
+                    await HandleNewConversation(turnContext, turnState, cpsClient, cancellationToken);
+                }
+            }
+            else if (turnContext.Activity.IsType(ActivityTypes.Message) || turnContext.Activity.IsType(ActivityTypes.Invoke))
+            {
+                var isEscalated = _stateManager.IsEscalated(turnState);
+                if (isEscalated)
+                {
+                    // Check if the agent has disconnected since our last turn
+                    if (_notificationService != null
+                        && await _notificationService.CheckAndClearAgentDisconnectedAsync(mcsConversationId, cancellationToken))
                     {
-                        if (activity.IsType(ActivityTypes.Message))
+                        // Agent disconnected — reset state and start a fresh CPS session (same as -reset)
+                        await _messageSender.DeleteUserChannelReferenceAsync(mcsConversationId, cancellationToken);
+                        _stateManager.ClearConversationState(turnState);
+                        await HandleNewConversation(turnContext, turnState, cpsClient, cancellationToken);
+                    }
+                    else
+                    {
+                        // Check if the user clicked the "End chat with agent" suggested action
+                        if (string.Equals(turnContext.Activity.Text, EndLiveChatAction, StringComparison.OrdinalIgnoreCase))
                         {
-                            await turnContext.SendActivityAsync(activity.Text, cancellationToken: cancellationToken);
+                            await DisconnectFromLiveAgent(turnContext, turnState, mcsConversationId, cancellationToken);
                         }
-                        // Check for Genesys handoff event
-                        // If detected, set escalation flag and notify Genesys of the escalation
-                        if (activity.IsType(ActivityTypes.Event) && activity.Name.Equals("GenesysHandoff"))
-                        { 
-                            turnState.Conversation.SetValue(IsEscalatedPropertyName, true);
-                            var summarizationActivity = turnContext.Activity.GetConversationReference().GetContinuationActivity();
-                            summarizationActivity.Text = activity.Value?.ToString() ?? "The chat is being escalated to a human agent.";
-                            await _genesysService.SendMessageToGenesysAsync(summarizationActivity, mcsConversationId, cancellationToken);
+                        else
+                        {
+                            try
+                            {
+                                await _messageSender.SendMessageToGenesysAsync(turnContext.Activity, mcsConversationId, cancellationToken);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Failed to forward message to Genesys for conversation {ConversationId}.", mcsConversationId);
+                                await turnContext.SendActivityAsync("Sorry, there was a problem sending your message to the live agent. Please try again.", cancellationToken: cancellationToken);
+                            }
                         }
                     }
                 }
+                else
+                {
+                    await HandleCopilotStudioMessage(turnContext, turnState, cpsClient, mcsConversationId, cancellationToken);
+                }
             }
+        }
+
+        /// <summary>
+        /// Handles starting a new conversation with Copilot Studio.
+        /// The last activity received from CPS is stored in conversation state so that
+        /// subsequent turns can be stitched to this conversation.
+        /// </summary>
+        private async Task HandleNewConversation(ITurnContext turnContext, ITurnState turnState, Microsoft.Agents.CopilotStudio.Client.CopilotClient cpsClient, CancellationToken cancellationToken)
+        {
+            ConversationReference? lastCopilotStudioRef = null;
+
+            await foreach (IActivity activity in cpsClient.StartConversationAsync(emitStartConversationEvent: true, cancellationToken: cancellationToken))
+            {
+                lastCopilotStudioRef = activity.GetConversationReference();
+                if (activity.IsType(ActivityTypes.Message))
+                {
+                    var responseActivity = _responseProcessor.CreateResponseActivity(activity, "StartConversation");
+                    await turnContext.SendActivityAsync(responseActivity, cancellationToken);
+                    _stateManager.SetConversationId(turnState, activity.Conversation.Id);
+                }
+            }
+
+            if (lastCopilotStudioRef != null)
+            {
+                _stateManager.SetLastCopilotStudioReference(turnState, lastCopilotStudioRef);
+            }
+        }
+
+        /// <summary>
+        /// Handles processing messages through Copilot Studio and checking for escalation events.
+        /// The last activity received from CPS is stored in conversation state so that
+        /// subsequent turns can be stitched to this conversation.
+        /// </summary>
+        private async Task HandleCopilotStudioMessage(ITurnContext turnContext, ITurnState turnState, Microsoft.Agents.CopilotStudio.Client.CopilotClient cpsClient, string mcsConversationId, CancellationToken cancellationToken)
+        {
+            // When a message is received from the user, it is forwarded to Copilot Studio using the conversation ID stored in state.
+            // The agent then listens for responses from Copilot Studio. If a message activity is received, it is sent back to the user.
+            // If an event activity with the name "GenesysHandoff" is received, it indicates that the conversation should be escalated to a human agent through Genesys.
+            var lastCopilotStudioRef = _stateManager.GetLastCopilotStudioReference(turnState);
+            var activityToSend = BuildCopilotStudioActivity(turnContext.Activity, lastCopilotStudioRef, mcsConversationId);
+            ConversationReference? latestCopilotStudioRef = null;
+            await foreach (IActivity activity in cpsClient.SendActivityAsync(activityToSend, cancellationToken))
+            {
+                latestCopilotStudioRef = activity.GetConversationReference();
+
+                if (activity.IsType(ActivityTypes.Message))
+                { 
+                    var responseActivity = _responseProcessor.CreateResponseActivity(activity, "AskQuestion");
+                    await turnContext.SendActivityAsync(responseActivity, cancellationToken);
+                }
+                else if (activity.IsType(ActivityTypes.InvokeResponse))
+                {
+                    var responseActivity = _responseProcessor.CreateInvokeResponseActivity(activity, "InvokeResponse");
+                    await turnContext.SendActivityAsync(responseActivity, cancellationToken);
+                }
+                else if (activity.IsType(ActivityTypes.Event) && string.Equals(activity.Name, "GenesysHandoff", StringComparison.Ordinal))
+                {
+
+                    await HandleEscalation(turnContext, turnState, activity, mcsConversationId, cancellationToken);
+                }
+            }
+
+            if (latestCopilotStudioRef != null)
+            {
+                _stateManager.SetLastCopilotStudioReference(turnState, latestCopilotStudioRef);
+            }
+        }
+
+        /// <summary>
+        /// Handles escalation to a human agent through Genesys.
+        /// </summary>
+        private async Task HandleEscalation(ITurnContext turnContext, ITurnState turnState, IActivity activity, string mcsConversationId, CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Escalating conversation {ConversationId} to Genesys.", mcsConversationId);
+            _stateManager.SetEscalated(turnState, true);
+            var summarizationActivity = turnContext.Activity.GetConversationReference().GetContinuationActivity();
+            summarizationActivity.Text = activity.Value?.ToString() ?? "The chat is being escalated to a human agent.";
+
+            try
+            {
+                var genesysConversationId = await _messageSender.SendMessageToGenesysAsync(summarizationActivity, mcsConversationId, cancellationToken, prefetchConversationId: true);
+
+                // Subscribe to agent disconnect notifications if the notification service is enabled
+                if (_notificationService != null && !string.IsNullOrEmpty(genesysConversationId))
+                {
+                    _stateManager.SetGenesysConversationId(turnState, genesysConversationId);
+                    await _notificationService.SubscribeToConversationEventsAsync(genesysConversationId, mcsConversationId, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to escalate conversation {ConversationId} to Genesys.", mcsConversationId);
+                _stateManager.SetEscalated(turnState, false);
+                await turnContext.SendActivityAsync("Sorry, we couldn't connect you to a live agent at this time. Please try again later.", cancellationToken: cancellationToken);
+            }
+        }
+
+        /// <summary>
+        /// Builds an activity suitable for sending to Copilot Studio, copying user-relevant
+        /// properties from the incoming activity onto the continuation or fallback activity.
+        /// </summary>
+        private static Activity BuildCopilotStudioActivity(IActivity incomingActivity, ConversationReference? cpsReference, string mcsConversationId)
+        {
+            Activity activityToSend;
+            if (cpsReference != null && !string.IsNullOrEmpty(cpsReference.Conversation?.Id))
+            {
+                activityToSend = cpsReference.GetContinuationActivity();
+            }
+            else
+            {
+                // No valid CPS reference in state (e.g., after deployment/upgrade or partial state loss).
+                activityToSend = new Activity
+                {
+                    Type = incomingActivity.Type,
+                    Conversation = new ConversationAccount { Id = mcsConversationId },
+                    ChannelId = incomingActivity.ChannelId,
+                    ServiceUrl = incomingActivity.ServiceUrl,
+                    Recipient = incomingActivity.Recipient,
+                };
+            }
+
+            activityToSend.From = incomingActivity.From;
+            activityToSend.Type = incomingActivity.Type;
+            activityToSend.Text = incomingActivity.Text;
+            activityToSend.Attachments = incomingActivity.Attachments;
+            activityToSend.Entities = incomingActivity.Entities;
+            activityToSend.Value = incomingActivity.Value;
+            activityToSend.Name = incomingActivity.Name;
+            activityToSend.ValueType = incomingActivity.ValueType;
+
+            return activityToSend;
+        }
+
+        /// <summary>
+        /// Disconnects from the live agent, cleans up Genesys resources, resets state,
+        /// and starts a new Copilot Studio conversation.
+        /// </summary>
+        private async Task DisconnectFromLiveAgent(ITurnContext turnContext, ITurnState turnState, string mcsConversationId, CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("User initiated disconnect from live agent for conversation {ConversationId}.", mcsConversationId);
+
+            try
+            {
+                var genesysConversationId = _stateManager.GetGenesysConversationId(turnState);
+                if (!string.IsNullOrEmpty(genesysConversationId))
+                {
+                    await _messageSender.DisconnectConversationAsync(genesysConversationId, cancellationToken);
+
+                    if (_notificationService != null)
+                    {
+                        await _notificationService.UnsubscribeFromConversationEventsAsync(genesysConversationId, cancellationToken);
+                    }
+                }
+
+                await _messageSender.DeleteUserChannelReferenceAsync(mcsConversationId, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during live agent disconnect cleanup for conversation {ConversationId}. Continuing with reset.", mcsConversationId);
+            }
+
+            _stateManager.ClearConversationState(turnState);
+            await turnContext.SendActivityAsync("You have ended the chat with the live agent.", cancellationToken: cancellationToken);
+
+            // Start a fresh Copilot Studio conversation
+            var cpsClient = _copilotClientFactory.CreateClient(this, turnContext);
+            await HandleNewConversation(turnContext, turnState, cpsClient, cancellationToken);
         }
 
         /// <summary>
@@ -123,45 +316,40 @@ namespace GenesysHandoff
         /// <summary>
         /// Resets the conversation state and notifies the user that the conversation has been reset.
         /// </summary>
-        /// <remarks>This method removes specific conversation properties and sends a reset notification
-        /// to the user. After calling this method, any state associated with the removed properties will no longer be
-        /// available in the conversation.</remarks>
-        /// <param name="turnContext">The context object for the current turn of the conversation. Used to send activities to the user.</param>
+        /// <param name="turnContext">The context object for the current turn of the conversation.</param>
         /// <param name="turnState">The state object containing conversation-specific properties to be cleared.</param>
         /// <param name="cancellationToken">A cancellation token that can be used to cancel the asynchronous operation.</param>
         /// <returns>A task that represents the asynchronous operation.</returns>
         private async Task HandleResetMessage(ITurnContext turnContext, ITurnState turnState, CancellationToken cancellationToken)
         {
-            turnState.Conversation.DeleteValue(MCSConversationPropertyName);
-            turnState.Conversation.DeleteValue(IsEscalatedPropertyName);
-            await turnContext.SendActivityAsync("The conversation has been reset.", cancellationToken: cancellationToken);
-        }
+            var mcsConversationId = _stateManager.GetConversationId(turnState);
 
-        /// <summary>
-        /// Creates and configures a new instance of the CopilotClient for the specified agent application and turn
-        /// context.
-        /// </summary>
-        /// <remarks>The returned CopilotClient is initialized with authorization tokens scoped to the
-        /// current user and conversation. Ensure that the provided AgentApplication and ITurnContext are valid and
-        /// represent the intended user and session.</remarks>
-        /// <param name="app">The agent application used to provide user authorization for the CopilotClient.</param>
-        /// <param name="turnContext">The current turn context containing information about the ongoing conversation and user state.</param>
-        /// <returns>A configured CopilotClient instance that can be used to interact with Copilot Studio services on behalf of
-        /// the user.</returns>
-        private CopilotClient GetCopilotClient(AgentApplication app, ITurnContext turnContext)
-        {
-            var settings = new ConnectionSettings(_configuration.GetSection("CopilotStudioAgent"));
-            string[] scopes = [CopilotClient.ScopeFromSettings(settings)];
-
-            return new CopilotClient(
-                settings,
-                _httpClientFactory,
-                tokenProviderFunction: async (s) =>
+            if (!string.IsNullOrEmpty(mcsConversationId))
+            {
+                try
                 {
-                    return await app.UserAuthorization.ExchangeTurnTokenAsync(turnContext, "mcs", exchangeScopes: scopes);
-                },
-                NullLogger.Instance,
-                "mcs");
+                    // If currently escalated to a live agent, disconnect the Genesys conversation first
+                    var genesysConversationId = _stateManager.GetGenesysConversationId(turnState);
+                    if (_stateManager.IsEscalated(turnState) && !string.IsNullOrEmpty(genesysConversationId))
+                    {
+                        await _messageSender.DisconnectConversationAsync(genesysConversationId, cancellationToken);
+                    }
+
+                    await _messageSender.DeleteUserChannelReferenceAsync(mcsConversationId, cancellationToken);
+
+                    if (_notificationService != null && !string.IsNullOrEmpty(genesysConversationId))
+                    {
+                        await _notificationService.UnsubscribeFromConversationEventsAsync(genesysConversationId, cancellationToken);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error during cleanup for conversation reset {ConversationId}. Continuing with reset.", mcsConversationId);
+                }
+            }
+
+            _stateManager.ClearConversationState(turnState);
+            await turnContext.SendActivityAsync("The conversation has been reset.", cancellationToken: cancellationToken);
         }
     }
 }
