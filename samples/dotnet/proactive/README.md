@@ -84,7 +84,7 @@ This is a sample of a simple Agent that is hosted on an Asp.net core web service
    3. Send a proactive message from code
       1. Send `-c {conversationId}`  
       1. The chat will show the message "This is OnContinueConversation"
-         1. This was send by the code in `ProactiveAgent`.  You can perform anything you would normaly do for that conversation in the handler.
+         1. This was sent by the code in `ProactiveAgent`.  You can perform anything you would normaly do for that conversation in the handler.
    4. Continue a conversation using Http and the Conversation data (not a stored conversation)
       1. Send "-convo"
       1. Copy the json sent to the chat
