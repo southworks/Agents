@@ -25,7 +25,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OBOAuthorization", "obo-aut
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentFrameworkWeather", "Agent Framework\AgentFrameworkWeather.csproj", "{812FEFD7-E6E1-D544-9367-915A49EC6FD7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenesysHandoff", "GenesysHandoff\GenesysHandoff.csproj", "{84EE4770-235D-45AB-9DF2-873EB8CE33B4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenesysHandoff", "genesys-handoff\GenesysHandoff.csproj", "{84EE4770-235D-45AB-9DF2-873EB8CE33B4}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultiAgent", "multiagent\MultiAgent.csproj", "{81CCC64D-8774-B7F0-C7DF-F037B8B3B19E}"
 EndProject

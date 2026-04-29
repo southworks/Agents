@@ -11,3 +11,4 @@
 |Copilot Studio Skill |Call the echo bot from a Copilot Studio skill |[copilotstudio-skill](copilotstudio-skill/README.md)|
 |RetrievalBot Sample with Semantic Kernel|A simple Retrieval Agent that is hosted on an Asp.net core web service. |[RetrievalBot](RetrievalBot/README.md)|
 |MultiAgent|Demonstrates multiple AgentApplication in the same host|[MultiAgent](multiagent/README.md)|
+|GenesysHandoff|Demonstrates how a Microsoft Copilot Studio Agent (bot) can seamlessly **hand off a conversation to a live agent** in **Genesys Cloud**.|[GenesysHandoff](genesys-handoff/README.md)|
