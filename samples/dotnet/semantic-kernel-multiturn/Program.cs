@@ -12,11 +12,6 @@ using SemanticKernelMultiturn;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-if (builder.Environment.IsDevelopment())
-{
-    builder.Configuration.AddUserSecrets<Program>();
-}
-
 builder.Services.AddHttpClient();
 
 // Register Semantic Kernel

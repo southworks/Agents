@@ -71,8 +71,8 @@ public static class AspNetExtensions
 
         if (!tokenValidationSection.Exists() || !tokenValidationSection.GetValue("Enabled", true))
         {
-            // Noop if TokenValidation section missing or disabled.
             System.Diagnostics.Trace.WriteLine("AddAgentAspNetAuthentication: Auth disabled");
+            services.AddControllers();  // else calls to UseAuthorization will fail.
             return;
         }
 
