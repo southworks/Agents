@@ -11,7 +11,7 @@ using OpenTelemetry.Logs;
 using System.Linq;
 using Microsoft.Agents.Core.Telemetry;
 
-namespace TelemetryAgent
+namespace Otel
 {
     // This can be used by ASP.NET Core apps, Azure Functions, and other .NET apps using the Generic Host.
     // This allows you to use the local aspire desktop and monitor Agents SDK operations.
