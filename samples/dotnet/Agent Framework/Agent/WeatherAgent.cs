@@ -9,6 +9,7 @@ using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core;
 using Microsoft.Agents.Core.Models;
 using Microsoft.Agents.Core.Serialization;
+using Microsoft.Agents.Core.Telemetry;
 using Microsoft.Extensions.AI;
 using System.Text.Json;
 
@@ -93,7 +94,7 @@ namespace AgentFrameworkWeather.Agent
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        private ChatClientAgent GetClientAgent(ITurnContext context)
+        private AIAgent GetClientAgent(ITurnContext context)
         {
             AssertionHelpers.ThrowIfNull(_configuration!, nameof(_configuration));
             AssertionHelpers.ThrowIfNull(context, nameof(context));
@@ -129,7 +130,10 @@ namespace AgentFrameworkWeather.Agent
                             })
 #pragma warning restore MEAI001 // MessageCountingChatReducer is for evaluation purposes only and is subject to change or removal in future updates
 
-                    });
+                    })
+                .AsBuilder()
+                .UseOpenTelemetry(sourceName: AgentsTelemetry.SourceName, (cfg) => cfg.EnableSensitiveData = true)
+                .Build(); 
         }
 
         /// <summary>
