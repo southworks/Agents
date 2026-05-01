@@ -12,14 +12,26 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!-- Agents SDK Pacakges -->
+		<PackageReference Include="Microsoft.Agents.Authentication.Msal" Version="1.5.*" />
+		<PackageReference Include="Microsoft.Agents.Hosting.AspNetCore" Version="1.5.*" />
+
+		<!-- Agent Framework Packages -->
 		<PackageReference Include="AdaptiveCards" Version="3.1.0" />
-		<PackageReference Include="Azure.AI.OpenAI" Version="2.8.0-beta.1"/>
+		<PackageReference Include="Azure.AI.OpenAI" Version="2.7.0-beta.2" />
 		<PackageReference Include="Azure.Identity" Version="1.17.1" />
-		<PackageReference Include="Microsoft.Agents.AI" Version="1.0.0-preview.251009.1" />
-		<PackageReference Include="Microsoft.Agents.Authentication.Msal" Version="1.5.*"/>
-		<PackageReference Include="Microsoft.Agents.Hosting.AspNetCore" Version="1.5.*"/>
-		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.3.0"/>
-		<PackageReference Include="OpenWeatherMapSharp" Version="4.1.0"/>
+		<PackageReference Include="Microsoft.Agents.AI" Version="1.1.0" />
+		<PackageReference Include="Microsoft.Agents.Authentication.Msal" Version="1.5.*-*" />
+		<PackageReference Include="Microsoft.Agents.Hosting.AspNetCore" Version="1.5.*-*" />
+		<PackageReference Include="Microsoft.Extensions.AI.OpenAI"
+			Version="10.0.1-preview.1.25571.5" />
+		<PackageReference Include="Microsoft.Extensions.AI" Version="10.4.0" />
+		<PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.4.0" />
+		<PackageReference Include="Microsoft.Agents.AI.CopilotStudio"
+			Version="1.0.0-preview.260108.1" />
+
+		<!-- Open weather -->
+		<PackageReference Include="OpenWeatherMapSharp" Version="4.1.0" />
 	</ItemGroup>
 
 </Project>
