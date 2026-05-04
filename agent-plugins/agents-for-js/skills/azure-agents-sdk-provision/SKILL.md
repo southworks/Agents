@@ -217,9 +217,10 @@ OWNER_OBJECT_ID=$(az ad signed-in-user show --query id -o tsv)
 # Generate a new GUID for the OAuth scope (use PowerShell on Windows)
 OAUTH_SCOPE_ID=$(powershell -NoProfile -Command "[guid]::NewGuid().ToString()")
 
+# Use the file at [assets/Create_SSO_AppRegistration.bicep](assets/Create_SSO_AppRegistration.bicep)
 RESULT=$(az deployment group create \
   --resource-group "$RESOURCE_GROUP" \
-  --template-file ".claude\skills\azure-agents-sdk-provision\Create_SSO_AppRegistration.bicep" \
+  --template-file "assets/Create_SSO_AppRegistration.bicep" \
   --parameters "APP_NAME=$APP_NAME" "OWNER_OBJECT_ID=$OWNER_OBJECT_ID" "OAUTH_SCOPE_ID=$OAUTH_SCOPE_ID" \
   --output json)
 
@@ -229,9 +230,10 @@ APP_ID=$(echo $RESULT | jq -r '.properties.outputs.newAppId.value')
 **Phase 2 — Pre-authorize Teams/Office host clients for SSO:**
 
 ```bash
+# Use the file at [assets/Create_SSO_PreAuthorize.bicep](assets/Create_SSO_PreAuthorize.bicep)
 az deployment group create \
   --resource-group "$RESOURCE_GROUP" \
-  --template-file ".claude\skills\azure-agents-sdk-provision\Create_SSO_PreAuthorize.bicep" \
+  --template-file "assets/Create_SSO_PreAuthorize.bicep" \
   --parameters "APP_NAME=$APP_NAME" "OAUTH_SCOPE_ID=$OAUTH_SCOPE_ID"
 ```
 
