@@ -20,8 +20,8 @@ namespace GenesysHandoff
     public class GenesysHandoffAgent : AgentApplication
     {
         private const string McsHandlerName = "mcs";
-        private const string EndLiveChatAction = "End chat with agent";
 
+        private readonly string _endLiveChatMessage;
         private readonly GenesysMessageSender _messageSender;
         private readonly CopilotClientFactory _copilotClientFactory;
         private readonly ActivityResponseProcessor _responseProcessor;
@@ -38,9 +38,11 @@ namespace GenesysHandoff
             CopilotClientFactory copilotClientFactory,
             ActivityResponseProcessor responseProcessor,
             ConversationStateManager stateManager,
+            IGenesysConnectionSettings settings,
             ILogger<GenesysHandoffAgent> logger,
             GenesysNotificationService? notificationService = null) : base(options)
         {
+            _endLiveChatMessage = settings.EndLiveChatMessage ?? "End chat with agent";
             _messageSender = messageSender;
             _copilotClientFactory = copilotClientFactory;
             _responseProcessor = responseProcessor;
@@ -105,7 +107,7 @@ namespace GenesysHandoff
                     else
                     {
                         // Check if the user clicked the "End chat with agent" suggested action
-                        if (string.Equals(turnContext.Activity.Text, EndLiveChatAction, StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(turnContext.Activity.Text, _endLiveChatMessage, StringComparison.OrdinalIgnoreCase))
                         {
                             await DisconnectFromLiveAgent(turnContext, turnState, mcsConversationId, cancellationToken);
                         }
