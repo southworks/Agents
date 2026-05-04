@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+using AgentFrameworkWeather;
 using AgentFrameworkWeather.Agent;
 using Azure;
 using Azure.AI.OpenAI;
@@ -18,6 +19,10 @@ builder.Configuration.AddUserSecrets(Assembly.GetExecutingAssembly());
 builder.Services.AddControllers();
 builder.Services.AddHttpClient("WebClient", client => client.Timeout = TimeSpan.FromSeconds(600));
 builder.Services.AddHttpContextAccessor();
+
+// Configure defaults for Aspire dashboard
+builder.ConfigureOtelProviders();
+
 builder.Logging.AddConsole();
 
 // Add AspNet token validation
