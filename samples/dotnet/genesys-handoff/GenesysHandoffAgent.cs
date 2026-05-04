@@ -93,7 +93,7 @@ namespace GenesysHandoff
             else if (turnContext.Activity.IsType(ActivityTypes.Message) || turnContext.Activity.IsType(ActivityTypes.Invoke))
             {
                 var isEscalated = _stateManager.IsEscalated(turnState);
-                if (isEscalated)
+                if (isEscalated && !turnContext.Activity.IsType(ActivityTypes.Invoke))
                 {
                     // Check if the agent has disconnected since our last turn
                     if (_notificationService != null
