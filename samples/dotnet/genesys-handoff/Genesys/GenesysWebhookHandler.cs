@@ -116,11 +116,14 @@ namespace GenesysHandoff.Genesys
         {
             var continuationActivity = userChannelReference.GetContinuationActivity();
             var claimsIdentity = AgentClaims.CreateIdentity(userChannelReference.Agent.Id);
+            var audience = string.IsNullOrWhiteSpace(userChannelReference.ServiceUrl)
+                    ? AuthenticationConstants.BotFrameworkAudience
+                    : userChannelReference.ServiceUrl;
 
             await channelAdapter.ProcessProactiveAsync(
                 claimsIdentity: claimsIdentity,
                 continuationActivity: continuationActivity,
-                audience: string.Empty,
+                audience: audience,
                 callback: async (turnContext, ct) =>
                 {
                     await turnContext.SendActivityAsync(activity, cancellationToken: ct);
@@ -128,16 +131,15 @@ namespace GenesysHandoff.Genesys
                 cancellationToken: cancellationToken);
         }
 
-        private const string EndLiveChatAction = "End chat with agent";
-
-        private static IActivity BuildAgentReply(GenesysOutboundPayload payload)
+        private IActivity BuildAgentReply(GenesysOutboundPayload payload)
         {
+            var endChatLabel = _setting.EndLiveChatMessage ?? "End chat with agent";
             var replyActivity = MessageFactory.Text($"[Live Agent] - {payload.Text}");
             replyActivity.SuggestedActions = new SuggestedActions
             {
                 Actions = new List<CardAction>
                 {
-                    new() { Title = EndLiveChatAction, Type = ActionTypes.ImBack, Value = EndLiveChatAction }
+                    new() { Title = endChatLabel, Type = ActionTypes.ImBack, Value = endChatLabel }
                 }
             };
 

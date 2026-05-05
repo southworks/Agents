@@ -43,5 +43,15 @@ namespace GenesysHandoff.Genesys
         /// Gets or sets whether the Genesys WebSocket notification service is enabled for detecting agent disconnections.
         /// </summary>
         public bool EnableNotifications { get; set; }
+
+        /// <summary>
+        /// Gets or sets the message sent to the user when a live agent disconnects.
+        /// </summary>
+        public string? AgentDisconnectedMessage { get; set; }
+
+        /// <summary>
+        /// Gets or sets the label shown on the suggested action button that ends the live chat.
+        /// </summary>
+        public string? EndLiveChatMessage { get; set; }
     }
 }
