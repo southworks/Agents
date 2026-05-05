@@ -293,15 +293,18 @@ namespace GenesysHandoff.Genesys
                 // Proactively notify the Teams user
                 var continuationActivity = userChannelReference.GetContinuationActivity();
                 var claimsIdentity = AgentClaims.CreateIdentity(userChannelReference.Agent.Id);
+                var audience = string.IsNullOrWhiteSpace(userChannelReference.ServiceUrl)
+                    ? AuthenticationConstants.BotFrameworkAudience
+                    : userChannelReference.ServiceUrl;
 
                 await _channelAdapter.ProcessProactiveAsync(
                     claimsIdentity: claimsIdentity,
                     continuationActivity: continuationActivity,
-                    audience: string.Empty,
+                    audience: audience,
                     callback: async (turnContext, ct) =>
                     {
                         await turnContext.SendActivityAsync(
-                            MessageFactory.Text("The live agent has left the conversation. You are now back with the bot."),
+                            MessageFactory.Text(_settings.AgentDisconnectedMessage ?? "The live agent has left the conversation. You are now back with the bot."),
                             cancellationToken: ct);
                     },
                     cancellationToken: cancellationToken);

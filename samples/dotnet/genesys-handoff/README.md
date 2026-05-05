@@ -204,7 +204,9 @@ Update appsettings.json with the details collected from the Genesys setup steps:
   "ClientId": "",                   // OAuth Client ID created in Genesys
   "ClientSecret": "",               // OAuth Client Secret created in Genesys
   "WebhookSignatureSecret": "",     // Required: outboundNotificationWebhookSignatureSecretToken from Genesys integration
-  "EnableNotifications": true        // Enable WebSocket notifications for automatic agent disconnect detection
+  "EnableNotifications": true,      // Enable WebSocket notifications for automatic agent disconnect detection
+  "AgentDisconnectedMessage": "The live agent has left the conversation. You are now back with the bot.", // Optional: message sent to user when the live agent disconnects
+  "EndLiveChatMessage": "End chat with agent" // Optional: label for the suggested action button that ends the live chat
 }
 ```
 
