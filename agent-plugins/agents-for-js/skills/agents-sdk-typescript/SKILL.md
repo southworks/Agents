@@ -1,6 +1,13 @@
 ---
 name: agents-sdk-typescript
-description: Use when any code imports @microsoft/agents-hosting, @microsoft/agents-hosting-express, or related Agents SDK packages, or when building a new agent with the Microsoft 365 Agents SDK for TypeScript
+description: >
+  Use when any code imports @microsoft/agents-hosting, @microsoft/agents-hosting-express,
+  or related Agents SDK packages, or when the user is building, configuring, or
+  asking questions about a Microsoft 365 Agents SDK agent in TypeScript. Trigger
+  on questions about environment variables, connection configuration,
+  AgentApplication patterns, OAuth sign-in flows, storage backends, cards,
+  streaming, or local testing with the Agents Playground — even if no code exists
+  yet and the user is planning or asking how to get started.
 ---
 
 ## Overview
@@ -373,51 +380,11 @@ authorization: { agentic: { type: 'agentic' } }
 
 ## Cards
 
-Import `CardFactory` and `MessageFactory` from `@microsoft/agents-hosting`. Import `ActionTypes` from `@microsoft/agents-activity`.
-
-**Adaptive Card** (from a JSON template):
-```typescript
-import AdaptiveCard from './resources/myCard.json'
-
-const card = CardFactory.adaptiveCard(AdaptiveCard)
-await ctx.sendActivity(MessageFactory.attachment(card))
-```
-
-**Hero Card:**
-```typescript
-const card = CardFactory.heroCard(
-  'Card Title',
-  CardFactory.images(['https://example.com/image.jpg']),
-  CardFactory.actions([
-    { type: ActionTypes.OpenUrl, title: 'Learn more', value: 'https://example.com' }
-  ])
-)
-await ctx.sendActivity(MessageFactory.attachment(card))
-```
-
-**Thumbnail Card:**
-```typescript
-const card = CardFactory.thumbnailCard('Title', images, actions, {
-  subtitle: 'Subtitle',
-  text: 'Body text'
-})
-await ctx.sendActivity(MessageFactory.attachment(card))
-```
-
-Other factories: `CardFactory.animationCard`, `CardFactory.audioCard`, `CardFactory.videoCard`, `CardFactory.receiptCard`.
+Read [references/cards.md](references/cards.md) when working with Adaptive Cards, Hero Cards, Thumbnail Cards, or other card types.
 
 ## Streaming
 
-```typescript
-this.onActivity('message', async (ctx: TurnContext) => {
-  ctx.streamingResponse.setFeedbackLoop(true)
-  ctx.streamingResponse.setGeneratedByAILabel(true)
-  ctx.streamingResponse.queueInformativeUpdate('Working on it...')
-  ctx.streamingResponse.queueTextChunk('Part 1 ')
-  ctx.streamingResponse.queueTextChunk('Part 2')
-  await ctx.streamingResponse.endStream() // required
-})
-```
+Read [references/streaming.md](references/streaming.md) when implementing streaming responses.
 
 ## Common Mistakes
 

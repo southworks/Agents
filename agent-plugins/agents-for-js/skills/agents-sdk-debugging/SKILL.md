@@ -1,6 +1,14 @@
 ---
 name: agents-sdk-debugging
-description: Use when attempting to resolve problems with an agent built using Microsoft Agents SDK @microsoft/agents-hosting and related packages.
+description: >
+  Use when troubleshooting an agent built with the Microsoft Agents SDK
+  (@microsoft/agents-hosting and related packages). Trigger on any of these
+  symptoms: build or TypeScript errors, crashes on startup, 401 or auth errors
+  on incoming requests, the bot not responding to messages, .env configuration
+  problems, Azure AD credential failures (AADSTS errors), port conflicts, or the
+  agent not connecting in Teams or the Agents Playground. Use even if the user
+  doesn't mention the SDK by name — trigger on symptoms like "my bot won't
+  start", "getting 401s", or "bot isn't responding."
 ---
 
 # Debugging Agents Built with Microsoft Agents SDK

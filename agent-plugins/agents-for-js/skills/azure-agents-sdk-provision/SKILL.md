@@ -1,6 +1,14 @@
 ---
 name: azure-agents-sdk-provision
-description: Use when provisioning Azure resources for a Microsoft Agents SDK application - creating an Azure Bot resource, configuring identity credentials, adding Teams channel, or setting up OAuth connections via az CLI
+description: >
+  Use when provisioning Azure resources for a Microsoft Agents SDK application —
+  including creating an Azure Bot Service resource, setting up Entra app
+  registrations, configuring identity credentials (UserManagedIdentity,
+  FederatedCredentials, or ClientSecret), adding a Teams channel, running Bicep
+  deployments for SSO, or setting up OAuth user sign-in connections via az CLI.
+  Trigger even if the user doesn't say "provision" — use on requests like "set
+  up my bot on Azure", "deploy my bot", "configure Azure for my bot", or "get
+  Teams SSO working."
 ---
 
 # Azure Agents SDK Provisioning
