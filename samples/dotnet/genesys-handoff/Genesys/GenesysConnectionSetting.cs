@@ -54,6 +54,16 @@ namespace GenesysHandoff.Genesys
         public bool EnableNotifications { get; set; }
 
         /// <summary>
+        /// Gets or sets the message sent to the user when a live agent disconnects.
+        /// </summary>
+        public string? AgentDisconnectedMessage { get; set; }
+
+        /// <summary>
+        /// Gets or sets the label shown on the suggested action button that ends the live chat.
+        /// </summary>
+        public string? EndLiveChatMessage { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="GenesysConnectionSetting"/> class.
         /// </summary>
         public GenesysConnectionSetting() { }
@@ -78,6 +88,8 @@ namespace GenesysHandoff.Genesys
                 ClientSecret = config.GetValue<string>("ClientSecret");
                 WebhookSignatureSecret = config.GetValue<string>("WebhookSignatureSecret");
                 EnableNotifications = config.GetValue<bool>("EnableNotifications");
+                AgentDisconnectedMessage = config.GetValue<string>("AgentDisconnectedMessage");
+                EndLiveChatMessage = config.GetValue<string>("EndLiveChatMessage");
             }
         }
     }
