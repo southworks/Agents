@@ -8,7 +8,7 @@ Audience: Engineers in Customers/Partners onboarding to S2S feature set for Copi
 
 Use this guide to: understand the feature, complete Day 0 setup, and run a Hello World turn against a published agent to establish the connection. 
 
-This feature is enabled on a per tenant basis, under private preview. It should not be used for production.
+This feature is enabled on a per environment or tenant basis.
 
 ### Feature Overview 
 
@@ -66,11 +66,11 @@ Access rule for OBO: Access is granted only when the application broker has at l
 
 ## Constraints
 
-- Same-tenant only. The calling application must be registered in the same tenant as the agent. Cross-tenant integration is not supported today. This is regardless of if the application registration is configured to support multi-tenant and multi-tenant in Copilot Studio is not supported. Tenant scoped access token is required for this integration.  
+- Same-tenant only. The calling application must be registered in the same tenant as the agent. Cross-tenant integration is not supported today. This is regardless of if the application registration is configured to support multi-tenant and multi-tenant in Copilot Studio is not supported. " I have not tested the cross-tenant integration. So is this just for diligence until we run tests and identify gaps.  
 
 - True S2S requires anonymous mode. In application context there is no user, so user-auth-enabled tools and connections are not supported in this flow. The agent must have no end-user auth configured. In Copilot Studio this means ‘No Authentication’ is set. See Section 12. Security Best Practice Context in this document. 
 
-- User-delegated S2S requires integrated auth mode. D2E APIs only support Entra auth and cannot support OAuth or Custom AAD via REST. The agent must have integrated auth configured. Currently Manual Authentication is out of scope for this feature (There is no validation if the Agent is configured with Manual Authentication with Custom ADD) 
+- User-delegated S2S requires integrated auth mode. D2E APIs only support Entra auth and cannot support OAuth or Custom AAD via REST. Works with agent in any auth mode (No auth, Integrated and Custom). D2E APIs only support Entra auth and the Custom AAD auth is best effort
 
 ## Existing S2S Allow Listed Tenants
 
@@ -109,7 +109,7 @@ These run on top of the existing PPAPI gateway JWT validation, the per-agent sha
 
 3. In APIs my organization uses, search for Power Platform API. 
 
-4. Add Power Platform API → Test → Delegated permissions and Application permissions → CopilotStudio.Copilots.Invoke. 
+4. Add Power Platform API → Delegated permissions and Application permissions → CopilotStudio.Copilots.Invoke. 
 
 5. Get the permissions admin-consented by your tenant admin. 
 
