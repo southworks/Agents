@@ -57,11 +57,11 @@ Your use of other services in connection with the Microsoft 365 Agents SDK is go
 
 ### Note for Microsoft internal developers
 
-- Internal Micrsoft Developers should join the Core identity group [Agents SDK Contrib](https://coreidentity.microsoft.com/manage/Entitlement/entitlement/agentssdkint-upyj)
+- Internal Microsoft Developers should join the Core identity group [Agents SDK Contrib](https://coreidentity.microsoft.com/manage/Entitlement/entitlement/agentssdkint-upyj)
 
-### Non-Microsoft internal developers
+### Non-Microsoft developers
 
-- This project welcomes contributions and suggestions.  Most contributions require you to agree to a
+- This project welcomes contributions and suggestions. Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
 the rights to use your contribution. For details, visit <https://cla.opensource.microsoft.com>.
 
@@ -79,7 +79,7 @@ To ensure a consistent development environment, we recommend using the following
 
 |Extension | Description |
 |----------|-------------|
-|[ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)|Integrates [ESLint](https://eslint.org/) into VS Code. Allows you to find an fix problems in JavaScript code.|
+|[ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)|Integrates [ESLint](https://eslint.org/) into VS Code. Allows you to find and fix problems in JavaScript code.|
 |[GitHub Copilot Chat](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot-chat)|[GitHub Copilot](https://code.visualstudio.com/docs/copilot/overview) is an AI peer programming tool that helps you write code faster and smarter.|
 |[GitHub Codespaces](https://marketplace.visualstudio.com/items?itemName=GitHub.codespaces)|[GitHub Codespaces](https://github.com/features/codespaces) provides cloud-hosted development environments for any activity - whether it's a long-term project, or a short-term task like reviewing a pull request.|
 |[C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit)|C# Dev Kit helps you manage your code with a solution explorer and test your code with integrated unit test discovery and execution, elevating your C# development experience wherever you like to develop (Windows, macOS, Linux, and even in a Codespace).|
@@ -93,7 +93,7 @@ This project may contain trademarks or logos for projects, products, or services
 trademarks or logos is subject to and must follow
 [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
-Any use of third-party trademarks or logos are subject to those third-party's policies.
+Any use of third-party trademarks or logos is subject to those third-party's policies.
 
 [Agents Repository]: https://github.com/Microsoft/Agents
 [Agents-for-net Repository]: https://github.com/Microsoft/Agents-for-net
