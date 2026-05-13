@@ -13,3 +13,4 @@
 |Cards Agent|Agent that uses rich cards to enhance conversation design |[cards](cards/README.md)|
 |Multi-turn Prompt |Multi-turn dialog flow using prompts and state management |[multi-turn-prompt](multi-turn-prompt/README.md)|
 |Copilot Studio Skill|Call the echo bot from a Copilot Studio skill |[copilotstudio-skill](copilotstudio-skill/README.md)|
+|OTel Agent|Agent with OTel instrumentation |[otel](otel/README.md)|
