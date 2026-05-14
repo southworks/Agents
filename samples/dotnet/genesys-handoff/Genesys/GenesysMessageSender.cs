@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+using Microsoft.Agents.Authentication;
+using Microsoft.Agents.Builder;
 using Microsoft.Agents.Core.Models;
 using Microsoft.Agents.Storage;
 using Microsoft.Extensions.Logging;
@@ -176,7 +178,7 @@ namespace GenesysHandoff.Genesys
             return null;
         }
 
-        private async Task StoreUserChannelReferenceAsync(IActivity activity, string mcsConversationId, CancellationToken cancellationToken)
+        public async Task StoreUserChannelReferenceAsync(IActivity activity, string mcsConversationId, CancellationToken cancellationToken)
         {
             var userChannelReference = activity.GetConversationReference();
 
@@ -240,6 +242,84 @@ namespace GenesysHandoff.Genesys
                 },
                 time = DateTime.UtcNow.ToString("o")
             };
+        }
+
+        /// <summary>
+        /// Retrieves the stored <see cref="ConversationReference"/> for the given MCS conversation ID.
+        /// </summary>
+        /// <param name="mcsConversationId">The MCS conversation ID.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>The stored ConversationReference if found; otherwise, null.</returns>
+        public async Task<ConversationReference?> GetUserChannelReferenceAsync(string mcsConversationId, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(mcsConversationId))
+            {
+                return null;
+            }
+
+            try
+            {
+                var result = await _storage.ReadAsync([mcsConversationId], cancellationToken);
+                if (result != null && result.TryGetValue(mcsConversationId, out var referenceObj) && referenceObj is ConversationReference conversationReference)
+                {
+                    return conversationReference;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving conversation reference for {ConversationId}.", mcsConversationId);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Sends a proactive message to a Teams conversation using the stored ConversationReference.
+        /// </summary>
+        /// <param name="mcsConversationId">The MCS conversation ID.</param>
+        /// <param name="activity">The activity to send.</param>
+        /// <param name="channelAdapter">The channel adapter for sending the message.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>True if the message was sent successfully; otherwise, false.</returns>
+        public async Task<bool> SendProactiveMessageAsync(string mcsConversationId, IActivity activity, IChannelAdapter channelAdapter, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(mcsConversationId) || activity == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                var userChannelReference = await GetUserChannelReferenceAsync(mcsConversationId, cancellationToken);
+                if (userChannelReference == null)
+                {
+                    _logger.LogWarning("No conversation reference found for {ConversationId}.", mcsConversationId);
+                    return false;
+                }
+
+                var continuationActivity = userChannelReference.GetContinuationActivity();
+                var claimsIdentity = AgentClaims.CreateIdentity(userChannelReference.Agent.Id);
+                var audience = string.IsNullOrWhiteSpace(userChannelReference.ServiceUrl)
+                    ? AuthenticationConstants.BotFrameworkAudience
+                    : userChannelReference.ServiceUrl;
+                await channelAdapter.ProcessProactiveAsync(
+                    claimsIdentity: claimsIdentity,
+                    continuationActivity: continuationActivity,
+                    audience: audience,
+                    callback: async (turnContext, ct) =>
+                    {
+                        await turnContext.SendActivityAsync(activity, cancellationToken: ct);
+                    },
+                    cancellationToken: cancellationToken);
+
+                _logger.LogInformation("Proactive message sent to conversation {ConversationId}.", mcsConversationId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending proactive message to conversation {ConversationId}.", mcsConversationId);
+                return false;
+            }
         }
     }
 }

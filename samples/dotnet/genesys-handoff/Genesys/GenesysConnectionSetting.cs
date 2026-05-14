@@ -64,6 +64,11 @@ namespace GenesysHandoff.Genesys
         public string? EndLiveChatMessage { get; set; }
 
         /// <summary>
+        /// Gets or sets the message sent to the user when the conversation is reset.
+        /// </summary>
+        public string? ResetConversationMessage { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="GenesysConnectionSetting"/> class.
         /// </summary>
         public GenesysConnectionSetting() { }
@@ -90,6 +95,7 @@ namespace GenesysHandoff.Genesys
                 EnableNotifications = config.GetValue<bool>("EnableNotifications");
                 AgentDisconnectedMessage = config.GetValue<string>("AgentDisconnectedMessage");
                 EndLiveChatMessage = config.GetValue<string>("EndLiveChatMessage");
+                ResetConversationMessage = config.GetValue<string>("ResetConversationMessage");
             }
         }
     }
