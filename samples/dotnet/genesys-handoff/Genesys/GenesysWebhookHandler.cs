@@ -37,10 +37,11 @@ namespace GenesysHandoff.Genesys
     /// Handles inbound webhook requests from Genesys Cloud, validates signatures,
     /// and forwards agent messages to the Teams user via proactive messaging.
     /// </summary>
-    public class GenesysWebhookHandler(IGenesysConnectionSettings setting, IStorage storage, ILogger<GenesysWebhookHandler> logger)
+    public class GenesysWebhookHandler(IGenesysConnectionSettings setting, IStorage storage, IActivityReplyMappingStore activityReplyMappingStore, ILogger<GenesysWebhookHandler> logger)
     {
         private readonly IGenesysConnectionSettings _setting = setting ?? throw new ArgumentNullException(nameof(setting));
         private readonly IStorage _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+        private readonly IActivityReplyMappingStore _activityReplyMappingStore = activityReplyMappingStore ?? throw new ArgumentNullException(nameof(activityReplyMappingStore));
         private readonly ILogger<GenesysWebhookHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         /// <summary>
@@ -98,7 +99,15 @@ namespace GenesysHandoff.Genesys
 
                 // Build and send the agent's message
                 var replyActivity = BuildAgentReply(payload);
-                await SendProactiveActivityAsync(channelAdapter, userChannelReference, replyActivity, sendToken);
+
+                var mcsActivityId = payload.Channel?.MessageId;
+
+                var relaySentActivityId = await SendProactiveActivityAsync(channelAdapter, userChannelReference, replyActivity, sendToken);
+                if (!string.IsNullOrWhiteSpace(mcsActivityId) && !string.IsNullOrWhiteSpace(relaySentActivityId))
+                {
+                    await _activityReplyMappingStore.UpsertAsync(c2ConversationId, relaySentActivityId, mcsActivityId, cancellationToken);
+                }
+
                 return WebhookResult.MessageSent;
             }
             catch (JsonException)
@@ -112,13 +121,14 @@ namespace GenesysHandoff.Genesys
             }
         }
 
-        private static async Task SendProactiveActivityAsync(IChannelAdapter channelAdapter, ConversationReference userChannelReference, IActivity activity, CancellationToken cancellationToken)
+        private static async Task<string?> SendProactiveActivityAsync(IChannelAdapter channelAdapter, ConversationReference userChannelReference, IActivity activity, CancellationToken cancellationToken)
         {
             var continuationActivity = userChannelReference.GetContinuationActivity();
             var claimsIdentity = AgentClaims.CreateIdentity(userChannelReference.Agent.Id);
             var audience = string.IsNullOrWhiteSpace(userChannelReference.ServiceUrl)
                     ? AuthenticationConstants.BotFrameworkAudience
                     : userChannelReference.ServiceUrl;
+            string? sentActivityId = null;
 
             await channelAdapter.ProcessProactiveAsync(
                 claimsIdentity: claimsIdentity,
@@ -126,9 +136,12 @@ namespace GenesysHandoff.Genesys
                 audience: audience,
                 callback: async (turnContext, ct) =>
                 {
-                    await turnContext.SendActivityAsync(activity, cancellationToken: ct);
+                    var resourceResponse = await turnContext.SendActivityAsync(activity, cancellationToken: ct);
+                    sentActivityId = resourceResponse?.Id;
                 },
                 cancellationToken: cancellationToken);
+
+            return sentActivityId;
         }
 
         private IActivity BuildAgentReply(GenesysOutboundPayload payload)
