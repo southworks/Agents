@@ -53,5 +53,10 @@ namespace GenesysHandoff.Genesys
         /// Gets or sets the label shown on the suggested action button that ends the live chat.
         /// </summary>
         public string? EndLiveChatMessage { get; set; }
+
+        /// <summary>
+        /// Gets or sets the message sent to the user when the conversation is reset.
+        /// </summary>
+        public string? ResetConversationMessage { get; set; }
     }
 }

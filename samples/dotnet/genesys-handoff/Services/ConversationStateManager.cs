@@ -3,7 +3,11 @@
 
 using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
+using Microsoft.Agents.Storage;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace GenesysHandoff.Services
 {
@@ -16,6 +20,12 @@ namespace GenesysHandoff.Services
         private const string IsEscalatedPropertyName = "IsEscalated";
         private const string LastCopilotStudioReferencePropertyName = "LastCopilotStudioReference";
         private const string GenesysConversationIdPropertyName = "GenesysConversationId";
+        private readonly ILogger<ConversationStateManager> _logger;
+
+        public ConversationStateManager(ILogger<ConversationStateManager> logger)
+        {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
 
         /// <summary>
         /// Gets the Copilot Studio conversation ID from the turn state.
@@ -115,6 +125,42 @@ namespace GenesysHandoff.Services
             turnState.Conversation.DeleteValue(IsEscalatedPropertyName);
             turnState.Conversation.DeleteValue(LastCopilotStudioReferencePropertyName);
             turnState.Conversation.DeleteValue(GenesysConversationIdPropertyName);
+        }
+
+        /// <summary>
+        /// Checks if a conversation is escalated by reading the escalation state from storage.
+        /// </summary>
+        /// <param name="storage">The storage instance to read from.</param>
+        /// <param name="conversationId">The conversation ID to check.</param>
+        /// <returns>True if the conversation has been escalated; otherwise, false.</returns>
+        public async System.Threading.Tasks.Task<bool> IsEscalatedInStorageAsync(IStorage storage, string conversationId, CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(storage);
+            ArgumentException.ThrowIfNullOrEmpty(conversationId);
+
+            try
+            {
+                // Attempt to read the conversation state from storage
+                var result = await storage.ReadAsync([conversationId], cancellationToken);
+                if (result != null && result.TryGetValue(conversationId, out var stateData))
+                {
+                    // If the state is a dictionary with our property, check the escalation state
+                    if (stateData is Dictionary<string, object> stateDict && 
+                        stateDict.TryGetValue(IsEscalatedPropertyName, out var escalatedValue))
+                    {
+                        return escalatedValue is true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read escalation state from storage for conversation {ConversationId}. Defaulting to not escalated.", conversationId);
+                // If unable to read or parse state, assume not escalated (default)
+                return false;
+            }
+
+            // Default to false if not found or unable to read
+            return false;
         }
     }
 }
