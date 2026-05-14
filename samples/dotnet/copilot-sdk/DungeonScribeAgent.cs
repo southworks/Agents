@@ -13,7 +13,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using SignInResponse = Microsoft.Agents.Builder.UserAuth.SignInResponse;
+using Microsoft.Agents.Builder.UserAuth;
 
 namespace CopilotSdk;
 
