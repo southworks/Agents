@@ -48,10 +48,10 @@ In the Azure Portal, navigate to your Azure Bot resource:
 
 ### 3. Configure appsettings
 
-Copy the template to a local development settings file and replace the `{{...}}` placeholders:
+Copy the `appsettings.json` to a local development settings file and replace the `{{...}}` placeholders:
 
 ```powershell
-Copy-Item appsettings.TEMPLATE.json appsettings.Development.json
+Copy-Item appsettings.json appsettings.Development.json
 ```
 
 `appsettings.Development.json` is ignored by git, so it is safe for local secrets. Configure these values:
@@ -61,7 +61,7 @@ Copy-Item appsettings.TEMPLATE.json appsettings.Development.json
 - `{{TenantId}}` — the Microsoft Entra tenant ID where the app is registered
 - `{{GitHubOAuthConnectionName}}` — the OAuth connection name created in **Create an Azure Bot OAuth Connection** above
 
-For local development, token validation is disabled by default. Enable it when you are ready to test with authenticated channels.
+For local development, token validation is disabled by default (see below).
 
 ### 4. Start a dev tunnel
 
@@ -129,6 +129,19 @@ This sample demonstrates how to:
 - define custom Copilot tools for structured gameplay actions
 - stream responses token-by-token to chat clients
 - keep lightweight conversation-scoped state for inventory tracking
+
+## Enabling JWT token validation
+1. By default, the AspNet token validation is disabled in order to support local debugging.
+1. Enable by updating appsettings
+   ```json
+   "TokenValidation": {
+     "Enabled": true,
+     "Audiences": [
+       "{{ClientId}}" // this is the Client ID used for the Azure Bot
+     ],
+     "TenantId": "{{TenantId}}"
+   },
+   ```
 
 ## Further reading
 
