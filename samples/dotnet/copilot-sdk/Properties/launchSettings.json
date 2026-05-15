@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "AgentFrameworkWeather": {
+    "CopilotSdk": {
       "commandName": "Project",
       "launchBrowser": false,
       "environmentVariables": {
