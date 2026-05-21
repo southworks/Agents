@@ -50,6 +50,21 @@ namespace GenesysHandoff.Genesys
         public string? AgentDisconnectedMessage { get; set; }
 
         /// <summary>
+        /// Gets or sets the message sent to the user when a live chat ends because the client disconnected.
+        /// </summary>
+        public string? AgentDisconnectedClientMessage { get; set; }
+
+        /// <summary>
+        /// Gets or sets the message sent to the user when a live chat ends due to inactivity timeout.
+        /// </summary>
+        public string? AgentDisconnectedTimeoutMessage { get; set; }
+
+        /// <summary>
+        /// Gets or sets the message sent to the user when a live chat ends due to an error.
+        /// </summary>
+        public string? AgentDisconnectedErrorMessage { get; set; }
+
+        /// <summary>
         /// Gets or sets the label shown on the suggested action button that ends the live chat.
         /// </summary>
         public string? EndLiveChatMessage { get; set; }

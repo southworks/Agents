@@ -11,6 +11,9 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Agents.Storage;
+using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
 
 namespace GenesysHandoff
 {
@@ -22,6 +25,11 @@ namespace GenesysHandoff
         private const string McsHandlerName = "mcs";
 
         private readonly string _endLiveChatMessage;
+        private readonly string _messageSendErrorMessage;
+        private readonly string _escalationErrorMessage;
+        private readonly string _disconnectFromLiveAgentMessage;
+        private readonly string _signOutMessage;
+        private readonly string _signInFailureFormat;
         private readonly GenesysMessageSender _messageSender;
         private readonly CopilotClientFactory _copilotClientFactory;
         private readonly ActivityResponseProcessor _responseProcessor;
@@ -30,6 +38,7 @@ namespace GenesysHandoff
         private readonly ConversationResetService _resetService;
         private readonly GenesysNotificationService? _notificationService;
         private readonly ILogger<GenesysHandoffAgent> _logger;
+        private readonly IStorage _storage;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GenesysHandoffAgent"/> class.
@@ -44,9 +53,16 @@ namespace GenesysHandoff
             IGenesysConnectionSettings settings,
             ConversationResetService resetService,
             ILogger<GenesysHandoffAgent> logger,
+            IStorage storage,
+            IConfiguration configuration,
             GenesysNotificationService? notificationService = null) : base(options)
         {
             _endLiveChatMessage = settings.EndLiveChatMessage ?? "End chat with agent";
+            _messageSendErrorMessage = configuration?.GetSection("TeamsMessages:MessageSendErrorMessage")?.Value ?? "Sorry, there was a problem sending your message to the live agent. Please try again.";
+            _escalationErrorMessage = configuration?.GetSection("TeamsMessages:EscalationErrorMessage")?.Value ?? "Sorry, we couldn't connect you to a live agent at this time. Please try again later.";
+            _disconnectFromLiveAgentMessage = configuration?.GetSection("TeamsMessages:DisconnectFromLiveAgentMessage")?.Value ?? "You have ended the chat with the live agent.";
+            _signOutMessage = configuration?.GetSection("TeamsMessages:SignOutMessage")?.Value ?? "You have signed out";
+            _signInFailureFormat = configuration?.GetSection("TeamsMessages:SignInFailureFormat")?.Value ?? "SignIn failed with '{0}': {1}/{2}";
             _messageSender = messageSender;
             _copilotClientFactory = copilotClientFactory;
             _responseProcessor = responseProcessor;
@@ -55,13 +71,15 @@ namespace GenesysHandoff
             _resetService = resetService;
             _logger = logger;
             _notificationService = notificationService;
+            _storage = storage;
 
             OnMessage("-reset", HandleResetMessage);
             OnMessage("-signout", HandleSignOut);
             AddRoute((turnContext, cancellationToken) => Task.FromResult(true), HandleAllActivities, autoSignInHandlers: [McsHandlerName]);
             UserAuthorization.OnUserSignInFailure(async (turnContext, turnState, handlerName, response, initiatingActivity, cancellationToken) =>
             {
-                await turnContext.SendActivityAsync($"SignIn failed with '{handlerName}': {response.Cause}/{response.Error!.Message}", cancellationToken: cancellationToken);
+                var failureMessage = string.Format(_signInFailureFormat, handlerName, response.Cause, response.Error!.Message);
+                await turnContext.SendActivityAsync(failureMessage, cancellationToken: cancellationToken);
             });
         }
 
@@ -75,8 +93,30 @@ namespace GenesysHandoff
         /// <returns>A task that represents the asynchronous operation.</returns>
         private async Task HandleAllActivities(ITurnContext turnContext, ITurnState turnState, CancellationToken cancellationToken)
         {
+            await HandleAllActivitiesInternal(turnContext, turnState, cancellationToken, skipIdempotencyCheck: false);
+        }
+
+        private async Task HandleAllActivitiesInternal(ITurnContext turnContext, ITurnState turnState, CancellationToken cancellationToken, bool skipIdempotencyCheck)
+        {
             var mcsConversationId = _stateManager.GetConversationId(turnState);
             var cpsClient = _copilotClientFactory.CreateClient(this, turnContext);
+
+            // Idempotency: skip if this activity ID was already processed for this conversation scope.
+            if (!skipIdempotencyCheck && !string.IsNullOrWhiteSpace(turnContext.Activity.Id))
+            {
+                var conversationScope = mcsConversationId
+                    ?? turnContext.Activity.Conversation?.Id
+                    ?? "unknown";
+                var idempotencyKey = $"idempotency:{conversationScope}:{turnContext.Activity.Id}";
+                var idempotencyState = await _storage.ReadAsync([idempotencyKey], cancellationToken);
+                if (idempotencyState.TryGetValue(idempotencyKey, out _))
+                {
+                    _logger.LogWarning("Duplicate activity detected: {ActivityId} for conversation {ConversationId}. Skipping.", turnContext.Activity.Id, conversationScope);
+                    return;
+                }
+
+                await _storage.WriteAsync(new Dictionary<string, object> { [idempotencyKey] = new { processed = true } }, cancellationToken);
+            }
 
             if (!string.IsNullOrEmpty(mcsConversationId)
                 && await _resetService.CheckAndClearResetRequestedAsync(mcsConversationId, cancellationToken))
@@ -121,7 +161,7 @@ namespace GenesysHandoff
                 // Agent disconnected — reset state and start a fresh CPS session (same as -reset).
                 await _messageSender.DeleteUserChannelReferenceAsync(mcsConversationId, cancellationToken);
                 _stateManager.ClearConversationState(turnState);
-                await HandleNewConversation(turnContext, turnState, cpsClient, cancellationToken);
+                await HandleAllActivitiesInternal(turnContext, turnState, cancellationToken, skipIdempotencyCheck: true);
                 return;
             }
 
@@ -139,7 +179,7 @@ namespace GenesysHandoff
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to forward message to Genesys for conversation {ConversationId}.", mcsConversationId);
-                await turnContext.SendActivityAsync("Sorry, there was a problem sending your message to the live agent. Please try again.", cancellationToken: cancellationToken);
+                await turnContext.SendActivityAsync(_messageSendErrorMessage, cancellationToken: cancellationToken);
             }
         }
 
@@ -154,12 +194,18 @@ namespace GenesysHandoff
 
             await foreach (IActivity activity in cpsClient.StartConversationAsync(emitStartConversationEvent: true, cancellationToken: cancellationToken))
             {
+                _logger.LogInformation(
+                    "Activity from CPS (StartConversation): Id={CpsActivityId} ReplyToId={CpsReplyToId} Type={Type} Name={Name} Conversation={ConversationId}",
+                    activity.Id, activity.ReplyToId, activity.Type, activity.Name, activity.Conversation?.Id);
                 lastCopilotStudioRef = activity.GetConversationReference();
                 if (activity.IsType(ActivityTypes.Message))
                 {
                     //var responseActivity = _responseProcessor.CreateResponseActivity(activity, "StartConversation");
                   //await turnContext.SendActivityAsync(responseActivity, cancellationToken);
-                    _stateManager.SetConversationId(turnState, activity.Conversation.Id);
+                    if (!string.IsNullOrWhiteSpace(activity.Conversation?.Id))
+                    {
+                        _stateManager.SetConversationId(turnState, activity.Conversation.Id);
+                    }
                 }
             }
 
@@ -182,6 +228,9 @@ namespace GenesysHandoff
             // The agent then listens for responses from Copilot Studio. If a message activity is received, it is sent back to the user.
             // If an event activity with the name "GenesysHandoff" is received, it indicates that the conversation should be escalated to a human agent through Genesys.
             var lastCopilotStudioRef = _stateManager.GetLastCopilotStudioReference(turnState);
+            _logger.LogInformation(
+                "Activity from Teams: Id={TeamsActivityId} ReplyToId={TeamsReplyToId} Type={Type} Conversation={ConversationId}",
+                turnContext.Activity.Id, turnContext.Activity.ReplyToId, turnContext.Activity.Type, mcsConversationId);
             var activityToSend = await BuildCopilotStudioActivityAsync(turnContext.Activity, lastCopilotStudioRef, mcsConversationId, cancellationToken);
 
             // Store the Teams conversation reference so proactive messages (e.g. from the reset API) can be sent back.
@@ -190,7 +239,8 @@ namespace GenesysHandoff
             await foreach (IActivity activity in cpsClient.SendActivityAsync(activityToSend, cancellationToken))
             {
                 latestCopilotStudioRef = activity.GetConversationReference();
-                await ProcessCopilotStudioActivityAsync(turnContext, turnState, activity, mcsConversationId, cancellationToken);
+                var result = await ProcessCopilotStudioActivityAsync(turnContext, turnState, activity, mcsConversationId, cancellationToken);
+                if (result) break; // If true is returned, it indicates the conversation has been reset and we should stop processing further CPS activities for this turn.
             }
 
             if (latestCopilotStudioRef != null)
@@ -199,42 +249,53 @@ namespace GenesysHandoff
             }
         }
 
-        private async Task ProcessCopilotStudioActivityAsync(
+        private async Task<bool> ProcessCopilotStudioActivityAsync(
             ITurnContext turnContext,
             ITurnState turnState,
             IActivity activity,
             string mcsConversationId,
             CancellationToken cancellationToken)
         {
+            _logger.LogInformation(
+                "Activity from CPS: Id={CpsActivityId} ReplyToId={CpsReplyToId} Type={Type} Name={Name} Conversation={ConversationId}",
+                activity.Id, activity.ReplyToId, activity.Type, activity.Name, mcsConversationId);
+
             if (activity.IsType(ActivityTypes.Message))
             {
                 var responseActivity = _responseProcessor.CreateResponseActivity(activity, "AskQuestion");
                 var resourceResponse = await turnContext.SendActivityAsync(responseActivity, cancellationToken);
+                _logger.LogInformation(
+                    "Activity to Teams: TeamsActivityId={TeamsActivityId} SourceCpsId={CpsActivityId} Type=message Conversation={ConversationId}",
+                    resourceResponse?.Id, activity.Id, mcsConversationId);
                 if (!string.IsNullOrWhiteSpace(activity.Id) && !string.IsNullOrWhiteSpace(resourceResponse?.Id))
                 {
                     await _activityReplyMappingStore.UpsertAsync(mcsConversationId, resourceResponse.Id, activity.Id, cancellationToken);
                 }
 
-                return;
+                return false;
             }
 
             if (activity.IsType(ActivityTypes.InvokeResponse))
             {
                 var responseActivity = _responseProcessor.CreateInvokeResponseActivity(activity, "InvokeResponse");
-                await turnContext.SendActivityAsync(responseActivity, cancellationToken);
-                return;
+                var resourceResponse = await turnContext.SendActivityAsync(responseActivity, cancellationToken);
+                _logger.LogInformation(
+                    "Activity to Teams: TeamsActivityId={TeamsActivityId} SourceCpsId={CpsActivityId} Type=invokeResponse Conversation={ConversationId}",
+                    resourceResponse?.Id, activity.Id, mcsConversationId);
+                return false;
             }
 
             if (activity.IsType(ActivityTypes.Event) && string.Equals(activity.Name, "EndOfConversation", StringComparison.Ordinal))
             {
                 await HandleResetMessage(turnContext, turnState, cancellationToken);
-                return;
+                return true;
             }
 
             if (activity.IsType(ActivityTypes.Event) && string.Equals(activity.Name, "GenesysHandoff", StringComparison.Ordinal))
             {
                 await HandleEscalation(turnContext, turnState, activity, mcsConversationId, cancellationToken);
             }
+            return false;
         }
 
         /// <summary>
@@ -262,7 +323,7 @@ namespace GenesysHandoff
             {
                 _logger.LogError(ex, "Failed to escalate conversation {ConversationId} to Genesys.", mcsConversationId);
                 _stateManager.SetEscalated(turnState, false);
-                await turnContext.SendActivityAsync("Sorry, we couldn't connect you to a live agent at this time. Please try again later.", cancellationToken: cancellationToken);
+                await turnContext.SendActivityAsync(_escalationErrorMessage, cancellationToken: cancellationToken);
             }
         }
 
@@ -320,6 +381,9 @@ namespace GenesysHandoff
                 };
             }
 
+            // Assign a fresh Id so the outbound activity is not confused with the prior MCS turn
+            // whose Id GetContinuationActivity() copies from the stored ConversationReference.
+            activityToSend.Id = Guid.NewGuid().ToString();
             activityToSend.From = incomingActivity.From;
             activityToSend.Type = incomingActivity.Type;
             activityToSend.Text = incomingActivity.Text;
@@ -338,6 +402,10 @@ namespace GenesysHandoff
                     activityToSend.ReplyToId = mcsReplyToId;
                 }
             }
+
+            _logger.LogInformation(
+                "Activity to CPS: Id={CpsActivityId} ReplyToId={CpsReplyToId} Type={Type} SourceTeamsId={TeamsActivityId} SourceTeamsReplyToId={TeamsReplyToId} Conversation={ConversationId}",
+                activityToSend.Id, activityToSend.ReplyToId, activityToSend.Type, incomingActivity.Id, incomingActivity.ReplyToId, mcsConversationId);
 
             return activityToSend;
         }
@@ -371,7 +439,7 @@ namespace GenesysHandoff
             }
 
             _stateManager.ClearConversationState(turnState);
-            await turnContext.SendActivityAsync("You have ended the chat with the live agent.", cancellationToken: cancellationToken);
+            await turnContext.SendActivityAsync(_disconnectFromLiveAgentMessage, cancellationToken: cancellationToken);
 
             // Start a fresh Copilot Studio conversation
             var cpsClient = _copilotClientFactory.CreateClient(this, turnContext);
@@ -390,7 +458,7 @@ namespace GenesysHandoff
         private async Task HandleSignOut(ITurnContext turnContext, ITurnState turnState, CancellationToken cancellationToken)
         {
             await UserAuthorization.SignOutUserAsync(turnContext, turnState, cancellationToken: cancellationToken);
-            await turnContext.SendActivityAsync("You have signed out", cancellationToken: cancellationToken);
+            await turnContext.SendActivityAsync(_signOutMessage, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -411,7 +479,6 @@ namespace GenesysHandoff
             await CleanupConversationResourcesAsync(turnState, mcsConversationId, cancellationToken);
 
             _stateManager.ClearConversationState(turnState);
-            await turnContext.SendActivityAsync("The conversation has been reset.", cancellationToken: cancellationToken);
         }
     }
 }
