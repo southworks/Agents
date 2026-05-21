@@ -228,13 +228,13 @@ namespace GenesysHandoff.Genesys
                 }
 
                 // Handle system events
-                if (topicName == "channel.metadata")
+                if (string.Equals(topicName, "channel.metadata", StringComparison.OrdinalIgnoreCase))
                 {
                     // Heartbeat pong — no action needed
                     return;
                 }
 
-                if (topicName == "v2.system.socket_closing")
+                if (string.Equals(topicName, "v2.system.socket_closing", StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogInformation("Genesys WebSocket closing for maintenance. Will reconnect.");
                     // Close gracefully to trigger reconnect in the outer loop
@@ -246,15 +246,25 @@ namespace GenesysHandoff.Genesys
                 }
 
                 // Handle conversation user end events
-                if (topicName.StartsWith(ConversationTopicPrefix, StringComparison.Ordinal)
-                    && topicName.EndsWith(UserEndTopicSuffix, StringComparison.Ordinal))
+                if (topicName.StartsWith(ConversationTopicPrefix, StringComparison.OrdinalIgnoreCase)
+                    && topicName.EndsWith(UserEndTopicSuffix, StringComparison.OrdinalIgnoreCase))
                 {
+                    string? disconnectType = null;
+                    if (root.TryGetProperty("eventBody", out var eventBodyElement)
+                        && eventBodyElement.TryGetProperty("disconnectType", out var disconnectTypeElement))
+                    {
+                        disconnectType = disconnectTypeElement.GetString();
+                    }
+
                     var genesysConversationId = topicName
                         .Substring(ConversationTopicPrefix.Length,
                             topicName.Length - ConversationTopicPrefix.Length - UserEndTopicSuffix.Length);
 
-                    _logger.LogInformation("Agent disconnect detected for Genesys conversation {ConversationId}.", genesysConversationId);
-                    await HandleAgentDisconnectAsync(genesysConversationId, cancellationToken);
+                    _logger.LogInformation(
+                        "Agent disconnect detected for Genesys conversation {ConversationId}. DisconnectType={DisconnectType}",
+                        genesysConversationId,
+                        disconnectType ?? "(none)");
+                    await HandleAgentDisconnectAsync(genesysConversationId, disconnectType, cancellationToken);
                 }
             }
             catch (JsonException ex)
@@ -263,7 +273,7 @@ namespace GenesysHandoff.Genesys
             }
         }
 
-        private async Task HandleAgentDisconnectAsync(string genesysConversationId, CancellationToken cancellationToken)
+        private async Task HandleAgentDisconnectAsync(string genesysConversationId, string? disconnectType, CancellationToken cancellationToken)
         {
             var mcsConversationId = await _mappingStore.RemoveAsync(genesysConversationId, cancellationToken);
             if (mcsConversationId == null)
@@ -303,8 +313,9 @@ namespace GenesysHandoff.Genesys
                     audience: audience,
                     callback: async (turnContext, ct) =>
                     {
+                        var disconnectMessage = ResolveDisconnectMessage(disconnectType);
                         await turnContext.SendActivityAsync(
-                            MessageFactory.Text(_settings.AgentDisconnectedMessage ?? "The live agent has left the conversation. You are now back with the bot."),
+                            MessageFactory.Text(disconnectMessage),
                             cancellationToken: ct);
                     },
                     cancellationToken: cancellationToken);
@@ -315,6 +326,34 @@ namespace GenesysHandoff.Genesys
             {
                 _logger.LogError(ex, "Failed to handle agent disconnect for MCS conversation {ConversationId}. The disconnect flag may not have been set.", mcsConversationId);
             }
+        }
+
+        private string ResolveDisconnectMessage(string? disconnectType)
+        {
+            var normalizedType = disconnectType?.Trim();
+
+            if (string.Equals(normalizedType, "CLIENT", StringComparison.OrdinalIgnoreCase))
+            {
+                return _settings.AgentDisconnectedClientMessage
+                    ?? _settings.AgentDisconnectedMessage
+                    ?? string.Empty;
+            }
+
+            if (string.Equals(normalizedType, "UNKNOWN", StringComparison.OrdinalIgnoreCase))
+            {
+                return _settings.AgentDisconnectedTimeoutMessage
+                    ?? _settings.AgentDisconnectedMessage
+                    ?? string.Empty;
+            }
+
+            if (string.Equals(normalizedType, "ERROR", StringComparison.OrdinalIgnoreCase))
+            {
+                return _settings.AgentDisconnectedErrorMessage
+                    ?? _settings.AgentDisconnectedMessage
+                    ?? string.Empty;
+            }
+
+            return _settings.AgentDisconnectedMessage ?? string.Empty;
         }
 
         /// <summary>

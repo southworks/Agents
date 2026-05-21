@@ -6,6 +6,7 @@ using Microsoft.Agents.Builder;
 using Microsoft.Agents.Core.Models;
 using Microsoft.Agents.Storage;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -37,12 +38,13 @@ namespace GenesysHandoff.Genesys
     /// Handles inbound webhook requests from Genesys Cloud, validates signatures,
     /// and forwards agent messages to the Teams user via proactive messaging.
     /// </summary>
-    public class GenesysWebhookHandler(IGenesysConnectionSettings setting, IStorage storage, IActivityReplyMappingStore activityReplyMappingStore, ILogger<GenesysWebhookHandler> logger)
+    public class GenesysWebhookHandler(IGenesysConnectionSettings setting, IStorage storage, IActivityReplyMappingStore activityReplyMappingStore, ILogger<GenesysWebhookHandler> logger, IConfiguration configuration)
     {
         private readonly IGenesysConnectionSettings _setting = setting ?? throw new ArgumentNullException(nameof(setting));
         private readonly IStorage _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         private readonly IActivityReplyMappingStore _activityReplyMappingStore = activityReplyMappingStore ?? throw new ArgumentNullException(nameof(activityReplyMappingStore));
         private readonly ILogger<GenesysWebhookHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 
         /// <summary>
         /// Processes an inbound webhook request from Genesys.
@@ -147,14 +149,28 @@ namespace GenesysHandoff.Genesys
         private IActivity BuildAgentReply(GenesysOutboundPayload payload)
         {
             var endChatLabel = _setting.EndLiveChatMessage ?? "End chat with agent";
-            var replyActivity = MessageFactory.Text($"[Live Agent] - {payload.Text}");
-            replyActivity.SuggestedActions = new SuggestedActions
+            var liveAgentPrefix = _configuration?.GetSection("TeamsMessages:LiveAgentMessagePrefix")?.Value ?? "[Live Agent] - ";
+            var replyActivity = MessageFactory.Text($"{liveAgentPrefix}{payload.Text}");
+            var endChatButton = new CardAction
             {
-                Actions = new List<CardAction>
-                {
-                    new() { Title = endChatLabel, Type = ActionTypes.ImBack, Value = endChatLabel }
-                }
+                Type = ActionTypes.ImBack,
+                Title = endChatLabel,
+                Value = endChatLabel,
             };
+
+            var heroCard = new HeroCard
+            {
+                Buttons = new List<CardAction> { endChatButton },
+            };
+
+            replyActivity.Attachments =
+            [
+                new Attachment
+                {
+                    ContentType = "application/vnd.microsoft.card.hero",
+                    Content = heroCard,
+                },
+            ];
 
             if (payload.ContentData != null && payload.ContentData.Count > 0)
             {
@@ -171,7 +187,11 @@ namespace GenesysHandoff.Genesys
                         });
                     }
                 }
-                replyActivity.Attachments = attachments;
+
+                foreach (var attachment in attachments)
+                {
+                    replyActivity.Attachments.Add(attachment);
+                }
             }
 
             return replyActivity;

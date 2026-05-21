@@ -40,8 +40,32 @@ namespace GenesysHandoff.Services
             responseActivity.Text = CitationUrlCleaner.RemoveCitationUrlsFromTail(responseActivity.Text, incomingActivity.Entities);
             responseActivity.TextFormat = incomingActivity.TextFormat;
             responseActivity.InputHint = incomingActivity.InputHint;
-            responseActivity.Attachments = incomingActivity.Attachments;
+            responseActivity.Attachments = incomingActivity.Attachments != null
+                ? new List<Attachment>(incomingActivity.Attachments)
+                : [];
             responseActivity.SuggestedActions = incomingActivity.SuggestedActions;
+
+            if (responseActivity.SuggestedActions?.Actions?.Any() == true)
+            {
+                var heroCardButtons = responseActivity.SuggestedActions.Actions
+                    .Where(action => action != null)
+                    .ToList();
+
+                if (heroCardButtons.Count > 0)
+                {
+                    var heroCardAttachment = new Attachment
+                    {
+                        ContentType = "application/vnd.microsoft.card.hero",
+                        Content = new
+                        {
+                            buttons = heroCardButtons,
+                        },
+                    };
+
+                    responseActivity.Attachments.Add(heroCardAttachment);
+                    responseActivity.SuggestedActions = null!;
+                }
+            }
 
             // Note: MembersAdded, MembersRemoved, ReactionsAdded, and ReactionsRemoved are NOT copied
             // These properties are context-specific to the original message and should not be transferred
