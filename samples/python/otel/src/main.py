@@ -1,9 +1,13 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from .telemetry import configure_otel_providers
 
-configure_otel_providers(service_name="otel_quickstart_agent")
+configure_otel_providers(service_name="OTelAgent")
 
 from .agent import AGENT_APP, CONNECTION_MANAGER
 from .start_server import start_server

@@ -2,7 +2,7 @@
 
 This is a sample of a simple Agent that is hosted on a Python web service. The sample demonstrates how to configure [OpenTelemetry](https://opentelemetry.io/) (OTel) for distributed tracing, metrics, and logging in a Microsoft 365 Agents SDK application.
 
-The sample exports telemetry via OTLP (gRPC) to a configurable endpoint and automatically instruments the `aiohttp` server, `aiohttp` client, and `requests` libraries.
+The sample exports telemetry via OTLP (gRPC) to a configurable endpoint and instruments the `aiohttp` server, `aiohttp` client, and `requests` libraries, along with shared sample-level route telemetry for welcome and message handling.
 
 ## Prerequisites
 
@@ -14,15 +14,21 @@ The sample exports telemetry via OTLP (gRPC) to a configurable endpoint and auto
 
 ### Start the Telemetry Dashboard
 
-This sample includes a PowerShell script to launch the [.NET Aspire Dashboard](https://learn.microsoft.com/dotnet/aspire/fundamentals/dashboard/overview) as an OTLP collector and visualization UI.
+Run the [.NET Aspire Dashboard](https://learn.microsoft.com/dotnet/aspire/fundamentals/dashboard/standalone) locally with Docker:
+
+```bash
+docker run --rm -it -p 18888:18888 -p 4317:18889 --name aspire-dashboard mcr.microsoft.com/dotnet/aspire-dashboard:9.2
+```
+
+This exposes:
+- **Port 18888** — Dashboard UI (open in browser to view traces, metrics, and logs)
+- **Port 4317** — OTLP gRPC endpoint (default for the agent to export telemetry)
+
+If you prefer, use the included helper script, which runs the same pinned dashboard image:
 
 ```powershell
 ./start_dashboard.ps1
 ```
-
-This runs the Aspire Dashboard container with:
-- **Port 18888** — Dashboard UI (open in browser to view traces, metrics, and logs)
-- **Port 4317** — OTLP gRPC endpoint (default for the agent to export telemetry)
 
 ### Configure Azure Bot Service
 
@@ -73,7 +79,31 @@ The agent is ready to accept messages.
 
 ## Accessing the Agent
 
-### Using the Agent in WebChat
+### Using the Agent in Agents Playground
+
+1. Install the Agents Playground if it is not already available:
+
+   ```bash
+   winget install agentsplayground
+   ```
+
+1. Start the agent locally:
+
+   ```sh
+   python -m src.main
+   ```
+
+1. Start Agents Playground:
+
+   ```bash
+   agentsplayground
+   ```
+
+1. In Agents Playground under **Configure Authentication**, provide the same values used in your `.env` file.
+
+1. Interact with the agent through the browser.
+
+### Optional: Using the Agent in WebChat
 
 1. Go to your Azure Bot Service resource in the Azure Portal and select **Test in WebChat**
 
@@ -84,7 +114,7 @@ The `telemetry.py` files provides the `configure_otel_providers` function, which
 ```python
 from telemetry import configure_otel_providers
 
-configure_otel_providers(service_name="quickstart_agent")
+configure_otel_providers(service_name="OTelAgent")
 ```
 
 By default, telemetry is exported to `http://localhost:4317/` via OTLP gRPC. To change the endpoint, set the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable in your `.env` file:
@@ -97,9 +127,18 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://your-collector:4317/
 
 | Signal | Description |
 |--------|-------------|
-| **Traces** | HTTP spans for every incoming request (via `opentelemetry-instrumentation-aiohttp-server`) and outgoing requests (via `opentelemetry-instrumentation-aiohttp-client` and `opentelemetry-instrumentation-requests`) |
-| **Metrics** | Exported on a periodic interval using `PeriodicExportingMetricReader` |
-| **Logs** | Python `logging` records are forwarded to the OTLP log exporter via `LoggingHandler` |
+| **Traces** | HTTP spans for every incoming request (via `opentelemetry-instrumentation-aiohttp-server`) and outgoing requests (via `opentelemetry-instrumentation-aiohttp-client` and `opentelemetry-instrumentation-requests`), shared sample spans (`agent.welcome_message`, `agent.message_handler`), and Agents SDK spans emitted through `microsoft-agents-hosting-core` |
+| **Metrics** | Exported on a periodic interval using `PeriodicExportingMetricReader`, including `agent.routes.executed.count`, `agent.message.processing.duration`, and Agents SDK metrics where the SDK emits them |
+| **Logs** | Python `logging` records are forwarded to the OTLP log exporter via `LoggingHandler`, including shared app logs from the sample |
+
+## Viewing Telemetry
+
+1. Open the Aspire Dashboard at `http://localhost:18888`.
+1. Send a few messages to the agent.
+1. In the dashboard, verify the shared telemetry contract:
+   - **Traces** — `agent.welcome_message` and `agent.message_handler`
+   - **Metrics** — `agent.routes.executed.count` and `agent.message.processing.duration`
+   - **Logs** — welcome and message handling log records emitted by the sample
 
 ## Further reading
 

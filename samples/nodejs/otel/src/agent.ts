@@ -42,12 +42,26 @@ class OTelAgent extends AgentApplication<TurnState> {
             'conversation.id': ctx.activity.conversation?.id ?? 'unknown'
           }
         )
+        AgentTelemetry.logInfo('Welcome message sent', {
+          'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
+          'route.type': 'welcome_message'
+        })
         span.setStatus({ code: SpanStatusCode.OK })
       } catch (error) {
         if (error instanceof Error) {
           span.recordException(error)
+          AgentTelemetry.logError('Welcome message failed', {
+            'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
+            'route.type': 'welcome_message',
+            'error.message': error.message
+          })
         } else {
           span.recordException(new Error(String(error)))
+          AgentTelemetry.logError('Welcome message failed', {
+            'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
+            'route.type': 'welcome_message',
+            'error.message': String(error)
+          })
         }
         span.setStatus({ code: SpanStatusCode.ERROR })
         throw error
@@ -75,36 +89,14 @@ class OTelAgent extends AgentApplication<TurnState> {
             'channel.id': ctx.activity.channelId,
           },
           Date.now())
-        // OUTBOUND HTTP CALL
-        span.addEvent(
-          'external_call.started',
-          {
-            'app.http.target': 'https://www.bing.com'
-          },
-          Date.now())
-        const res = await fetch('https://www.bing.com', { method: 'GET' })
-        const elapsedMs = performance.now() - t0
-        span.addEvent(
-          'external_call.completed',
-          {
-            'app.http.status_code': res.status,
-            'app.http.elapsed_ms': elapsedMs
-          },
-          Date.now())
 
-        await ctx.sendActivity(`You said now: ${ctx.activity.text}`)
+        await ctx.sendActivity(`You said: ${ctx.activity.text}`)
         span.addEvent(
           'response.sent',
           undefined,
           Date.now())
 
         const processedMs = performance.now() - t0
-        AgentTelemetry.messageProcessedCounter.add(1,
-          {
-            'agent.type': this.constructor.name,
-            status: 'success'
-          }
-        )
         AgentTelemetry.messageProcessingDuration.record(processedMs,
           {
             'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
@@ -116,12 +108,26 @@ class OTelAgent extends AgentApplication<TurnState> {
             'route.type': 'message_handler',
             'conversation.id': ctx.activity.conversation?.id ?? 'unknown'
           })
+        AgentTelemetry.logInfo('Message handled', {
+          'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
+          'route.type': 'message_handler'
+        })
         span.setStatus({ code: SpanStatusCode.OK })
       } catch (error) {
         if (error instanceof Error) {
           span.recordException(error)
+          AgentTelemetry.logError('Message handling failed', {
+            'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
+            'route.type': 'message_handler',
+            'error.message': error.message
+          })
         } else {
           span.recordException(new Error(String(error)))
+          AgentTelemetry.logError('Message handling failed', {
+            'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
+            'route.type': 'message_handler',
+            'error.message': String(error)
+          })
         }
         span.setStatus({ code: SpanStatusCode.ERROR })
         const elapsedMs = performance.now() - t0

@@ -24,14 +24,15 @@ namespace Otel
 
             builder.Services.AddOpenTelemetry()
                 .ConfigureResource(resource => resource.AddService(
-                        serviceName: AgentsTelemetry.SourceName,
-                        serviceVersion: AgentsTelemetry.SourceVersion
+                        serviceName: SampleTelemetry.ServiceName,
+                        serviceVersion: SampleTelemetry.ServiceVersion
                     ))
                 .WithTracing(tracing => tracing
                     .AddSource(
                         "Microsoft.AspNetCore",
                         "System.Net.Http",
-                        AgentsTelemetry.SourceName
+                        AgentsTelemetry.SourceName,
+                        SampleTelemetry.ServiceName
                     )
                     .SetSampler(new AlwaysOnSampler())
                     .AddAspNetCoreInstrumentation(tracing =>
@@ -88,7 +89,7 @@ namespace Otel
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddRuntimeInstrumentation()
-                    .AddMeter(AgentsTelemetry.SourceName)
+                    .AddMeter(AgentsTelemetry.SourceName, SampleTelemetry.ServiceName)
                     //.AddConsoleExporter()
                     .AddOtlpExporter());
 

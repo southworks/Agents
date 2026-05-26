@@ -2,7 +2,7 @@
 
 This is a sample of a simple Agent that is hosted on an ASP.NET Core web service. The sample demonstrates how to configure [OpenTelemetry](https://opentelemetry.io/) (OTel) for distributed tracing, metrics, and logging in a Microsoft 365 Agents SDK application.
 
-Telemetry is exported via OTLP to a configurable endpoint. The sample instruments ASP.NET Core, `HttpClient`, the .NET runtime, and the Agents SDK telemetry source.
+Telemetry is exported via OTLP to a configurable endpoint. The sample instruments ASP.NET Core, `HttpClient`, the .NET runtime, the Agents SDK telemetry source, and shared sample-level route telemetry for welcome and message handling.
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ Telemetry is exported via OTLP to a configurable endpoint. The sample instrument
 Run the [.NET Aspire Dashboard](https://learn.microsoft.com/dotnet/aspire/fundamentals/dashboard/standalone) as a standalone OTLP collector and visualization UI:
 
 ```bash
-docker run --rm -it -p 18888:18888 -p 4317:18889 --name aspire-dashboard mcr.microsoft.com/dotnet/aspire-dashboard:latest
+docker run --rm -it -p 18888:18888 -p 4317:18889 --name aspire-dashboard mcr.microsoft.com/dotnet/aspire-dashboard:9.2
 ```
 
 - **Port 18888** — Dashboard UI. Open `http://localhost:18888` in a browser to view traces, metrics, and logs.
@@ -67,7 +67,25 @@ docker run --rm -it -p 18888:18888 -p 4317:18889 --name aspire-dashboard mcr.mic
 
 ## Accessing the Agent
 
-### Using the Agent in WebChat
+### Using the Agent in Agents Playground
+
+1. Install the Agents Playground if it is not already available:
+
+   ```bash
+   winget install agentsplayground
+   ```
+
+1. Start the agent locally in Visual Studio.
+
+1. Open a command prompt and start Agents Playground:
+
+   ```bash
+   agentsplayground -e http://localhost:3978/api/messages
+   ```
+
+1. Interact with the agent through the browser.
+
+### Optional: Using the Agent in WebChat
 
 1. Go to your Azure Bot Service resource in the Azure Portal and select **Test in WebChat**
 
@@ -81,13 +99,24 @@ builder.ConfigureOtelProviders();
 
 By default, telemetry is exported to `http://localhost:4317` via OTLP gRPC. To change the endpoint, set the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable or configure it in `appsettings.json`.
 
+The sample uses `OTelAgent` as the service name and adds shared custom route telemetry so the three language samples expose the same base spans, metrics, and app logs.
+
 ### What is instrumented
 
 | Signal | Sources |
 |--------|---------|
-| **Traces** | ASP.NET Core requests, `HttpClient` outgoing calls, Agents SDK (`AgentsTelemetry.ActivitySource`) |
-| **Metrics** | ASP.NET Core, `HttpClient`, .NET runtime, Agents SDK meter |
-| **Logs** | All `ILogger` log records forwarded to the OTLP log exporter |
+| **Traces** | ASP.NET Core requests, `HttpClient` outgoing calls, Agents SDK (`AgentsTelemetry.ActivitySource`), and shared sample spans (`agent.welcome_message`, `agent.message_handler`) |
+| **Metrics** | ASP.NET Core, `HttpClient`, .NET runtime, Agents SDK meter, `agent.routes.executed.count`, `agent.message.processing.duration` |
+| **Logs** | All `ILogger` log records forwarded to the OTLP log exporter, including shared app logs emitted from the sample handlers |
+
+## Viewing Telemetry
+
+1. Open the Aspire Dashboard at `http://localhost:18888`.
+1. Send a few messages to the agent.
+1. In the dashboard, verify the shared telemetry contract:
+   - **Traces** — `agent.welcome_message` and `agent.message_handler`
+   - **Metrics** — `agent.routes.executed.count` and `agent.message.processing.duration`
+   - **Logs** — welcome and message handling log records emitted by the sample
 
 ### Azure Monitor (Application Insights)
 
@@ -105,7 +134,7 @@ Then set `APPLICATIONINSIGHTS_CONNECTION_STRING` to your Application Insights co
 
 ## Enabling JWT Token Validation
 
-By default, JWT token validation is disabled to support local debugging. To enable it, update `appsettings.json`:
+The sample `appsettings.json` ships with JWT token validation enabled. If you want to relax validation for local debugging, set `TokenValidation.Enabled` to `false` and restore it before testing through Azure Bot channels:
 
 ```json
 "TokenValidation": {

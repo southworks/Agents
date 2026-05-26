@@ -1,7 +1,7 @@
 # OTelAgent Sample (OpenTelemetry + Microsoft 365 Agents SDK)
 
 This sample shows a simple Agent hosted as a Node.js web app instrumented end-to-end with OpenTelemetry (traces, metrics, and logs) exporting to the [.NET Aspire Dashboard](https://learn.microsoft.com/dotnet/aspire/fundamentals/dashboard/overview) as the telemetry backend.
-It echoes user messages and demonstrates how to add custom spans, counters, histograms, and enrichment for inbound and outbound HTTP operations.
+It echoes user messages and demonstrates how to add shared custom spans, span events, counters, histograms, and application logs alongside HTTP instrumentation.
 
 The sample helps you:
 - Understand the Microsoft 365 Agents SDK messaging loop.
@@ -42,15 +42,6 @@ For more details, see:
 
    ```bash
    OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-   ```
-
-   **NOTE: If you don't set `OTEL_EXPORTER_OTLP_ENDPOINT`, telemetry will be printed to the console instead.**
-
-1. (Optional) Adjust the metrics and logs export intervals:
-
-   ```bash
-   OTEL_METRICS_EXPORT_INTERVAL=5000
-   OTEL_LOGS_EXPORT_INTERVAL=5000
    ```
 
 1. Configuring the authentication connection in the Agent settings
@@ -94,14 +85,26 @@ For more details, see:
 
 1. Interact with the Agent via the browser.
 
+### Optional: Using the Agent in WebChat
+
+1. Go to your Azure Bot Service resource in the Azure Portal and select **Test in WebChat**
+
 ## Viewing Telemetry
 
 1. Open the Aspire Dashboard at [http://localhost:18888](http://localhost:18888).
 1. Send a few messages to the agent through the Agents Playground.
 1. In the dashboard, explore:
-   - **Traces** — see the full request lifecycle including custom spans.
-   - **Metrics** — view counters, histograms, and other custom metrics.
-   - **Structured Logs** — inspect log records emitted by the agent.
+   - **Traces** — look for HTTP spans plus the shared custom spans `agent.welcome_message` and `agent.message_handler`.
+   - **Metrics** — view `agent.routes.executed.count` and `agent.message.processing.duration`.
+   - **Structured Logs** — inspect the application log records emitted by the sample during welcome and message handling.
+
+## OpenTelemetry Signals
+
+| Signal | Sources |
+|--------|---------|
+| **Traces** | HTTP server instrumentation, shared sample spans (`agent.welcome_message`, `agent.message_handler`), and Agents SDK spans emitted through the installed `@microsoft/agents-telemetry` package |
+| **Metrics** | `agent.routes.executed.count`, `agent.message.processing.duration`, plus SDK or platform defaults where available |
+| **Logs** | OTLP log records emitted by the sample for welcome and message handling |
 
 ## Further reading
 
