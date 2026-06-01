@@ -665,27 +665,27 @@ app.MapAgentProactiveEndpoints<MyAgent>(requireAuth: !app.Environment.IsDevelopm
 
 ## OpenTelemetry / Observability
 
-```csharp
-using OpenTelemetry;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
+**Prerequisite:** Copy [`AgentOtelExtension.cs`](https://github.com/microsoft/Agents/blob/main/samples/dotnet/otel/AgentOtelExtension.cs) into your project. This provides `ConfigureOtelProviders`.
 
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(r => r.AddService("MyAgent", serviceVersion: "1.0"))
-    .WithTracing(tracing => tracing
-        .AddSource("Microsoft.AspNetCore", "System.Net.Http")
-        .SetSampler(new AlwaysOnSampler())
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddOtlpExporter());
+```csharp
+using Otel;
+
+builder.ConfigureOtelProviders();
 ```
 
 Required packages:
 ```xml
+<!-- OpenTelemetry packages - versions managed centrally -->
 <PackageReference Include="OpenTelemetry" Version="1.*" />
-<PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.*" />
+<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.*" />
 <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.*" />
 <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.*" />
+<PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.*" />
+<!-- OpenTelemetry Exporters -->
+<PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.*" />
+<PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.*" />
+<!-- Azure Monitor (Application Insights) Exporter -->
+<PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.*"/>
 ```
 
 ## Common Mistakes
