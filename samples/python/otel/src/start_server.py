@@ -13,7 +13,7 @@ from microsoft_agents.hosting.aiohttp import (
 from aiohttp import web
 from aiohttp.web import Request, Response
 
-from .telemetry import instrument_aiohttp_server
+from .instrumentation import instrument_aiohttp_server
 
 logger = logging.getLogger(__name__)
 

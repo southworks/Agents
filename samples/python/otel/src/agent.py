@@ -13,12 +13,13 @@ from microsoft_agents.hosting.core import (
     TurnState,
     TurnContext,
     MemoryStorage,
+    RouteRank,
 )
 from microsoft_agents.authentication.msal import MsalConnectionManager
 from microsoft_agents.activity import load_configuration_from_env
 from opentelemetry.trace import Status, StatusCode
 
-from .telemetry import get_tracer, record_message_duration, record_route_execution
+from .agentTelemetry import get_tracer, record_message_duration, record_route_execution
 
 load_dotenv()
 agents_sdk_config = load_configuration_from_env(environ)
@@ -56,6 +57,7 @@ async def on_members_added(context: TurnContext, _state: TurnState):
                             "member.id": member.id,
                             "member.name": member.name or "unknown",
                         },
+                        timestamp=time.time_ns(),
                     )
 
             await context.send_activity("Hello and Welcome!")
@@ -71,12 +73,13 @@ async def on_members_added(context: TurnContext, _state: TurnState):
     return True
 
 
-@AGENT_APP.activity("message")
+@AGENT_APP.activity("message", rank=RouteRank.LAST)
 async def on_message(context: TurnContext, _state: TurnState):
     tracer = get_tracer()
     t0 = time.perf_counter()
     conversation_id = context.activity.conversation.id if context.activity.conversation else "unknown"
     channel_id = context.activity.channel_id or "unknown"
+    status = "success"
 
     with tracer.start_as_current_span("agent.message_handler") as span:
         span.set_attribute("conversation.id", conversation_id)
@@ -91,11 +94,12 @@ async def on_message(context: TurnContext, _state: TurnState):
                 "user.id": context.activity.from_property.id if context.activity.from_property else "unknown",
                 "channel.id": channel_id,
             },
+            timestamp=time.time_ns(),
         )
 
         try:
             await context.send_activity(f"You said: {context.activity.text}")
-            span.add_event("response.sent")
+            span.add_event("response.sent", timestamp=time.time_ns())
             record_route_execution("message_handler", conversation_id)
             LOGGER.info("Message handled for conversation %s", conversation_id)
             span.set_status(Status(StatusCode.OK))
@@ -112,7 +116,7 @@ async def on_message(context: TurnContext, _state: TurnState):
 
 @AGENT_APP.error
 async def on_error(context: TurnContext, error: Exception):
-    LOGGER.exception("Unhandled error: %s", error)
+    LOGGER.exception("Unhandled error in conversation %s, %s", context.activity.conversation.id if context.activity.conversation else "unknown", str(error))
 
     # Send a message to the user
     await context.send_activity("The bot encountered an error or bug.")

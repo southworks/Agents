@@ -20,6 +20,7 @@ import {
   ATTR_SERVICE_VERSION,
 } from '@opentelemetry/semantic-conventions'
 import { SpanExporter } from '@opentelemetry/sdk-trace-base'
+import { hostname } from 'os'
 
 const traceExporter: SpanExporter = new OTLPTraceExporter()
 const metricExporter: PushMetricExporter = new OTLPMetricExporter()
@@ -29,7 +30,9 @@ const logExporter: LogRecordExporter = new OTLPLogExporter()
 const sdk = new NodeSDK({
   resource: resourceFromAttributes({
     [ATTR_SERVICE_NAME]: 'OTelAgent',
-    [ATTR_SERVICE_VERSION]: '1.0.0'
+    [ATTR_SERVICE_VERSION]: '1.0.0',
+    'service.instance.id': hostname() ?? 'unknown',
+    'telemetry.sdk.language': 'nodejs'
   }),
   traceExporter,
   metricReader: new PeriodicExportingMetricReader({ exporter: metricExporter }),

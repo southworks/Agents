@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from .telemetry import configure_otel_providers
+from .instrumentation import configure_otel_providers
 
 configure_otel_providers(service_name="OTelAgent")
 

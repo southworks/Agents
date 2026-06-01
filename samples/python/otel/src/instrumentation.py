@@ -7,7 +7,7 @@ import requests
 
 import aiohttp
 from opentelemetry import metrics, trace
-from opentelemetry.trace import Span, Status, StatusCode
+from opentelemetry.trace import Span
 from opentelemetry._logs import set_logger_provider
 from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
@@ -24,38 +24,7 @@ from opentelemetry.instrumentation.aiohttp_server import AioHttpServerInstrument
 from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
-SERVICE_NAME = "OTelAgent"
-SERVICE_VERSION = "1.0.0"
-TRACER = None
-ROUTE_EXECUTION_COUNTER = None
-MESSAGE_PROCESSING_DURATION = None
-
-
-def get_tracer():
-    return TRACER or trace.get_tracer(SERVICE_NAME, SERVICE_VERSION)
-
-
-def record_route_execution(route_type: str, conversation_id: str):
-    if ROUTE_EXECUTION_COUNTER is not None:
-        ROUTE_EXECUTION_COUNTER.add(
-            1,
-            {
-                "route.type": route_type,
-                "conversation.id": conversation_id,
-            },
-        )
-
-
-def record_message_duration(duration_ms: float, conversation_id: str, channel_id: str, status: str):
-    if MESSAGE_PROCESSING_DURATION is not None:
-        MESSAGE_PROCESSING_DURATION.record(
-            duration_ms,
-            {
-                "conversation.id": conversation_id,
-                "channel.id": channel_id,
-                "status": status,
-            },
-        )
+from .agentTelemetry import SERVICE_NAME, SERVICE_VERSION, set_telemetry_globals
 
 
 def instrument_aiohttp_server():
@@ -63,12 +32,11 @@ def instrument_aiohttp_server():
 
     AioHttpServerInstrumentor().instrument()
 
+
 def instrument_libraries():
     """Instrument libraries for OpenTelemetry."""
 
-    # ##
-    # # instrument aiohttp client
-    # ##
+    # instrument aiohttp client
     def aiohttp_client_request_hook(
         span: Span, params: aiohttp.TraceRequestStartParams
     ):
@@ -87,9 +55,7 @@ def instrument_libraries():
         response_hook=aiohttp_client_response_hook,
     )
 
-    #
     # instrument requests library
-    ##
     def requests_request_hook(span: Span, request: requests.Request):
         if span and span.is_recording():
             span.set_attribute("http.url", request.url)
@@ -104,12 +70,9 @@ def instrument_libraries():
         request_hook=requests_request_hook, response_hook=requests_response_hook
     )
 
+
 def configure_otel_providers(service_name: str = "app"):
-    """Configure OpenTelemetry for FastAPI application."""
-
-    global SERVICE_NAME, TRACER, ROUTE_EXECUTION_COUNTER, MESSAGE_PROCESSING_DURATION
-
-    SERVICE_NAME = service_name
+    """Configure OpenTelemetry for aiohttp application."""
 
     # Create resource with service name
     resource = Resource.create(
@@ -129,7 +92,7 @@ def configure_otel_providers(service_name: str = "app"):
         BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
     )
     trace.set_tracer_provider(tracer_provider)
-    TRACER = trace.get_tracer(service_name, SERVICE_VERSION)
+    tracer = trace.get_tracer(service_name, SERVICE_VERSION)
 
     # Configure Metrics
     metric_reader = PeriodicExportingMetricReader(
@@ -138,12 +101,12 @@ def configure_otel_providers(service_name: str = "app"):
     meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
     metrics.set_meter_provider(meter_provider)
     meter = metrics.get_meter(service_name, SERVICE_VERSION)
-    ROUTE_EXECUTION_COUNTER = meter.create_counter(
+    route_executed_counter = meter.create_counter(
         "agent.routes.executed.count",
         unit="routes",
         description="Number of routes executed by the agent",
     )
-    MESSAGE_PROCESSING_DURATION = meter.create_histogram(
+    message_processing_duration = meter.create_histogram(
         "agent.message.processing.duration",
         unit="ms",
         description="Duration of message processing in milliseconds",
@@ -159,6 +122,9 @@ def configure_otel_providers(service_name: str = "app"):
     # Add logging handler
     handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
     logging.getLogger().addHandler(handler)
+
+    # Set the telemetry globals
+    set_telemetry_globals(service_name, tracer, route_executed_counter, message_processing_duration)
 
     logging.getLogger().info("OpenTelemetry providers configured with endpoint: %s", endpoint)
 

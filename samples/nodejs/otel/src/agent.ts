@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import { startServer } from '@microsoft/agents-hosting-express'
-import { AgentApplication, MemoryStorage, TurnContext, TurnState } from '@microsoft/agents-hosting'
+import { AgentApplication, MemoryStorage, RouteRank, TurnContext, TurnState } from '@microsoft/agents-hosting'
 import { SpanStatusCode, type Span } from '@opentelemetry/api'
 import { AgentTelemetry } from './agentTelemetry'
 
@@ -13,7 +13,8 @@ class OTelAgent extends AgentApplication<TurnState> {
     super({ startTypingTimer: true, storage: new MemoryStorage() })
 
     this.onConversationUpdate('membersAdded', this.welcome)
-    this.onActivity('message', this.echo)
+    this.onActivity('message', this.message, undefined, RouteRank.Last)
+    this.onError(this.error)
   }
 
   welcome = async (ctx: TurnContext) => {
@@ -42,23 +43,19 @@ class OTelAgent extends AgentApplication<TurnState> {
             'conversation.id': ctx.activity.conversation?.id ?? 'unknown'
           }
         )
-        AgentTelemetry.logInfo('Welcome message sent', {
-          'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
-          'route.type': 'welcome_message'
-        })
+        AgentTelemetry.logInfo(`Welcome message sent for conversation ${ctx.activity.conversation?.id ?? 'unknown'}`, {})
+
         span.setStatus({ code: SpanStatusCode.OK })
       } catch (error) {
         if (error instanceof Error) {
           span.recordException(error)
-          AgentTelemetry.logError('Welcome message failed', {
-            'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
+          AgentTelemetry.logError(`Welcome message failed for conversation ${ctx.activity.conversation?.id ?? 'unknown'}`, {
             'route.type': 'welcome_message',
             'error.message': error.message
           })
         } else {
           span.recordException(new Error(String(error)))
-          AgentTelemetry.logError('Welcome message failed', {
-            'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
+          AgentTelemetry.logError(`Welcome message failed for conversation ${ctx.activity.conversation?.id ?? 'unknown'}`, {
             'route.type': 'welcome_message',
             'error.message': String(error)
           })
@@ -71,12 +68,16 @@ class OTelAgent extends AgentApplication<TurnState> {
     })
   }
 
-  echo = async (ctx: TurnContext) => {
+  message = async (ctx: TurnContext) => {
     return this.tracer.startActiveSpan('agent.message_handler', async (span: Span) => {
       const t0 = performance.now()
+      const conversationId = ctx.activity.conversation?.id ?? 'unknown'
+      const channelId = ctx.activity.channelId ?? 'unknown'
+      let status = 'success'
+
       try {
-        span.setAttribute('conversation.id', ctx.activity.conversation?.id ?? 'unknown')
-        span.setAttribute('channel.id', ctx.activity.channelId ?? 'unknown')
+        span.setAttribute('conversation.id', conversationId)
+        span.setAttribute('channel.id', channelId)
         span.setAttribute('message.text.length', ctx.activity.text?.length ?? 0)
         span.setAttribute('user.id', ctx.activity.from?.id ?? 'unknown')
 
@@ -86,7 +87,7 @@ class OTelAgent extends AgentApplication<TurnState> {
             'message.id': ctx.activity.id,
             'message.text': ctx.activity.text,
             'user.id': ctx.activity.from?.id,
-            'channel.id': ctx.activity.channelId,
+            'channel.id': channelId,
           },
           Date.now())
 
@@ -96,52 +97,52 @@ class OTelAgent extends AgentApplication<TurnState> {
           undefined,
           Date.now())
 
-        const processedMs = performance.now() - t0
-        AgentTelemetry.messageProcessingDuration.record(processedMs,
-          {
-            'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
-            'channel.id': ctx.activity.channelId ?? 'unknown',
-            status: 'success'
-          })
         AgentTelemetry.routeExecutedCounter.add(1,
           {
             'route.type': 'message_handler',
-            'conversation.id': ctx.activity.conversation?.id ?? 'unknown'
+            'conversation.id': conversationId
           })
         AgentTelemetry.logInfo('Message handled', {
-          'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
+          'conversation.id': conversationId,
           'route.type': 'message_handler'
         })
+        status = 'success'
         span.setStatus({ code: SpanStatusCode.OK })
       } catch (error) {
+        let errorMessage: string
         if (error instanceof Error) {
           span.recordException(error)
-          AgentTelemetry.logError('Message handling failed', {
-            'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
-            'route.type': 'message_handler',
-            'error.message': error.message
-          })
+          errorMessage = error.message
         } else {
           span.recordException(new Error(String(error)))
-          AgentTelemetry.logError('Message handling failed', {
-            'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
-            'route.type': 'message_handler',
-            'error.message': String(error)
-          })
+          errorMessage = String(error)
         }
+        AgentTelemetry.logError(`Message handling failed for conversation ${conversationId}`, {
+          'route.type': 'message_handler',
+          'error.message': errorMessage
+        })
         span.setStatus({ code: SpanStatusCode.ERROR })
-        const elapsedMs = performance.now() - t0
-        AgentTelemetry.messageProcessingDuration.record(elapsedMs,
-          {
-            'conversation.id': ctx.activity.conversation?.id ?? 'unknown',
-            'channel.id': ctx.activity.channelId ?? 'unknown',
-            status: 'error'
-          })
+        status = 'error'
         throw error
       } finally {
+        const processedMs = performance.now() - t0
+        AgentTelemetry.messageProcessingDuration.record(processedMs,
+          {
+            'conversation.id': conversationId,
+            'channel.id': channelId,
+            status: status
+          })
         span.end()
       }
     })
+  }
+
+  error = async (ctx: TurnContext, error: Error) => {
+    AgentTelemetry.logError(`Unhandled error in conversation ${ctx.activity.conversation?.id ?? 'unknown'}`, {
+      'error.message': error.message
+    })
+    //Send a message to the user
+    await ctx.sendActivity('The bot encountered an error or bug.')
   }
 }
 

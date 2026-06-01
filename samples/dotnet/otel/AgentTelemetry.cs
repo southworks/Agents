@@ -6,7 +6,7 @@ using System.Diagnostics.Metrics;
 
 namespace Otel;
 
-public static class SampleTelemetry
+public static class AgentTelemetry
 {
     public const string ServiceName = "OTelAgent";
     public const string ServiceVersion = "1.0.0";
@@ -14,7 +14,7 @@ public static class SampleTelemetry
     public static readonly ActivitySource ActivitySource = new(ServiceName, ServiceVersion);
     public static readonly Meter Meter = new(ServiceName, ServiceVersion);
 
-    public static readonly Counter<long> RouteExecutionCounter = Meter.CreateCounter<long>(
+    public static readonly Counter<long> RouteExecutedCounter = Meter.CreateCounter<long>(
         "agent.routes.executed.count",
         unit: "routes",
         description: "Number of routes executed by the agent");
