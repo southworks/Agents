@@ -76,7 +76,7 @@ Local dev: Set `TokenValidation:Enabled` to `false`. No Azure Bot needed until d
 }
 ```
 
-**appsettings.Development.json** — secret lives here (add to `.gitignore`):
+**appsettings.Development.json** — secret lives here (excluded via `.gitignore`):
 
 ```json
 {
@@ -233,6 +233,12 @@ app.Run();
 ```
 
 Run: `dotnet run`
+
+**.gitignore** — ensure `appsettings.Development.json` is excluded (it contains secrets):
+
+```
+appsettings.Development.json
+```
 
 **Teams app manifest (if targeting Teams):** Copy the `appManifest/` folder from [`Agents-for-net/src/samples/EmptyAgent/appManifest`](https://github.com/microsoft/Agents-for-net/tree/main/src/samples/EmptyAgent/appManifest) into your project. Then update `manifest.json`:
 - Replace all `${{AAD_APP_CLIENT_ID}}` with your bot's Client ID
