@@ -348,11 +348,6 @@ model ConversationReference {
   locale?: string;
 
   /**
-   * (Optional) Request identifier
-   */
-  requestId?: string;
-
-  /**
    * (Optional) Delivery mode for replies
    */
   deliveryMode?: string;
