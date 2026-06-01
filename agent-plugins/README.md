@@ -6,6 +6,16 @@ Plugins provide skills — contextual guidance that activates automatically when
 
 ## Available Plugins
 
+### `agents-sdk-common`
+
+Shared skills that apply to all languages (dotnet, Node.js, Python).
+
+| Skill | Activates when... |
+|-------|-------------------|
+| `agents-sdk-provision` | Provisioning Azure Bot resources, configuring identity credentials, or setting up OAuth via `az` CLI |
+
+---
+
 ### `agents-for-js`
 
 Skills for building agents with the Microsoft 365 Agents SDK for TypeScript/JavaScript.
@@ -14,7 +24,19 @@ Skills for building agents with the Microsoft 365 Agents SDK for TypeScript/Java
 |-------|-------------------|
 | `agents-sdk-typescript` | Code imports `@microsoft/agents-hosting`, `@microsoft/agents-hosting-express`, or related packages, or when building a new agent |
 | `agents-sdk-debugging` | Resolving problems with a Microsoft Agents SDK agent |
-| `azure-agents-sdk-provision` | Provisioning Azure Bot resources, configuring identity credentials, or setting up OAuth via `az` CLI |
+
+---
+
+### `agents-for-net`
+
+Skills for building agents with the Microsoft 365 Agents SDK for .NET.
+
+| Skill | Activates when... |
+|-------|-------------------|
+| `agents-sdk-dotnet` | Code imports Microsoft.Agents.Hosting.AspNetCore or related packages, or when building a new .NET agent |
+| `agents-sdk-dotnet-debugging` | Resolving problems with a .NET Microsoft Agents SDK agent |
+| `agents-sdk-dotnet-activityhandler-migration` | Migrating from ActivityHandler pattern to AgentApplication |
+| `bf-to-agents-sdk-dotnet-migration` | Migrating from Bot Framework SDK to Microsoft Agents SDK |
 
 ---
 
@@ -30,10 +52,12 @@ Run these commands inside Claude Code:
 /plugin marketplace add microsoft/Agents
 ```
 
-Then install the plugin:
+Then install the plugins you need:
 
 ```
+/plugin install agents-sdk-common@microsoft-agents-sdk
 /plugin install agents-for-js@microsoft-agents-sdk
+/plugin install agents-for-net@microsoft-agents-sdk
 ```
 
 Skills activate automatically based on what you're working on — no manual loading needed.
@@ -52,10 +76,12 @@ Add the marketplace:
 /plugin marketplace add microsoft/Agents
 ```
 
-Then install the plugin:
+Then install the plugins you need:
 
 ```
+/plugin install agents-sdk-common@microsoft-agents-sdk
 /plugin install agents-for-js@microsoft-agents-sdk
+/plugin install agents-for-net@microsoft-agents-sdk
 ```
 
 ---
@@ -66,4 +92,4 @@ Skills are Markdown files with a YAML frontmatter block that defines a `name` an
 
 When a skill activates, its full content is loaded into the assistant's context, giving it precise knowledge of the SDK's APIs, patterns, and common mistakes.
 
-To browse skill content directly, see the [`agents-for-js/skills/`](./agents-for-js/skills/) directory.
+To browse skill content directly, see the [`agents-sdk-common/skills/`](./agents-sdk-common/skills/), [`agents-for-js/skills/`](./agents-for-js/skills/), and [`agents-for-net/skills/`](./agents-for-net/skills/) directories.
