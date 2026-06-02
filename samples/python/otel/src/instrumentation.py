@@ -24,7 +24,7 @@ from opentelemetry.instrumentation.aiohttp_server import AioHttpServerInstrument
 from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
-from .agentTelemetry import SERVICE_NAME, SERVICE_VERSION, set_telemetry_globals
+from .agent_telemetry import SERVICE_NAME, SERVICE_VERSION, set_telemetry_globals
 
 
 def instrument_aiohttp_server():

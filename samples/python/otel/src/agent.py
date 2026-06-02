@@ -19,7 +19,7 @@ from microsoft_agents.authentication.msal import MsalConnectionManager
 from microsoft_agents.activity import load_configuration_from_env
 from opentelemetry.trace import Status, StatusCode
 
-from .agentTelemetry import get_tracer, record_message_duration, record_route_execution
+from .agent_telemetry import get_tracer, record_message_duration, record_route_execution
 
 load_dotenv()
 agents_sdk_config = load_configuration_from_env(environ)

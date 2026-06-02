@@ -116,7 +116,7 @@ from .instrumentation import configure_otel_providers
 configure_otel_providers(service_name="OTelAgent")
 ```
 
-The `src/telemetry.py` file defines the shared telemetry helpers (tracer, counters, histograms) used by the agent handlers.
+The `src/agent_telemetry.py` file defines the shared telemetry helpers (tracer, counters, histograms) used by the agent handlers.
 
 By default, telemetry is exported to `http://localhost:4317/` via OTLP gRPC. To change the endpoint, set the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable in your `.env` file.
 
