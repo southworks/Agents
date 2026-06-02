@@ -44,6 +44,11 @@ namespace GenesysHandoff.Services
                                 continue;
                             }
 
+                            var imageName = clientCitation.Appearance.Image?.Name?.ToString();
+                            if (string.IsNullOrWhiteSpace(imageName) || string.Equals(imageName, "Unknown", StringComparison.OrdinalIgnoreCase))
+                            {
+                                imageName = "Image";
+                            }
 
                             annotation.Citation.Add(new ClientCitation(
                                 clientCitation.Position,
@@ -52,7 +57,7 @@ namespace GenesysHandoff.Services
                                 clientCitation.Appearance.Text ?? string.Empty,
                                 null,
                                 clientCitation.Appearance.Url,
-                                clientCitation.Appearance.Image?.Name
+                                imageName
                             ));
                         }
                         filteredEntities.Add(annotation);

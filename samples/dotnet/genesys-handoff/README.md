@@ -4,6 +4,10 @@
 
 This guide walks you through configuring, running, and understanding the GenesysHandoff sample.
 
+For runtime flow details, see the detailed sequence diagrams in [docs/sequence-diagrams.md](docs/sequence-diagrams.md).
+
+For the timeout custom connector example (used for timeout-triggered conversation reset) and required configuration, see [docs/custom-connectors.md](docs/custom-connectors.md).
+
 ---
 
 ## Introduction
@@ -103,12 +107,26 @@ Set up the dialog logic so the bot knows when and how to hand off to Genesys Clo
 5. **Verify Topic Flow:** The final structure of your Escalate topic should be:
    - User trigger → (optional confirmation) → **Customize Response (summarize)** → **Event: GenesysHandoff**
 
-### 2.3. Publish the Agent
+### 2.3. Configure End Of Conversation Event
+
+To let the integration detect an explicit end-of-conversation signal from Copilot Studio, update the **End of conversation** system topic.
+
+1. In Copilot Studio, open **Topics** and select the **End of conversation** system topic.
+2. In the branch where you send the final user-facing message (for example, "Ok, goodbye."), add a **Send activity: Event** node immediately before the **End conversation** node.
+3. Configure the event node with:
+   - **Name**: `EndOfConversation`
+   - **Value**: `EndOfConversation`
+4. Save and publish the topic.
+![Copilot Studio End Of Conversation Event Node Configuration](./Images/MCSEndOfConversationEventNode.png)
+
+Final flow should look like: **Message** -> **Event activity (EndOfConversation)** -> **End conversation**.
+
+### 2.4. Publish the Agent
 
 1. Click **Publish** (usually in the top-right of Copilot Studio).
 2. After publishing, test quickly in the Copilot Studio chat canvas: type a phrase like "I want a human." The bot should trigger the event (you may see no response, which indicates the event was triggered).
 
-### 2.4. Retrieve Agent and Environment Metadata
+### 2.5. Retrieve Agent and Environment Metadata
 
 We need two pieces of info from Copilot Studio to configure the integration code:
 
@@ -204,7 +222,9 @@ Update appsettings.json with the details collected from the Genesys setup steps:
   "ClientId": "",                   // OAuth Client ID created in Genesys
   "ClientSecret": "",               // OAuth Client Secret created in Genesys
   "WebhookSignatureSecret": "",     // Required: outboundNotificationWebhookSignatureSecretToken from Genesys integration
-  "EnableNotifications": true        // Enable WebSocket notifications for automatic agent disconnect detection
+  "EnableNotifications": true,      // Enable WebSocket notifications for automatic agent disconnect detection
+  "AgentDisconnectedMessage": "The live agent has left the conversation. You are now back with the bot.", // Optional: message sent to user when the live agent disconnects
+  "EndLiveChatMessage": "End chat with agent" // Optional: label for the suggested action button that ends the live chat
 }
 ```
 

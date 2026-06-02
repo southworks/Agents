@@ -54,6 +54,36 @@ namespace GenesysHandoff.Genesys
         public bool EnableNotifications { get; set; }
 
         /// <summary>
+        /// Gets or sets the message sent to the user when a live agent disconnects.
+        /// </summary>
+        public string? AgentDisconnectedMessage { get; set; }
+
+        /// <summary>
+        /// Gets or sets the message sent to the user when a live chat ends because the client disconnected.
+        /// </summary>
+        public string? AgentDisconnectedClientMessage { get; set; }
+
+        /// <summary>
+        /// Gets or sets the message sent to the user when a live chat ends due to inactivity timeout.
+        /// </summary>
+        public string? AgentDisconnectedTimeoutMessage { get; set; }
+
+        /// <summary>
+        /// Gets or sets the message sent to the user when a live chat ends due to an error.
+        /// </summary>
+        public string? AgentDisconnectedErrorMessage { get; set; }
+
+        /// <summary>
+        /// Gets or sets the label shown on the suggested action button that ends the live chat.
+        /// </summary>
+        public string? EndLiveChatMessage { get; set; }
+
+        /// <summary>
+        /// Gets or sets the message sent to the user when the conversation is reset.
+        /// </summary>
+        public string? ResetConversationMessage { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="GenesysConnectionSetting"/> class.
         /// </summary>
         public GenesysConnectionSetting() { }
@@ -78,6 +108,12 @@ namespace GenesysHandoff.Genesys
                 ClientSecret = config.GetValue<string>("ClientSecret");
                 WebhookSignatureSecret = config.GetValue<string>("WebhookSignatureSecret");
                 EnableNotifications = config.GetValue<bool>("EnableNotifications");
+                AgentDisconnectedMessage = config.GetValue<string>("AgentDisconnectedMessage");
+                AgentDisconnectedClientMessage = config.GetValue<string>("AgentDisconnectedClientMessage");
+                AgentDisconnectedTimeoutMessage = config.GetValue<string>("AgentDisconnectedTimeoutMessage");
+                AgentDisconnectedErrorMessage = config.GetValue<string>("AgentDisconnectedErrorMessage");
+                EndLiveChatMessage = config.GetValue<string>("EndLiveChatMessage");
+                ResetConversationMessage = config.GetValue<string>("ResetConversationMessage");
             }
         }
     }

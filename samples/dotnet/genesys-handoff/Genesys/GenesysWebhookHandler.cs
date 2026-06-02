@@ -6,6 +6,7 @@ using Microsoft.Agents.Builder;
 using Microsoft.Agents.Core.Models;
 using Microsoft.Agents.Storage;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -37,11 +38,13 @@ namespace GenesysHandoff.Genesys
     /// Handles inbound webhook requests from Genesys Cloud, validates signatures,
     /// and forwards agent messages to the Teams user via proactive messaging.
     /// </summary>
-    public class GenesysWebhookHandler(IGenesysConnectionSettings setting, IStorage storage, ILogger<GenesysWebhookHandler> logger)
+    public class GenesysWebhookHandler(IGenesysConnectionSettings setting, IStorage storage, IActivityReplyMappingStore activityReplyMappingStore, ILogger<GenesysWebhookHandler> logger, IConfiguration configuration)
     {
         private readonly IGenesysConnectionSettings _setting = setting ?? throw new ArgumentNullException(nameof(setting));
         private readonly IStorage _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+        private readonly IActivityReplyMappingStore _activityReplyMappingStore = activityReplyMappingStore ?? throw new ArgumentNullException(nameof(activityReplyMappingStore));
         private readonly ILogger<GenesysWebhookHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 
         /// <summary>
         /// Processes an inbound webhook request from Genesys.
@@ -98,7 +101,15 @@ namespace GenesysHandoff.Genesys
 
                 // Build and send the agent's message
                 var replyActivity = BuildAgentReply(payload);
-                await SendProactiveActivityAsync(channelAdapter, userChannelReference, replyActivity, sendToken);
+
+                var mcsActivityId = payload.Channel?.MessageId;
+
+                var relaySentActivityId = await SendProactiveActivityAsync(channelAdapter, userChannelReference, replyActivity, sendToken);
+                if (!string.IsNullOrWhiteSpace(mcsActivityId) && !string.IsNullOrWhiteSpace(relaySentActivityId))
+                {
+                    await _activityReplyMappingStore.UpsertAsync(c2ConversationId, relaySentActivityId, mcsActivityId, cancellationToken);
+                }
+
                 return WebhookResult.MessageSent;
             }
             catch (JsonException)
@@ -112,34 +123,54 @@ namespace GenesysHandoff.Genesys
             }
         }
 
-        private static async Task SendProactiveActivityAsync(IChannelAdapter channelAdapter, ConversationReference userChannelReference, IActivity activity, CancellationToken cancellationToken)
+        private static async Task<string?> SendProactiveActivityAsync(IChannelAdapter channelAdapter, ConversationReference userChannelReference, IActivity activity, CancellationToken cancellationToken)
         {
             var continuationActivity = userChannelReference.GetContinuationActivity();
             var claimsIdentity = AgentClaims.CreateIdentity(userChannelReference.Agent.Id);
+            var audience = string.IsNullOrWhiteSpace(userChannelReference.ServiceUrl)
+                    ? AuthenticationConstants.BotFrameworkAudience
+                    : userChannelReference.ServiceUrl;
+            string? sentActivityId = null;
 
             await channelAdapter.ProcessProactiveAsync(
                 claimsIdentity: claimsIdentity,
                 continuationActivity: continuationActivity,
-                audience: string.Empty,
+                audience: audience,
                 callback: async (turnContext, ct) =>
                 {
-                    await turnContext.SendActivityAsync(activity, cancellationToken: ct);
+                    var resourceResponse = await turnContext.SendActivityAsync(activity, cancellationToken: ct);
+                    sentActivityId = resourceResponse?.Id;
                 },
                 cancellationToken: cancellationToken);
+
+            return sentActivityId;
         }
 
-        private const string EndLiveChatAction = "End chat with agent";
-
-        private static IActivity BuildAgentReply(GenesysOutboundPayload payload)
+        private IActivity BuildAgentReply(GenesysOutboundPayload payload)
         {
-            var replyActivity = MessageFactory.Text($"[Live Agent] - {payload.Text}");
-            replyActivity.SuggestedActions = new SuggestedActions
+            var endChatLabel = _setting.EndLiveChatMessage ?? "End chat with agent";
+            var liveAgentPrefix = _configuration?.GetSection("TeamsMessages:LiveAgentMessagePrefix")?.Value ?? "[Live Agent] - ";
+            var replyActivity = MessageFactory.Text($"{liveAgentPrefix}{payload.Text}");
+            var endChatButton = new CardAction
             {
-                Actions = new List<CardAction>
-                {
-                    new() { Title = EndLiveChatAction, Type = ActionTypes.ImBack, Value = EndLiveChatAction }
-                }
+                Type = ActionTypes.ImBack,
+                Title = endChatLabel,
+                Value = endChatLabel,
             };
+
+            var heroCard = new HeroCard
+            {
+                Buttons = new List<CardAction> { endChatButton },
+            };
+
+            replyActivity.Attachments =
+            [
+                new Attachment
+                {
+                    ContentType = "application/vnd.microsoft.card.hero",
+                    Content = heroCard,
+                },
+            ];
 
             if (payload.ContentData != null && payload.ContentData.Count > 0)
             {
@@ -156,7 +187,11 @@ namespace GenesysHandoff.Genesys
                         });
                     }
                 }
-                replyActivity.Attachments = attachments;
+
+                foreach (var attachment in attachments)
+                {
+                    replyActivity.Attachments.Add(attachment);
+                }
             }
 
             return replyActivity;
