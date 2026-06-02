@@ -130,7 +130,7 @@ class OTelAgent extends AgentApplication<TurnState> {
           {
             'conversation.id': conversationId,
             'channel.id': channelId,
-            status: status
+            status
           })
         span.end()
       }
@@ -141,7 +141,7 @@ class OTelAgent extends AgentApplication<TurnState> {
     AgentTelemetry.logError(`Unhandled error in conversation ${ctx.activity.conversation?.id ?? 'unknown'}`, {
       'error.message': error.message
     })
-    //Send a message to the user
+    // Send a message to the user
     await ctx.sendActivity('The bot encountered an error or bug.')
   }
 }
