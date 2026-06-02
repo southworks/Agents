@@ -463,9 +463,9 @@ az ad app update \
   --web-redirect-uris "https://token.botframework.com/.auth/web/redirect"
 ```
 
-**Node.js env var:**
+**Node.js env var (modern format):**
 ```
-graph_connectionName=GraphOAuthConnection
+AgentApplication__UserAuthorization__Handlers__graph__Settings__azureBotOAuthConnectionName=GraphOAuthConnection
 ```
 
 ### FIC bots (AadV2WithFic)
