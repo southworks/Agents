@@ -23,20 +23,9 @@ Skills for building agents with the Microsoft 365 Agents SDK for TypeScript/Java
 | Skill | Activates when... |
 |-------|-------------------|
 | `agents-sdk-typescript` | Code imports `@microsoft/agents-hosting`, `@microsoft/agents-hosting-express`, or related packages, or when building a new agent |
-| `agents-sdk-debugging` | Resolving problems with a Microsoft Agents SDK agent |
+| `agents-sdk-typescript-debugging` | Troubleshooting a Microsoft Agents SDK agent in TypeScript/JavaScript (build errors, auth failures, startup crashes, configuration issues) |
 
 ---
-
-### `agents-for-net`
-
-Skills for building agents with the Microsoft 365 Agents SDK for .NET.
-
-| Skill | Activates when... |
-|-------|-------------------|
-| `agents-sdk-dotnet` | Code imports Microsoft.Agents.Hosting.AspNetCore or related packages, or when building a new .NET agent |
-| `agents-sdk-dotnet-debugging` | Resolving problems with a .NET Microsoft Agents SDK agent |
-| `agents-sdk-dotnet-activityhandler-migration` | Migrating from ActivityHandler pattern to AgentApplication |
-| `bf-to-agents-sdk-dotnet-migration` | Migrating from Bot Framework SDK to Microsoft Agents SDK |
 
 ### `agents-for-net`
 
@@ -46,7 +35,6 @@ Skills for building agents with the Microsoft 365 Agents SDK for C# / .NET.
 |-------|-------------------|
 | `agents-sdk-dotnet` | Code imports `Microsoft.Agents.Hosting.AspNetCore`, `Microsoft.Agents.Builder`, or related packages, or when building a new agent in C# / .NET |
 | `agents-sdk-dotnet-debugging` | Troubleshooting a Microsoft Agents SDK agent in C# / .NET (build errors, auth failures, startup crashes, configuration issues) |
-| `azure-agents-sdk-provision-dotnet` | Provisioning Azure Bot resources, Entra app registrations, identity credentials, or OAuth connections for a .NET agent |
 | `bf-to-agents-sdk-dotnet-migration` | Migrating a Bot Framework .NET SDK bot (`Microsoft.Bot.Builder`) to Microsoft Agents SDK |
 | `agents-sdk-dotnet-activityhandler-migration` | Migrating an Agents SDK bot from `ActivityHandler`/`TeamsActivityHandler` to `AgentApplication` routing |
 
