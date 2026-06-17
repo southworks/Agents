@@ -23,7 +23,7 @@ async function acquireS2SToken (baseConfig: msal.Configuration, settings: S2SCon
   const cca = new msal.ConfidentialClientApplication({
     ...baseConfig,
     auth: {
-      ...baseConfig.auth,
+      clientId: settings.appClientId!,
       clientSecret: settings.appClientSecret!
     }
   })
