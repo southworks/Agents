@@ -6,7 +6,6 @@
 import * as msal from '@azure/msal-node'
 import { Activity, ActivityTypes, CardAction } from '@microsoft/agents-activity'
 import { ConnectionSettings, CopilotStudioClient, ScopeHelper, StartRequest, UserAgentHelper } from '@microsoft/agents-copilotstudio-client'
-import pkg from '@microsoft/agents-copilotstudio-client/package.json' with { type: 'json' }
 import readline from 'readline'
 import open from 'open'
 import os from 'os'
@@ -98,13 +97,13 @@ const createClient = async (): Promise<CopilotStudioClient> => {
   const settings = new SampleConnectionSettings()
   const token = await getToken(settings)
   const copilotClient = new CopilotStudioClient(settings, token)
-  
+
   // Display client information using new helper utilities
   const safeSettingsForLog = {
-     ...settings,
-     enableDiagnostics: settings.enableDiagnostics ?? false,
-     appClientSecret: settings.appClientSecret ? '[REDACTED]' : ''
-   }
+    ...settings,
+    enableDiagnostics: settings.enableDiagnostics ?? false,
+    appClientSecret: settings.appClientSecret ? '[REDACTED]' : ''
+  }
 
   console.log('\n=== Copilot Studio Client Information ===')
   console.log(`Version: ${UserAgentHelper.getVersion()}`)
