@@ -5,7 +5,7 @@
 
 import * as msal from '@azure/msal-node'
 import { Activity, ActivityTypes, CardAction } from '@microsoft/agents-activity'
-import { ConnectionSettings, CopilotStudioClient } from '@microsoft/agents-copilotstudio-client'
+import { ConnectionSettings, CopilotStudioClient, ScopeHelper, StartRequest, UserAgentHelper } from '@microsoft/agents-copilotstudio-client'
 import pkg from '@microsoft/agents-copilotstudio-client/package.json' with { type: 'json' }
 import readline from 'readline'
 import open from 'open'
@@ -23,7 +23,7 @@ async function acquireS2SToken (baseConfig: msal.Configuration, settings: S2SCon
   const cca = new msal.ConfidentialClientApplication({
     ...baseConfig,
     auth: {
-      clientId: settings.appClientId!,
+      ...baseConfig.auth,
       clientSecret: settings.appClientSecret!
     }
   })
@@ -98,7 +98,16 @@ const createClient = async (): Promise<CopilotStudioClient> => {
   const settings = new SampleConnectionSettings()
   const token = await getToken(settings)
   const copilotClient = new CopilotStudioClient(settings, token)
-  console.log(`Copilot Studio Client Version: ${pkg.version}`)
+  
+  // Display client information using new helper utilities
+  console.log('\n=== Copilot Studio Client Information ===')
+  console.log(`Version: ${UserAgentHelper.getVersion()}`)
+  console.log(`User Agent: ${UserAgentHelper.getProductInfo()}`)
+  console.log(`Token Scope: ${ScopeHelper.getScopeFromSettings(settings)}`)
+  console.log(`Diagnostics Enabled: ${settings.enableDiagnostics ?? false}`)
+  console.log(`Settings: ${JSON.stringify(settings, null, 2)}`)
+  console.log('=========================================\n')
+
   return copilotClient
 }
 
@@ -162,11 +171,21 @@ function printActivity (act: Activity): void {
 
 const main = async () => {
   const copilotClient = await createClient()
+
+  // Use new StartRequest model with locale support
+  const startRequest: StartRequest = {
+    emitStartConversationEvent: false,
+    locale: process.env.locale || 'en-US'
+  }
+
+  console.log(`Starting conversation with locale: ${startRequest.locale}\n`)
+
   let conversationId = ''
-  for await (const act of copilotClient.startConversationStreaming(false)) {
+  for await (const act of copilotClient.startConversationStreaming(startRequest)) {
     printActivity(act)
     conversationId = act.conversation?.id ?? ''
   }
+
   await askQuestion(copilotClient, conversationId)
 }
 
