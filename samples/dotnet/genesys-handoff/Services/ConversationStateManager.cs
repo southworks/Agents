@@ -168,6 +168,7 @@ namespace GenesysHandoff.Services
         /// </summary>
         /// <param name="storage">The storage instance to read from.</param>
         /// <param name="conversationId">The MCS conversation ID to check.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
         /// <returns>True if the conversation has been escalated; otherwise, false.</returns>
         public async System.Threading.Tasks.Task<bool> IsEscalatedInStorageAsync(IStorage storage, string conversationId, CancellationToken cancellationToken)
         {
