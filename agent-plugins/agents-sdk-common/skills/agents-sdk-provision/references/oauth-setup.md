@@ -2,6 +2,32 @@
 
 Adds a user sign-in OAuth connection to an existing bot.
 
+## Recommended Auth Types
+
+| Environment | Auth Type | Why |
+|---|---|---|
+| **Local dev** | SingleTenant + ClientSecret | Auto-provisioned by toolkit, simplest to get started |
+| **Production** | User Assigned Managed Identity | Mutual authentication between Bot Service, Teams/Copilot services, and App Service — all parties verified, no secrets |
+
+For production OAuth connections, use **AAD v2 with Federated Credentials** service provider — [setup steps](https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/azure-bot-user-authorization-federated-credentials#create-an-oauth-connection-on-the-azure-bot)
+
+Full reference: [Add user authorization using federated identity credential | Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/azure-bot-user-authorization-federated-credentials)
+
+## OAuth Redirect URLs by Region
+
+> **IMPORTANT:** The redirect URL depends on where the Azure Bot Service resource is deployed. Using the wrong redirect URL causes `AADSTS500113` errors.
+
+| Data Residency | Cloud | OAuth URL | OAuth Redirect URL |
+|---|---|---|---|
+| None (Global) | Public | `https://token.botframework.com` | `https://token.botframework.com/.auth/web/redirect` |
+| Europe | Public | `https://europe.token.botframework.com` | `https://europe.token.botframework.com/.auth/web/redirect` |
+| United States | Public | `https://unitedstates.token.botframework.com` | `https://unitedstates.token.botframework.com/.auth/web/redirect` |
+| India | Public | `https://india.token.botframework.com` | `https://india.token.botframework.com/.auth/web/redirect` |
+| None | Azure Government | `https://token.botframework.azure.us` | `https://token.botframework.azure.us/.auth/web/redirect` |
+| None | Azure operated by 21Vianet | `https://token.botframework.azure.cn` | `https://token.botframework.azure.cn/.auth/web/redirect` |
+
+All redirect URI examples below use the Global URL. **Replace with the regional URL** if your Bot Service uses data residency.
+
 ## ClientSecret bots (AadV2)
 
 For bots using ClientSecret auth, use the `Aadv2` service provider. You can reuse the bot's existing app registration or create a separate OAuth app.
@@ -26,7 +52,28 @@ az ad app update \
   --web-redirect-uris "https://token.botframework.com/.auth/web/redirect"
 ```
 
-**Node.js env var:**
+**Config output — dotnet (`appsettings.json`):**
+```json
+{
+  "AgentApplication": {
+    "UserAuthorization": {
+      "DefaultHandlerName": "graph",
+      "AutoSignin": true,
+      "Handlers": {
+        "graph": {
+          "Settings": {
+            "AzureBotOAuthConnectionName": "GraphOAuthConnection",
+            "Title": "Sign In",
+            "Text": "Please sign in to continue"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**Config output — Node.js (`.env`):**
 ```
 graph_connectionName=GraphOAuthConnection
 ```
@@ -70,8 +117,8 @@ az ad app update \
   --identifier-uris "api://botid-$OAUTH_APP_ID"
 
 OAUTH_OBJECT_ID=$(az ad app show --id "$OAUTH_APP_ID" --query id --output tsv)
-# uuidgen on Linux/macOS/WSL; python3 fallback for Windows Git Bash
-SCOPE_ID=$(uuidgen 2>/dev/null || python3 -c "import uuid; print(uuid.uuid4())")
+# uuidgen on Linux/macOS/WSL; PowerShell fallback for Windows
+SCOPE_ID=$(uuidgen 2>/dev/null || powershell -NoProfile -Command "[guid]::NewGuid().ToString()")
 
 az rest --method PATCH \
   --uri "https://graph.microsoft.com/v1.0/applications/$OAUTH_OBJECT_ID" \
@@ -111,6 +158,10 @@ az ad app update \
   --web-redirect-uris "https://token.botframework.com/.auth/web/redirect"
 ```
 
+**Config output — dotnet (`appsettings.json`):** Same `AgentApplication:UserAuthorization` block as ClientSecret above.
+
+**Config output — Node.js (`.env`):** Same `graph_connectionName=GraphOAuthConnection` as ClientSecret above.
+
 ## Teams SSO (optional)
 
 Pre-authorize the Teams client apps to allow silent token acquisition. The `access_as_user` scope was created in step 4 above and `SCOPE_ID`/`OAUTH_OBJECT_ID` must still be set in the same shell session.
@@ -136,7 +187,7 @@ az rest --method PATCH \
   }"
 ```
 
-These are the Microsoft host client app IDs that must be pre-authorized for SSO to work across all Teams and Office surfaces:
+Microsoft host client app IDs for SSO:
 
 | App ID | Client |
 |--------|--------|
