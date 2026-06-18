@@ -79,7 +79,7 @@ public class Agent : AgentApplication
         using System.Diagnostics.Activity? activity = AgentTelemetry.ActivitySource.StartActivity("agent.message_handler");
         Stopwatch stopwatch = Stopwatch.StartNew();
         string conversationId = turnContext.Activity.Conversation?.Id ?? "unknown";
-        string channelId = turnContext.Activity.ChannelId ?? "unknown";
+        string channelId = turnContext.Activity.ChannelId.ToString() ?? "unknown";
         string status = "success";
 
         activity?.SetTag("conversation.id", conversationId);
