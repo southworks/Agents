@@ -39,7 +39,7 @@ const sdk = new NodeSDK({
   traceExporter,
   metricReader: new PeriodicExportingMetricReader({ exporter: metricExporter }),
   logRecordProcessors: [
-    new BatchLogRecordProcessor(logExporter),
+    new BatchLogRecordProcessor({ exporter: logExporter }),
   ],
   instrumentations: [
     new HttpInstrumentation(),
@@ -66,13 +66,14 @@ const shutdownHandler = (signal: NodeJS.Signals) => {
   sdk.shutdown()
     .then(() => {
       console.log('OTel SDK shut down successfully')
+      clearTimeout(shutdownTimeout)
       process.exit(0)
     })
     .catch((error) => {
       console.error('Error shutting down OTel SDK', error)
+      clearTimeout(shutdownTimeout)
       process.exit(1)
     })
-    .finally(() => clearTimeout(shutdownTimeout))
 }
 
 process.once('SIGTERM', shutdownHandler)
