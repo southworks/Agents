@@ -76,5 +76,5 @@ const shutdownHandler = (signal: NodeJS.Signals) => {
     })
 }
 
-process.once('SIGTERM', shutdownHandler)
-process.once('SIGINT', shutdownHandler)
+process.once('SIGTERM', () => shutdownHandler('SIGTERM'))
+process.once('SIGINT', () => shutdownHandler('SIGINT'))
