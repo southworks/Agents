@@ -116,7 +116,7 @@ Use `startServer()` when it preserves the source HTTP contract. Keep an owned Ex
 | Direct | `BotFrameworkAdapter` | `CloudAdapter` |
 | Direct | `adapter.processActivity(req, res, logic)` | `adapter.process(req, res, logic)` |
 | Rewrite | `ConfigurationBotFrameworkAuthentication` | call `loadAuthConfigFromEnv()` and pass its `AuthConfiguration` to `startServer` or `CloudAdapter` |
-| Rewrite | `MicrosoftAppId`, `MicrosoftAppPassword`, `MicrosoftAppTenantId` | `CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTID`, `CLIENTSECRET`, `TENANTID` plus `AUTHTYPE` and `SCOPES` |
+| Rewrite | `MicrosoftAppId`, `MicrosoftAppPassword`, `MicrosoftAppTenantId` | `connections__serviceConnection__settings__clientId`, `connections__serviceConnection__settings__clientSecret`, `connections__serviceConnection__settings__tenantId` |
 | Direct | `adapter.use(middleware)` | same API; preserve order and `next()` semantics |
 | Rewrite | `ShowTypingMiddleware` | `new AgentApplication({ startTypingTimer: true, typing: ... })` |
 | Direct | `TranscriptLoggerMiddleware` | same class or app `transcriptLogger` option |
