@@ -346,11 +346,10 @@ Follow the guide for [configuring your .NET agent to use OAuth](https://learn.mi
 
 ### 4.4. Update Token Validation
 
-Update appsettings.json with the `TokenValidation` section to secure your bot endpoint. Set the `Audiences` to your Azure Bot App ID (the Application (client) ID from section 4.1) and `TenantId` to the Tenant ID of the app registration:
+By default, token validation is disabled in Development mode. This is determined by `AddAgentAuthorization` and the `forceEnable` argument. Update appsettings.json with the `TokenValidation` section to secure your bot endpoint. Set the `Audiences` to your Azure Bot App ID (the Application (client) ID from section 4.1) and `TenantId` to the Tenant ID of the app registration:
 
 ```json
 "TokenValidation": {
-  "Enabled": true,
   "Audiences": [
     "{{ClientID}}"           // App ID from Azure Bot registration (section 4.1)
   ],
