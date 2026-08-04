@@ -7,7 +7,7 @@ import './instrumentation'
 import React from 'react'
 import ReactDOM from 'react-dom'
 
-void import('./Chat').then(({ default: Chat }) => {
+import('./Chat').then(({ default: Chat }) => {
   ReactDOM.render(
     <div style={{
       width: '100vw',
