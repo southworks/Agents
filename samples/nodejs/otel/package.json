@@ -5,12 +5,19 @@
   "author": "Microsoft",
   "license": "MIT",
   "main": "./dist/agent.js",
+  "workspaces": [
+    "apphost"
+  ],
   "scripts": {
     "build": "tsc --build",
     "prestart": "npm run build",
-    "start": "node --env-file .env --import ./dist/instrumentation.js ./dist/agent.js"
+    "start": "node --env-file-if-exists=.env --import ./dist/instrumentation.js ./dist/agent.js",
+    "aspire": "aspire run",
+    "agentsplayground": "agentsplayground"
   },
   "devDependencies": {
+    "@microsoft/aspire-cli": "13.4.6",
+    "@microsoft/m365agentsplayground": "^0.2.24",
     "typescript": "^5.8.3"
   },
   "dependencies": {
