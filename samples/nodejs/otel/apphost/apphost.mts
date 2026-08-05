@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { createBuilder, OtlpProtocol } from './.aspire/modules/aspire.mjs'

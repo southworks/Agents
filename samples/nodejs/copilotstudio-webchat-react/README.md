@@ -116,6 +116,7 @@ This step requires permissions to create application identities in your Azure te
 Run the sample and a local Aspire Dashboard together:
 
 ```bash
+npm run build
 npm run aspire
 ```
 

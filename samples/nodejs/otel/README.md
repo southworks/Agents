@@ -43,6 +43,7 @@ For local debugging, Aspire can start the agent, Agents Playground, and dashboar
 
 ```bash
 npm install
+npm run build
 npm run aspire
 ```
 
