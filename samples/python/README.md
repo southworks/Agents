@@ -13,6 +13,7 @@
 |OpenTelemetry|Instrument an agent and consume telemetry via the Aspire dashboard|[opentelemetry](otel/README.md)|
 |Agent Framework|Weather agent built with Microsoft Agent Framework SDK|[agent-framework](agent-framework/README.md)|
 |Copilot SDK|Dungeon Scribe RPG agent powered by the GitHub Copilot SDK|[copilot-sdk](copilot-sdk/README.md)|
+|Proactive|Sends messages to existing conversations from in-code and HTTP triggers|[proactive](proactive/README.md)|
 
 ## Important Notice - Import Changes
 

@@ -16,3 +16,4 @@
 |Copilot SDK|Dungeon Scribe RPG agent powered by the GitHub Copilot SDK|[copilot-sdk](copilot-sdk/README.md)|
 |OTel Agent|Agent with OTel instrumentation |[otel](otel/README.md)|
 |Named Pipe Agent|Pipe-only echo agent for the DirectLine App Service extension (DirectLineFlex)|[named-pipe-agent](named-pipe-agent/README.md)|
+|Proactive|Sends messages to existing conversations from in-code and HTTP triggers|[proactive](proactive/README.md)|
