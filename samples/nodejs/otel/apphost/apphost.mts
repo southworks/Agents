@@ -2,12 +2,14 @@
 // Licensed under the MIT License.
 
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createBuilder, OtlpProtocol } from './.aspire/modules/aspire.mjs'
 
-const envFile = join(import.meta.dirname, '../.env')
+const currentDirectory = dirname(fileURLToPath(import.meta.url))
+const envFile = join(currentDirectory, '../.env')
 
-if (existsSync(envFile)) {
+if (existsSync(envFile) && typeof process.loadEnvFile === 'function') {
   process.loadEnvFile(envFile)
 }
 
@@ -22,7 +24,7 @@ const authenticationStatus = hasCredentials
   : { icon: '🔓', text: 'anonymous' }
 
 if (hasCredentials) {
-  playgroundArgs.push('--cid', clientId, '--cs', clientSecret, '--tid', tenantId)
+  playgroundArgs.push('--client-id', clientId, '--client-secret', clientSecret, '--tenant-id', tenantId)
 }
 
 const agent = await builder
