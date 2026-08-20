@@ -70,6 +70,7 @@ Then install the plugins you need:
 /plugin install agents-sdk-common@microsoft-agents-sdk
 /plugin install agents-for-js@microsoft-agents-sdk
 /plugin install agents-for-net@microsoft-agents-sdk
+/plugin install agents-for-python@microsoft-agents-sdk
 ```
 
 Skills activate automatically based on what you're working on — no manual loading needed.
@@ -94,6 +95,7 @@ Then install the plugins you need:
 /plugin install agents-sdk-common@microsoft-agents-sdk
 /plugin install agents-for-js@microsoft-agents-sdk
 /plugin install agents-for-net@microsoft-agents-sdk
+/plugin install agents-for-python@microsoft-agents-sdk
 ```
 
 ---
@@ -104,4 +106,4 @@ Skills are Markdown files with a YAML frontmatter block that defines a `name` an
 
 When a skill activates, its full content is loaded into the assistant's context, giving it precise knowledge of the SDK's APIs, patterns, and common mistakes.
 
-To browse skill content directly, see the [`agents-sdk-common/skills/`](./agents-sdk-common/skills/), [`agents-for-js/skills/`](./agents-for-js/skills/), and [`agents-for-net/skills/`](./agents-for-net/skills/) directories.
+To browse skill content directly, see the [`agents-sdk-common/skills/`](./agents-sdk-common/skills/), [`agents-for-js/skills/`](./agents-for-js/skills/), [`agents-for-net/skills/`](./agents-for-net/skills/), and [`agents-for-python/skills/`](./agents-for-python/skills/) directories.
