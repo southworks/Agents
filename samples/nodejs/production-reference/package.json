@@ -1,0 +1,37 @@
+{
+  "name": "agents-sdk-production-reference",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tier 3 production reference for a Microsoft 365 Agents JavaScript agent",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node --import ./dist/src/telemetry.js ./dist/src/index.js",
+    "start:local": "node --env-file .env --import ./dist/src/telemetry.js ./dist/src/index.js",
+    "test": "npm run build && node --test dist/test/agent.test.js dist/test/issue-capture.test.js dist/test/config.test.js dist/test/server.test.js dist/test/package.test.js",
+    "test:smoke": "node ./scripts/smoke-test.js"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.10.1",
+    "@azure/monitor-opentelemetry": "1.18.1",
+    "@microsoft/agents-hosting": "^1.7",
+    "@microsoft/agents-hosting-express": "^1.7",
+    "@microsoft/agents-hosting-storage-blob": "^1.7",
+    "@opentelemetry/api": "1.9.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@microsoft/agents-activity": "^1.7",
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.15.18",
+    "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "@opentelemetry/core": "2.8.0",
+    "@opentelemetry/propagator-jaeger": "2.9.0"
+  }
+}
