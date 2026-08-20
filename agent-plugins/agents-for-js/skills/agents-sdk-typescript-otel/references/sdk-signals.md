@@ -1,7 +1,7 @@
 # Agents SDK telemetry signals for TypeScript and JavaScript
 
-Use `TELEMETRY.md` at the repository root as the complete source of truth.
-This reference is the compact checklist for JavaScript and TypeScript agents.
+This self-contained reference is the compact telemetry checklist for
+JavaScript and TypeScript agents.
 
 ## Integration model
 
@@ -63,9 +63,19 @@ the span, and rethrow the error.
 | `agents.user_token_client.request.duration` | Histogram | ms |
 | `agents.proactive.operation.count` | Counter | operation |
 | `agents.proactive.operation.duration` | Histogram | ms |
-
-Dialog and Copilot Studio client packages emit additional metrics documented
-in `TELEMETRY.md`.
+| `agents.dialogs.context.count` | Counter | operation |
+| `agents.dialogs.context.duration` | Histogram | ms |
+| `agents.copilot_client.activities.received` | Counter | activities |
+| `agents.copilot_client.activities.sent` | Counter | activities |
+| `agents.copilot_client.conversations.started` | Counter | conversations |
+| `agents.copilot_client.webchat.connection.count` | Counter | connections |
+| `agents.copilot_client.request.count` | Counter | request |
+| `agents.copilot_client.request.error.count` | Counter | request |
+| `agents.copilot_client.request.duration` | Histogram | ms |
+| `agents.copilot_client.stream.duration` | Histogram | ms |
+| `agents.copilot_client.execute_streaming.count` | Counter | operation |
+| `agents.copilot_client.subscribe_async.count` | Counter | operation |
+| `agents.copilot_client.subscribe_event.count` | Counter | events |
 
 ## Span category filtering
 

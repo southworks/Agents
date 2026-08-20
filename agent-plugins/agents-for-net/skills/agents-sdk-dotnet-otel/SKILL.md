@@ -343,6 +343,9 @@ docker stop aspire-dashboard
 3. Start the agent with the OTLP environment variables.
 4. Send at least one message through the Agents Playground or configured
    channel.
+   Metrics are exported periodically and can take one or more export intervals,
+   plus dashboard processing time, to appear. Wait and refresh the dashboard
+   before diagnosing missing metrics.
 5. In Aspire Dashboard, confirm:
    - The resource uses the application's `service.name`.
    - Traces include `agents.adapter.process` or `agents.app.run`.
@@ -385,6 +388,7 @@ expose data in terminal logs, and is not a production exporter.
 | Custom spans missing | The custom `ActivitySource` name exactly matches `.AddSource(...)` |
 | Custom metrics missing | The custom `Meter` name exactly matches `.AddMeter(...)` |
 | Dashboard has no resource | Dashboard is running; endpoint is `http://localhost:4317`; protocol is `grpc` |
+| Traces appear but metrics do not | Metrics can take one or more `OTEL_METRIC_EXPORT_INTERVAL` periods plus dashboard processing time to appear; wait and refresh before troubleshooting |
 | OTLP `Unimplemented` or protocol errors | Collector port and `OTEL_EXPORTER_OTLP_PROTOCOL` do not match |
 | Duplicate spans or metrics | Multiple providers or repeated instrumentation registrations exist |
 | High memory or telemetry cost | Remove high-cardinality tags and reduce trace sampling |
@@ -394,7 +398,8 @@ expose data in terminal logs, and is not a production exporter.
 
 ## Contributing
 
-If the SDK signals differ from `TELEMETRY.md`, the sample no longer builds, or
-the Aspire setup changes, draft an issue containing the project type, package
-versions, configuration, expected signal, actual result, and any workaround:
-https://github.com/microsoft/agents/issues/new
+If the SDK signals differ from
+[references/sdk-signals.md](references/sdk-signals.md), the sample no longer
+builds, or the Aspire setup changes, draft an issue containing the project
+type, package versions, configuration, expected signal, actual result, and any
+workaround: https://github.com/microsoft/agents/issues/new

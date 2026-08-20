@@ -534,6 +534,9 @@ docker stop aspire-dashboard
    SDK imports.
 4. Send at least one message through Agents Playground or a configured
    channel.
+   Metrics are exported periodically and can take one or more export intervals,
+   plus dashboard processing time, to appear. Wait and refresh the dashboard
+   before diagnosing missing metrics.
 5. In Aspire Dashboard, confirm:
    - Telemetry is grouped under the application's `service.name`.
    - Traces include `agents.adapter.process` or `agents.app.run`.
@@ -583,6 +586,7 @@ OTel.
 | Logs missing | One `LoggingHandler` and a batch log processor are configured |
 | Duplicate logs | Multiple OTel handlers were attached to the same logger hierarchy |
 | Dashboard empty | Endpoint is `http://localhost:4317`; exporter and protocol are gRPC |
+| Traces appear but metrics do not | Metrics can take one or more `OTEL_METRIC_EXPORT_INTERVAL` periods plus dashboard processing time to appear; wait and refresh before troubleshooting |
 | OTLP protocol error | Exporter import, endpoint port, and protocol do not match |
 | Last telemetry is absent | All three providers are shut down during graceful cleanup |
 | High telemetry cost | Remove high-cardinality attributes and reduce trace sampling |
@@ -590,7 +594,8 @@ OTel.
 
 ## Contributing
 
-If SDK signals differ from `TELEMETRY.md`, the sample no longer runs, or the
-Aspire setup changes, draft an issue containing Python/package versions,
-startup import order, host framework, expected signal, actual result, and any
-workaround: https://github.com/microsoft/agents/issues/new
+If SDK signals differ from [references/sdk-signals.md](references/sdk-signals.md),
+the sample no longer runs, or the Aspire setup changes, draft an issue
+containing Python/package versions, startup import order, host framework,
+expected signal, actual result, and any workaround:
+https://github.com/microsoft/agents/issues/new

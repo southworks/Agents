@@ -1,8 +1,7 @@
 # Agents SDK telemetry signals for .NET
 
-Use `TELEMETRY.md` at the repository root as the complete source of truth.
-This reference is the compact checklist needed while configuring and
-validating a .NET agent.
+This self-contained reference is the compact telemetry checklist needed while
+configuring and validating a .NET agent.
 
 ## Instrumentation identity
 

@@ -389,6 +389,9 @@ docker stop aspire-dashboard
 3. Start the agent through the script that preloads instrumentation.
 4. Send at least one message through Agents Playground or a configured
    channel.
+   Metrics are exported periodically and can take one or more export intervals,
+   plus dashboard processing time, to appear. Wait and refresh the dashboard
+   before diagnosing missing metrics.
 5. In Aspire Dashboard, confirm:
    - Telemetry is grouped under the application's `service.name`.
    - Traces include `agents.adapter.process` or `agents.app.run`.
@@ -435,6 +438,7 @@ solely to add telemetry.
 | Custom telemetry missing | The tracer, meter, and logger are obtained after the global SDK starts |
 | Logs missing | A log record processor/exporter exists and the app emits through an integrated logger |
 | Dashboard empty | Endpoint is `http://localhost:4317`; exporter and protocol are both gRPC |
+| Traces appear but metrics do not | Metrics can take one or more `OTEL_METRIC_EXPORT_INTERVAL` periods plus dashboard processing time to appear; wait and refresh before troubleshooting |
 | OTLP protocol error | Exporter package, endpoint port, and protocol do not match |
 | Duplicate telemetry | More than one SDK/provider or duplicate instrumentation preload exists |
 | Process hangs during shutdown | Integrate OTel shutdown with the server's existing graceful shutdown |
@@ -444,7 +448,8 @@ solely to add telemetry.
 
 ## Contributing
 
-If SDK signals differ from `TELEMETRY.md`, the sample no longer builds, or the
-Aspire setup changes, draft an issue containing the module system, Node and
-package versions, start command, expected signal, actual result, and any
-workaround: https://github.com/microsoft/agents/issues/new
+If SDK signals differ from [references/sdk-signals.md](references/sdk-signals.md),
+the sample no longer builds, or the Aspire setup changes, draft an issue
+containing the module system, Node and package versions, start command,
+expected signal, actual result, and any workaround:
+https://github.com/microsoft/agents/issues/new
