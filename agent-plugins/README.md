@@ -24,7 +24,7 @@ Skills for building agents with the Microsoft 365 Agents SDK for TypeScript/Java
 |-------|-------------------|
 | `agents-sdk-typescript` | Code imports `@microsoft/agents-hosting`, `@microsoft/agents-hosting-express`, or related packages, or when building a new agent |
 | `agents-sdk-typescript-debugging` | Troubleshooting a Microsoft Agents SDK agent in TypeScript/JavaScript (build errors, auth failures, startup crashes, configuration issues) |
-| `agents-for-js-otel` | Adding or troubleshooting OpenTelemetry traces, metrics, logs, OTLP exporters, Azure Monitor, or an Aspire Dashboard for an Agents SDK JavaScript/TypeScript application |
+| `agents-sdk-typescript-otel` | Adding or troubleshooting OpenTelemetry traces, metrics, logs, OTLP exporters, Azure Monitor, or an Aspire Dashboard for an Agents SDK JavaScript/TypeScript application |
 
 ---
 
@@ -34,7 +34,7 @@ Skills for building agents with the Microsoft 365 Agents SDK for Python.
 
 | Skill | Activates when... |
 |-------|-------------------|
-| `agents-for-python-otel` | Adding or troubleshooting OpenTelemetry traces, metrics, logs, OTLP exporters, Azure Monitor, sampling, or an Aspire Dashboard for an Agents SDK Python application |
+| `agents-sdk-python-otel` | Adding or troubleshooting OpenTelemetry traces, metrics, logs, OTLP exporters, Azure Monitor, sampling, or an Aspire Dashboard for an Agents SDK Python application |
 
 ---
 
@@ -46,7 +46,7 @@ Skills for building agents with the Microsoft 365 Agents SDK for C# / .NET.
 |-------|-------------------|
 | `agents-sdk-dotnet` | Code imports `Microsoft.Agents.Hosting.AspNetCore`, `Microsoft.Agents.Builder`, or related packages, or when building a new agent in C# / .NET |
 | `agents-sdk-dotnet-debugging` | Troubleshooting a Microsoft Agents SDK agent in C# / .NET (build errors, auth failures, startup crashes, configuration issues) |
-| `agents-for-dotnet-otel` | Adding or troubleshooting OpenTelemetry traces, metrics, logs, OTLP exporters, Azure Monitor, or an Aspire Dashboard for an Agents SDK .NET application |
+| `agents-sdk-dotnet-otel` | Adding or troubleshooting OpenTelemetry traces, metrics, logs, OTLP exporters, Azure Monitor, or an Aspire Dashboard for an Agents SDK .NET application |
 | `bf-to-agents-sdk-dotnet-migration` | Migrating a Bot Framework .NET SDK bot (`Microsoft.Bot.Builder`) to Microsoft Agents SDK |
 | `agents-sdk-dotnet-activityhandler-migration` | Migrating an Agents SDK bot from `ActivityHandler`/`TeamsActivityHandler` to `AgentApplication` routing |
 

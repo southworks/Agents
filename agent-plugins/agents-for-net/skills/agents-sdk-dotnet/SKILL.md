@@ -665,7 +665,7 @@ app.MapAgentProactiveEndpoints<MyAgent>(requireAuth: !app.Environment.IsDevelopm
 
 ## OpenTelemetry / Observability
 
-Use the `agents-for-dotnet-otel` skill for OpenTelemetry setup, SDK trace and
+Use the `agents-sdk-dotnet-otel` skill for OpenTelemetry setup, SDK trace and
 metric subscriptions, safe custom instrumentation, OTLP configuration, Azure
 Monitor export, validation, and the local Aspire Dashboard.
 

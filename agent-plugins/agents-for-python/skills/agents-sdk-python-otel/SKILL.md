@@ -1,5 +1,5 @@
 ---
-name: agents-for-python-otel
+name: agents-sdk-python-otel
 description: >
   Use when adding, configuring, validating, or troubleshooting OpenTelemetry
   observability for a Microsoft 365 Agents SDK application in Python. Trigger

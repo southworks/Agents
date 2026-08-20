@@ -1,9 +1,10 @@
 $ErrorActionPreference = "Stop"
 
+# This unsecured dashboard is for local development only.
 $containerName = "aspire-dashboard"
 $image = "mcr.microsoft.com/dotnet/aspire-dashboard:latest"
 
-$null = docker container inspect $containerName 2>$null
+$existingContainer = docker container inspect $containerName 2>$null
 if ($LASTEXITCODE -eq 0) {
     throw "A Docker container named '$containerName' already exists. Reuse or stop it before starting another dashboard."
 }

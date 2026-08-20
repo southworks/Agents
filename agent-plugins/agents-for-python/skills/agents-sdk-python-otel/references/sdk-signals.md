@@ -1,4 +1,4 @@
-# Agents SDK Python telemetry signals
+# Agents SDK telemetry signals for Python
 
 Use `TELEMETRY.md` at the repository root as the complete source of truth.
 This reference is the compact checklist for Python agents.

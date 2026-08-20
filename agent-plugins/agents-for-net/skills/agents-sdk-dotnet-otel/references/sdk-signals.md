@@ -1,4 +1,4 @@
-# Agents SDK .NET telemetry signals
+# Agents SDK telemetry signals for .NET
 
 Use `TELEMETRY.md` at the repository root as the complete source of truth.
 This reference is the compact checklist needed while configuring and

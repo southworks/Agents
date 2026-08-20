@@ -1,5 +1,6 @@
 $ErrorActionPreference = "Stop"
 
+# This unsecured dashboard is for local development only.
 $containerName = "aspire-dashboard"
 $image = "mcr.microsoft.com/dotnet/aspire-dashboard:latest"
 

@@ -1,5 +1,5 @@
 ---
-name: agents-for-dotnet-otel
+name: agents-sdk-dotnet-otel
 description: >
   Use when adding, configuring, validating, or troubleshooting OpenTelemetry
   observability for a Microsoft 365 Agents SDK application in C# / .NET.

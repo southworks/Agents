@@ -1,5 +1,5 @@
 ---
-name: agents-for-js-otel
+name: agents-sdk-typescript-otel
 description: >
   Use when adding, configuring, validating, or troubleshooting OpenTelemetry
   observability for a Microsoft 365 Agents SDK application in JavaScript or
