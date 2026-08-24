@@ -74,10 +74,34 @@ instrumentation, processor, or logging behavior into that setup. Do not call
 `trace.set_tracer_provider`, `metrics.set_meter_provider`, or
 `set_logger_provider` a second time.
 
+Choose one provider setup:
+
+- Use zero-code instrumentation when the user requests no OTel setup code and
+  the application's process can be started through `opentelemetry-instrument`.
+- Use programmatic configuration when the application must own providers,
+  processors, custom exporters, shutdown behavior, or unsupported
+  instrumentation.
+- Preserve an existing provider setup instead of introducing either approach
+  alongside it.
+
 ### 2. Add only the required packages
 
-Use the project's dependency manager and preserve its lockfile. For pip and an
-aiohttp application:
+Use the project's dependency manager and preserve its lockfile.
+
+For zero-code instrumentation of a pip-based aiohttp application:
+
+```powershell
+python -m pip install `
+  "python-dotenv[cli]" `
+  opentelemetry-distro `
+  opentelemetry-exporter-otlp `
+  opentelemetry-instrumentation-aiohttp-server `
+  opentelemetry-instrumentation-aiohttp-client `
+  opentelemetry-instrumentation-requests `
+  opentelemetry-instrumentation-logging
+```
+
+For programmatic instrumentation of a pip-based aiohttp application:
 
 ```powershell
 python -m pip install `
@@ -100,7 +124,48 @@ Examples:
 Keep OpenTelemetry API, SDK, exporter, and instrumentation versions compatible.
 Do not add a second dependency manifest or switch package managers.
 
-### 3. Configure providers in an SDK-free bootstrap module
+### 3. Configure providers
+
+#### Zero-code setup
+
+Do not add an `instrumentation.py` module, OTel imports, provider setup, or
+manual instrumentation calls to application code. Configure the distro with
+standard environment variables:
+
+```dotenv
+OTEL_SERVICE_NAME=contoso-support-agent
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+OTEL_TRACES_EXPORTER=otlp
+OTEL_METRICS_EXPORTER=otlp
+OTEL_LOGS_EXPORTER=otlp
+OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
+```
+
+The process that launches `opentelemetry-instrument` must already contain
+these variables. Calling `load_dotenv()` in the application startup module is
+too late: the zero-code launcher configures providers before it imports the
+application. For a local `.env`, load it in the parent process:
+
+```powershell
+python -m dotenv run -- opentelemetry-instrument python -m src.main
+```
+
+This command requires `python-dotenv[cli]`. In deployments, configure the same
+variables in the process environment and use:
+
+```powershell
+opentelemetry-instrument python -m src.main
+```
+
+The launcher is part of the required startup lifecycle. Running
+`python -m src.main` directly does not enable zero-code export. Installed
+instrumentation packages are discovered by the distro and initialized before
+the application starts.
+
+#### Programmatic setup
+
+Create `instrumentation.py` without importing any Agents SDK telemetry module:
 
 Create `instrumentation.py` without importing any Agents SDK telemetry module:
 
@@ -139,9 +204,25 @@ class TelemetryProviders:
     logger_provider: LoggerProvider
 
     def shutdown(self) -> None:
-        self.logger_provider.shutdown()
-        self.meter_provider.shutdown()
-        self.tracer_provider.shutdown()
+        failures: list[tuple[str, Exception]] = []
+
+        for name, provider in (
+            ("logger", self.logger_provider),
+            ("meter", self.meter_provider),
+            ("tracer", self.tracer_provider),
+        ):
+            try:
+                provider.shutdown()
+            except Exception as exception:
+                failures.append((name, exception))
+
+        if failures:
+            details = "; ".join(
+                f"{name}: {exception!r}" for name, exception in failures
+            )
+            raise RuntimeError(
+                f"Telemetry provider shutdown failed: {details}"
+            ) from failures[0][1]
 
 
 def configure_otel_providers(
@@ -207,8 +288,12 @@ template. Modify the existing provider setup instead.
 
 ### 4. Enforce provider-before-SDK import order
 
-The startup module must load environment variables, configure providers, and
-only then import the agent:
+For zero-code instrumentation, `opentelemetry-instrument` establishes the
+providers before loading the startup module; do not duplicate provider setup
+in that module.
+
+For programmatic instrumentation, the startup module must load environment
+variables, configure providers, and only then import the agent:
 
 ```python
 from dotenv import load_dotenv
@@ -241,7 +326,12 @@ agent-module imports above provider initialization.
 
 ### 5. Instrument the libraries the app uses
 
-For aiohttp server/client and requests:
+For zero-code instrumentation, install only the applicable instrumentation
+packages and let the distro discover them. Do not also call their
+`instrument()` methods in application code.
+
+For programmatic instrumentation, configure aiohttp server/client and
+requests explicitly:
 
 ```python
 from opentelemetry.instrumentation.aiohttp_client import (
@@ -268,8 +358,14 @@ required, add only reviewed, bounded attributes.
 
 ### 6. Integrate graceful shutdown
 
-For aiohttp, attach cleanup to the application rather than relying only on
-process exit:
+For zero-code instrumentation, the distro-created SDK providers register
+process-exit shutdown hooks. Do not also shut those providers down from
+application code. Ensure the application exits normally so the registered
+hooks can flush telemetry.
+
+For programmatic instrumentation, make the application lifecycle the single
+owner of provider shutdown. For aiohttp, attach cleanup to the application
+rather than relying only on process exit:
 
 ```python
 import asyncio
@@ -314,6 +410,16 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 ```
 
+For zero-code instrumentation, also select each signal exporter and enable
+Python logging auto-instrumentation:
+
+```dotenv
+OTEL_TRACES_EXPORTER=otlp
+OTEL_METRICS_EXPORTER=otlp
+OTEL_LOGS_EXPORTER=otlp
+OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
+```
+
 Use the standard names above. Do not use nested application-configuration
 forms such as `OTEL__EXPORTER__OTLP__ENDPOINT`; OpenTelemetry exporters read
 `OTEL_EXPORTER_OTLP_ENDPOINT`.
@@ -327,6 +433,10 @@ Standard variables to support:
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Base OTLP collector endpoint |
 | `OTEL_EXPORTER_OTLP_PROTOCOL` | Usually `grpc` or `http/protobuf` |
 | `OTEL_EXPORTER_OTLP_HEADERS` | Collector authentication headers; keep secret |
+| `OTEL_TRACES_EXPORTER` | Trace exporter selection; use `otlp` for an OTLP collector |
+| `OTEL_METRICS_EXPORTER` | Metric exporter selection; use `otlp` for an OTLP collector |
+| `OTEL_LOGS_EXPORTER` | Log exporter selection; use `otlp` for an OTLP collector |
+| `OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED` | Installs the zero-code OTel logging handler |
 | `OTEL_TRACES_SAMPLER` | Trace sampling strategy |
 | `OTEL_TRACES_SAMPLER_ARG` | Sampling strategy argument |
 | `OTEL_METRIC_EXPORT_INTERVAL` | Metric export interval in milliseconds |
@@ -530,8 +640,12 @@ docker stop aspire-dashboard
 
 1. Run the project's existing tests, type checker, or import/compile check.
 2. Start Aspire Dashboard and confirm the container remains running.
-3. Start the exact application module that configures providers before the
-   SDK imports.
+3. Start the exact instrumented entry point:
+   - For zero-code setup, use the documented `dotenv run` and
+     `opentelemetry-instrument` command. Confirm the application source has no
+     OTel provider setup or manual instrumentation.
+   - For programmatic setup, start the application module that configures
+     providers before the SDK imports.
 4. Send at least one message through Agents Playground or a configured
    channel.
    Metrics are exported periodically and can take one or more export intervals,
@@ -580,6 +694,8 @@ OTel.
 | Symptom | Check |
 |---|---|
 | No SDK spans or metrics | Providers were configured after importing `microsoft_agents.hosting.core` |
+| Zero-code launch ignores `.env` | Load `.env` in the parent with `python -m dotenv run -- opentelemetry-instrument ...`; application `load_dotenv()` runs too late |
+| Direct Python launch has no telemetry | Zero-code setup requires `opentelemetry-instrument`; use the instrumented entry point |
 | Provider override warning | More than one module calls a global `set_*_provider` function |
 | aiohttp spans missing | Instrumentors ran after application creation or requests began |
 | Custom telemetry missing | Tracer/meter helper was imported before provider setup |

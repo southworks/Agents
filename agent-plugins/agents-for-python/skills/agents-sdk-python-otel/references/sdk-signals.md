@@ -22,7 +22,7 @@ are configured.
 | Turn context | `agents.turn.send_activities` |
 | Connector | `agents.connector.reply_to_activity`, `agents.connector.send_to_conversation`, `agents.connector.update_activity`, `agents.connector.delete_activity`, `agents.connector.create_conversation`, `agents.connector.get_conversations`, `agents.connector.get_conversation_members`, `agents.connector.upload_attachment`, `agents.connector.get_attachment_info`, `agents.connector.get_attachment` |
 | Storage | `agents.storage.read`, `agents.storage.write`, `agents.storage.delete` |
-| User token client | `agents.user_token_client.get_user_token`, `agents.user_token_client.sign_out`, `agents.user_token_client.exchange_token`, `agents.user_token_client.get_token_or_sign_in_resource`, `agents.user_token_client.get_token_status`, `agents.user_token_client.get_aad_tokens` |
+| User token client | `agents.user_token_client.get_user_token`, `agents.user_token_client.sign_out`, `agents.user_token_client.exchange_token`, `agents.user_token_client.get_sign_in_resource`, `agents.user_token_client.get_token_or_sign_in_resource`, `agents.user_token_client.get_token_status`, `agents.user_token_client.get_aad_tokens` |
 | Authentication | `agents.authentication.get_access_token`, `agents.authentication.acquire_token_on_behalf_of`, `agents.authentication.get_agentic_instance_token`, `agents.authentication.get_agentic_user_token` |
 | Authorization | `agents.authorization.agentic_token`, `agents.authorization.azure_bot_token`, `agents.authorization.azure_bot_signin`, `agents.authorization.azure_bot_signout` |
 

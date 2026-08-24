@@ -274,6 +274,8 @@ public static class AgentTelemetry
 Instrument a handler with bounded attributes:
 
 ```csharp
+using System.Diagnostics;
+
 using Activity? activity =
     AgentTelemetry.ActivitySource.StartActivity("agent.route.execute");
 long started = Stopwatch.GetTimestamp();
