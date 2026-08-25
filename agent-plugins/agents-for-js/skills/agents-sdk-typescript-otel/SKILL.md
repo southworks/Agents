@@ -102,7 +102,7 @@ Create `src/instrumentation.ts` or the equivalent path. Adapt the default
 service name and version:
 
 ```typescript
-import { hostname } from 'node:os'
+import { randomUUID } from 'node:crypto'
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-grpc'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc'
@@ -137,7 +137,7 @@ export const otelSdk = new NodeSDK({
   resource: resourceFromAttributes({
     [ATTR_SERVICE_NAME]: serviceName,
     [ATTR_SERVICE_VERSION]: serviceVersion,
-    [ATTR_SERVICE_INSTANCE_ID]: hostname()
+    [ATTR_SERVICE_INSTANCE_ID]: randomUUID()
   }),
   traceExporter,
   metricReader: new PeriodicExportingMetricReader({
