@@ -1,15 +1,19 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+using Microsoft.Agents.Authentication;
+using Microsoft.Agents.Builder;
 using Microsoft.Agents.Core.Models;
 using Microsoft.Agents.Storage;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -176,7 +180,7 @@ namespace GenesysHandoff.Genesys
             return null;
         }
 
-        private async Task StoreUserChannelReferenceAsync(IActivity activity, string mcsConversationId, CancellationToken cancellationToken)
+        public async Task StoreUserChannelReferenceAsync(IActivity activity, string mcsConversationId, CancellationToken cancellationToken)
         {
             var userChannelReference = activity.GetConversationReference();
 
@@ -223,8 +227,85 @@ namespace GenesysHandoff.Genesys
             return new
             {
                 channel = BuildChannelInfo(activity, mcsConversationId),
-                text = activity.Text ?? string.Empty
+                text = ConvertToPlainText(activity)
             };
+        }
+
+        /// <summary>
+        /// Converts the activity to plain text suitable for the Genesys Open Messaging API.
+        /// <para>
+        /// Teams delivers emoji messages as a <c>text/html</c> attachment whose content contains
+        /// <c>&lt;img&gt;</c> tags with <c>alt</c> attributes holding the Unicode emoji character
+        /// (e.g. <c>alt="😮"</c>).  When such an attachment is present this method parses it,
+        /// extracts the readable text including emoji characters, and returns a clean plain-text
+        /// string.  When no HTML attachment is present the regular <see cref="IActivity.Text"/> is
+        /// returned.
+        /// </para>
+        /// </summary>
+        private static string ConvertToPlainText(IActivity activity)
+        {
+            // Teams sends the rich content (including emojis) in a text/html attachment.
+            // Prefer that over activity.Text so emojis are not silently dropped.
+            var html = GetHtmlAttachmentContent(activity);
+
+            if (html != null)
+            {
+                return StripHtmlToPlainText(html);
+            }
+
+            return activity.Text ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Returns the string content of the first <c>text/html</c> attachment, or <c>null</c>
+        /// if no such attachment exists.
+        /// </summary>
+        private static string? GetHtmlAttachmentContent(IActivity activity)
+        {
+            if (activity.Attachments == null || activity.Attachments.Count == 0)
+            {
+                return null;
+            }
+
+            foreach (var attachment in activity.Attachments)
+            {
+                if (string.Equals(attachment.ContentType, "text/html", StringComparison.OrdinalIgnoreCase)
+                    && attachment.Content is string content
+                    && !string.IsNullOrWhiteSpace(content))
+                {
+                    return content;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Converts an HTML string to plain text.  Emoji <c>&lt;img&gt;</c> tags are replaced
+        /// with their <c>alt</c> attribute, block-level tags become newlines, and HTML entities
+        /// are decoded.
+        /// </summary>
+        private static string StripHtmlToPlainText(string html)
+        {
+            // Replace <img> tags that carry an alt attribute with the alt text.
+            // Teams emojis arrive as <img ... alt="😮" ...>.
+            var text = Regex.Replace(html, @"<img\b[^>]*\balt=""([^""]*)""[^>]*/?>", "$1", RegexOptions.IgnoreCase);
+
+            // Replace <br> variants with newlines.
+            text = Regex.Replace(text, @"<br\s*/?>", "\n", RegexOptions.IgnoreCase);
+
+            // Insert newlines after block-level closing tags to preserve paragraph breaks.
+            text = Regex.Replace(text, @"</(?:p|div|li)>", "\n", RegexOptions.IgnoreCase);
+
+            // Strip all remaining HTML tags.
+            text = Regex.Replace(text, @"<[^>]+>", string.Empty);
+
+            // Decode HTML entities (e.g. &amp; → &, &nbsp; → space, &#x27; → ').
+            text = WebUtility.HtmlDecode(text);
+
+            // Collapse excessive blank lines and trim.
+            text = Regex.Replace(text, @"\n{3,}", "\n\n");
+            return text.Trim();
         }
 
         private static object BuildChannelInfo(IActivity activity, string mcsConversationId)
@@ -240,6 +321,84 @@ namespace GenesysHandoff.Genesys
                 },
                 time = DateTime.UtcNow.ToString("o")
             };
+        }
+
+        /// <summary>
+        /// Retrieves the stored <see cref="ConversationReference"/> for the given MCS conversation ID.
+        /// </summary>
+        /// <param name="mcsConversationId">The MCS conversation ID.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>The stored ConversationReference if found; otherwise, null.</returns>
+        public async Task<ConversationReference?> GetUserChannelReferenceAsync(string mcsConversationId, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(mcsConversationId))
+            {
+                return null;
+            }
+
+            try
+            {
+                var result = await _storage.ReadAsync([mcsConversationId], cancellationToken);
+                if (result != null && result.TryGetValue(mcsConversationId, out var referenceObj) && referenceObj is ConversationReference conversationReference)
+                {
+                    return conversationReference;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving conversation reference for {ConversationId}.", mcsConversationId);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Sends a proactive message to a Teams conversation using the stored ConversationReference.
+        /// </summary>
+        /// <param name="mcsConversationId">The MCS conversation ID.</param>
+        /// <param name="activity">The activity to send.</param>
+        /// <param name="channelAdapter">The channel adapter for sending the message.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>True if the message was sent successfully; otherwise, false.</returns>
+        public async Task<bool> SendProactiveMessageAsync(string mcsConversationId, IActivity activity, IChannelAdapter channelAdapter, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(mcsConversationId) || activity == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                var userChannelReference = await GetUserChannelReferenceAsync(mcsConversationId, cancellationToken);
+                if (userChannelReference == null)
+                {
+                    _logger.LogWarning("No conversation reference found for {ConversationId}.", mcsConversationId);
+                    return false;
+                }
+
+                var continuationActivity = userChannelReference.GetContinuationActivity();
+                var claimsIdentity = AgentClaims.CreateIdentity(userChannelReference.Agent.Id);
+                var audience = string.IsNullOrWhiteSpace(userChannelReference.ServiceUrl)
+                    ? AuthenticationConstants.BotFrameworkAudience
+                    : userChannelReference.ServiceUrl;
+                await channelAdapter.ProcessProactiveAsync(
+                    claimsIdentity: claimsIdentity,
+                    continuationActivity: continuationActivity,
+                    audience: audience,
+                    callback: async (turnContext, ct) =>
+                    {
+                        await turnContext.SendActivityAsync(activity, cancellationToken: ct);
+                    },
+                    cancellationToken: cancellationToken);
+
+                _logger.LogInformation("Proactive message sent to conversation {ConversationId}.", mcsConversationId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending proactive message to conversation {ConversationId}.", mcsConversationId);
+                return false;
+            }
         }
     }
 }

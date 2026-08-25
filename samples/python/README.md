@@ -10,6 +10,10 @@
 |Copilot Studio Client|Console app to consume a Copilot Studio Agent|[copilotstudio-client](copilotstudio-client/README.md)|
 |Cards Agent|Agent that uses rich cards to enhance conversation design |[cards](cards/README.md)|
 |Copilot Studio Skill|Call the echo bot from a Copilot Studio skill |[copilotstudio-skill](copilotstudio-skill/README.md)|
+|OpenTelemetry|Instrument an agent and consume telemetry via the Aspire dashboard|[opentelemetry](otel/README.md)|
+|Agent Framework|Weather agent built with Microsoft Agent Framework SDK|[agent-framework](agent-framework/README.md)|
+|Copilot SDK|Dungeon Scribe RPG agent powered by the GitHub Copilot SDK|[copilot-sdk](copilot-sdk/README.md)|
+|Entra Agent ID Sidecar|Simple agent using the Microsoft Entra Agent ID sidecar for Agents SDK authentication|[entra-agent-id-sidecar](entra-agent-id-sidecar/README.md)|
 
 ## Important Notice - Import Changes
 

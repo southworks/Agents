@@ -4,6 +4,10 @@
 
 This guide walks you through configuring, running, and understanding the GenesysHandoff sample.
 
+For runtime flow details, see the detailed sequence diagrams in [docs/sequence-diagrams.md](docs/sequence-diagrams.md).
+
+For the timeout custom connector example (used for timeout-triggered conversation reset) and required configuration, see [docs/custom-connectors.md](docs/custom-connectors.md).
+
 ---
 
 ## Introduction
@@ -103,12 +107,26 @@ Set up the dialog logic so the bot knows when and how to hand off to Genesys Clo
 5. **Verify Topic Flow:** The final structure of your Escalate topic should be:
    - User trigger → (optional confirmation) → **Customize Response (summarize)** → **Event: GenesysHandoff**
 
-### 2.3. Publish the Agent
+### 2.3. Configure End Of Conversation Event
+
+To let the integration detect an explicit end-of-conversation signal from Copilot Studio, update the **End of conversation** system topic.
+
+1. In Copilot Studio, open **Topics** and select the **End of conversation** system topic.
+2. In the branch where you send the final user-facing message (for example, "Ok, goodbye."), add a **Send activity: Event** node immediately before the **End conversation** node.
+3. Configure the event node with:
+   - **Name**: `EndOfConversation`
+   - **Value**: `EndOfConversation`
+4. Save and publish the topic.
+![Copilot Studio End Of Conversation Event Node Configuration](./Images/MCSEndOfConversationEventNode.png)
+
+Final flow should look like: **Message** -> **Event activity (EndOfConversation)** -> **End conversation**.
+
+### 2.4. Publish the Agent
 
 1. Click **Publish** (usually in the top-right of Copilot Studio).
 2. After publishing, test quickly in the Copilot Studio chat canvas: type a phrase like "I want a human." The bot should trigger the event (you may see no response, which indicates the event was triggered).
 
-### 2.4. Retrieve Agent and Environment Metadata
+### 2.5. Retrieve Agent and Environment Metadata
 
 We need two pieces of info from Copilot Studio to configure the integration code:
 
@@ -204,7 +222,9 @@ Update appsettings.json with the details collected from the Genesys setup steps:
   "ClientId": "",                   // OAuth Client ID created in Genesys
   "ClientSecret": "",               // OAuth Client Secret created in Genesys
   "WebhookSignatureSecret": "",     // Required: outboundNotificationWebhookSignatureSecretToken from Genesys integration
-  "EnableNotifications": true        // Enable WebSocket notifications for automatic agent disconnect detection
+  "EnableNotifications": true,      // Enable WebSocket notifications for automatic agent disconnect detection
+  "AgentDisconnectedMessage": "The live agent has left the conversation. You are now back with the bot.", // Optional: message sent to user when the live agent disconnects
+  "EndLiveChatMessage": "End chat with agent" // Optional: label for the suggested action button that ends the live chat
 }
 ```
 
@@ -326,11 +346,10 @@ Follow the guide for [configuring your .NET agent to use OAuth](https://learn.mi
 
 ### 4.4. Update Token Validation
 
-Update appsettings.json with the `TokenValidation` section to secure your bot endpoint. Set the `Audiences` to your Azure Bot App ID (the Application (client) ID from section 4.1) and `TenantId` to the Tenant ID of the app registration:
+By default, token validation is disabled in Development mode. This is determined by `AddAgentAuthorization` and the `forceEnable` argument. Update appsettings.json with the `TokenValidation` section to secure your bot endpoint. Set the `Audiences` to your Azure Bot App ID (the Application (client) ID from section 4.1) and `TenantId` to the Tenant ID of the app registration:
 
 ```json
 "TokenValidation": {
-  "Enabled": true,
   "Audiences": [
     "{{ClientID}}"           // App ID from Azure Bot registration (section 4.1)
   ],
@@ -664,3 +683,47 @@ With the basics in place, you can use this foundation to further integrate and f
 8. **Agent disconnect detection (optional):** When `EnableNotifications` is enabled, the Agent SDK maintains a WebSocket connection to the Genesys Cloud Notification Service. Upon escalation, it subscribes to the `v2.detail.events.conversation.{id}.user.end` topic. When a Genesys agent disconnects, the Agent SDK proactively notifies the Teams user and clears the escalation flag on the next user message, returning the conversation to Copilot Studio.
 
 This architecture lets the user stay in a single Teams conversation while the Agent SDK, Copilot Studio runtime, Genesys Cloud, and persistent storage coordinate the escalation and message exchange behind the scenes. During escalation, Copilot Studio’s role is limited to raising the `GenesysHandoff` event; the actual Genesys conversation is managed directly between the Agent SDK and Genesys Cloud.
+
+---
+
+## Production Hardening
+
+This sample is a demonstration starting point. Before deploying to production, address the following:
+
+### SSE Streaming Resilience
+
+The Copilot Studio SSE stream can be reset by idle-sensitive intermediaries (SNAT, nginx, island-gateway) during long generative turns (~10s+ silence on the wire). The `GenesysHandoffAgent.Streaming.cs` partial class wraps the SSE enumeration with retry-with-backoff and a friendly fallback message. The `McsHttpClientRegistration` configures the `"mcs"` HttpClient with HTTP/2 keep-alive pings to prevent most resets.
+
+### Azure Blob Storage RBAC
+
+If using Azure Blob Storage for `ConversationMappingStore`, the app's managed identity **must** have the **Storage Blob Data Contributor** role on the storage account. Without this, you will see recurring `Azure.RequestFailedException 403 AuthorizationFailure` errors on `ConversationMappingStore.LoadAsync`, which can trigger a Genesys notification WebSocket reconnect storm.
+
+To fix:
+```bash
+az role assignment create \
+  --assignee <app-managed-identity-object-id> \
+  --role "Storage Blob Data Contributor" \
+  --scope /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Storage/storageAccounts/<account>
+```
+
+### MSAL Token Cache
+
+The default configuration uses an in-memory MSAL token cache. For production multi-instance deployments, configure a distributed token cache (e.g., Redis):
+
+```csharp
+builder.Services.AddDistributedMemoryCache(); // Replace with Redis in production
+// Or: builder.Services.AddStackExchangeRedisCache(options => { ... });
+```
+
+Without this, each instance independently acquires tokens, increasing latency and AAD throttling risk.
+
+### Persistent Storage
+
+Replace `MemoryStorage` with a persistent `IStorage` implementation (e.g., Azure Cosmos DB, Azure Blob Storage) so conversation state survives app restarts and works correctly across multiple instances:
+
+```csharp
+// Replace:
+builder.Services.AddSingleton<IStorage, MemoryStorage>();
+// With (example):
+builder.Services.AddSingleton<IStorage>(new CosmosDbPartitionedStorage(cosmosOptions));
+```

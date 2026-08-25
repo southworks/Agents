@@ -10,13 +10,13 @@ using Microsoft.Agents.Storage;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using System;
+using System.Net.Http;
 using System.Threading;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHttpClient();
+builder.Services.AddResilientMcsHttpClient();
 
 // Register IStorage.  For development, MemoryStorage is suitable.
 // For production Agents, persisted storage should be used so
@@ -28,6 +28,7 @@ builder.Services.AddSingleton<IStorage, MemoryStorage>();
 builder.Services.AddSingleton<CopilotClientFactory>();
 builder.Services.AddSingleton<ActivityResponseProcessor>();
 builder.Services.AddSingleton<ConversationStateManager>();
+builder.Services.AddSingleton<ConversationResetService>();
 
 // Register Genesys services.
 var genesysSettings = new GenesysConnectionSetting(builder.Configuration.GetSection("Genesys"));
@@ -55,6 +56,9 @@ builder.Services.AddSingleton<GenesysWebhookHandler>();
 // ConversationMappingStore — shared mapping of Genesys ↔ MCS conversation IDs.
 builder.Services.AddSingleton<ConversationMappingStore>();
 
+// ActivityReplyMappingStore — mapping of Relay Bot activity IDs to MCS activity IDs.
+builder.Services.AddSingleton<IActivityReplyMappingStore, ActivityReplyMappingStore>();
+
 // Conditionally register the notification service for agent disconnect detection.
 if (genesysSettings.EnableNotifications)
 {
@@ -64,24 +68,17 @@ if (genesysSettings.EnableNotifications)
 
 // Add the AgentApplication, which contains the logic for responding to
 // user messages.
-builder.AddAgent<GenesysHandoffAgent>();
-
-// Add AspNet token validation for Azure Bot Service and Entra.  Authentication is
-// configured in the appsettings.json "TokenValidation" section.
-builder.Services.AddAgentAspNetAuthentication(builder.Configuration);
+builder.AddAgentDefaults()
+    .AddAgent<GenesysHandoffAgent>()
+    .AddAgentAuthorization(b => b.AddAgentAspNetAuthentication());
 
 WebApplication app = builder.Build();
 
-// Enable AspNet authentication and authorization
-app.UseAuthentication();
-app.UseAuthorization();
+// Add the authentication and authorization middleware to the request pipeline.
+app.UseAgents();
 
-// Map GET "/"
-app.MapAgentRootEndpoint();
-
-// Map the endpoints for all agents using the [AgentInterface] attribute.
-// If there is a single IAgent/AgentApplication, the endpoints will be mapped to (e.g. "/api/message").
-app.MapAgentApplicationEndpoints(requireAuth: !app.Environment.IsDevelopment());
+// Map the default agent endpoints: GET "/" and the agent message endpoints.
+app.MapDefaultAgentEndpoints();
 
 // This receives outbound proactive messages from Genesys to be sent to users
 var genesysOutboundRoute = app.MapPost("/api/outbound", async (HttpRequest request, HttpResponse response, IChannelAdapter channelAdapter, GenesysWebhookHandler webhookHandler, CancellationToken cancellationToken) =>
@@ -104,4 +101,53 @@ var genesysOutboundRoute = app.MapPost("/api/outbound", async (HttpRequest reque
     }
 }).AllowAnonymous();
 
+// Endpoint to reset a conversation by conversationId.
+// Accepts an optional Message that will be sent to the Teams conversation before reset.
+app.MapPost("/api/conversations/reset", async (ResetConversationRequest request, ConversationResetService resetService, HttpResponse response, CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request?.ConversationId))
+    {
+        response.StatusCode = StatusCodes.Status400BadRequest;
+        await response.WriteAsJsonAsync(new { error = "ConversationId is required." }, cancellationToken);
+        return;
+    }
+
+    try
+    {
+        var success = await resetService.ResetConversationAsync(request.ConversationId, request.Message, cancellationToken);
+
+        if (success)
+        {
+            response.StatusCode = StatusCodes.Status200OK;
+            await response.WriteAsJsonAsync(new { message = "Conversation reset successfully.", conversationId = request.ConversationId }, cancellationToken);
+        }
+        else
+        {
+            response.StatusCode = StatusCodes.Status409Conflict;
+            await response.WriteAsJsonAsync(new { error = "Cannot reset an escalated conversation.", conversationId = request.ConversationId }, cancellationToken);
+        }
+    }
+    catch (Exception ex)
+    {
+        response.StatusCode = StatusCodes.Status500InternalServerError;
+        await response.WriteAsJsonAsync(new { error = "Failed to reset conversation.", details = ex.Message }, cancellationToken);
+    }
+}).RequireAuthorization();
+
 app.Run();
+
+/// <summary>
+/// Request model for resetting a conversation.
+/// </summary>
+public class ResetConversationRequest
+{
+    /// <summary>
+    /// The MCS conversation ID to reset.
+    /// </summary>
+    public string? ConversationId { get; set; }
+
+    /// <summary>
+    /// Optional message to send to the Teams conversation before the conversation is reset.
+    /// </summary>
+    public string? Message { get; set; }
+}

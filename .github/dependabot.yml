@@ -7,14 +7,18 @@ updates:
       - "/samples/nodejs/azure-ai-streaming"
       - "/samples/nodejs/cards"
       - "/samples/nodejs/copilotstudio-client"
+      - "/samples/nodejs/copilot-sdk"
       - "/samples/nodejs/copilotstudio-skill"
       - "/samples/nodejs/copilotstudio-webchat-react"
+      - "/samples/nodejs/entra-agent-id-sidecar"
       - "/samples/nodejs/langchain-multiturn"
       - "/samples/nodejs/multi-turn-prompt"
+      - "/samples/nodejs/named-pipe-agent"
       - "/samples/nodejs/obo-authorization"
+      - "/samples/nodejs/otel"
       - "/samples/nodejs/quickstart"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     groups:
       npm-all:
         patterns:
@@ -26,12 +30,15 @@ updates:
       - "/samples/python/azureai-streaming"
       - "/samples/python/cards"
       - "/samples/python/copilotstudio-client"
+      - "/samples/python/copilot-sdk"
       - "/samples/python/copilotstudio-skill"
+      - "/samples/python/entra-agent-id-sidecar"
       - "/samples/python/obo-authorization"
+      - "/samples/python/otel"
       - "/samples/python/quickstart"
       - "/samples/python/semantic-kernel-multiturn"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     groups:
       pip-all:
         patterns:
@@ -43,19 +50,31 @@ updates:
       - "/samples/dotnet/auto-signin"
       - "/samples/dotnet/azure-ai-streaming"
       - "/samples/dotnet/copilotstudio-client"
+      - "/samples/dotnet/copilot-sdk"
       - "/samples/dotnet/copilotstudio-skill"
-      - "/samples/dotnet/GenesysHandoff"
+      - "/samples/dotnet/entra-agent-id-sidecar"
+      - "/samples/dotnet/genesys-handoff"
       - "/samples/dotnet/multiagent"
+      - "/samples/dotnet/named-pipe-agent"
       - "/samples/dotnet/obo-authorization"
+      - "/samples/dotnet/otel"
+      - "/samples/dotnet/proactive"
       - "/samples/dotnet/quickstart"
-      - "/samples/dotnet/RetrievalBot"
-      - "/samples/dotnet/RetrievalBot/dotnet/src/Microsoft.Agents.M365Copilot.Beta"
-      - "/samples/dotnet/RetrievalBot/dotnet/tests/Microsoft.Agents.M365Copilot.Beta.Tests"
+      - "/samples/dotnet/retrieval-agent"
       - "/samples/dotnet/semantic-kernel-multiturn"
-      - "/specs/manifest/schemas/SchemaManifestTests"
+      - "/samples/dotnet/slackagent"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     groups:
       nuget-all:
         patterns:
           - "*"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    groups:
+      github-actions:
+        patterns: ["*"]
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7

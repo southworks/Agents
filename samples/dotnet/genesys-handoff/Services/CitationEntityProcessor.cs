@@ -44,7 +44,11 @@ namespace GenesysHandoff.Services
                                 continue;
                             }
 
-                            var clientCitationIconName = GetIconNameOrDefault(clientCitation.Appearance.Image?.Name);
+                            var imageName = clientCitation.Appearance.Image?.Name?.ToString();
+                            if (string.IsNullOrWhiteSpace(imageName) || string.Equals(imageName, "Unknown", StringComparison.OrdinalIgnoreCase))
+                            {
+                                imageName = "Image";
+                            }
 
                             annotation.Citation.Add(new ClientCitation(
                                 clientCitation.Position,
@@ -53,7 +57,7 @@ namespace GenesysHandoff.Services
                                 clientCitation.Appearance.Text ?? string.Empty,
                                 null,
                                 clientCitation.Appearance.Url,
-                                clientCitationIconName
+                                imageName
                             ));
                         }
                         filteredEntities.Add(annotation);
@@ -70,25 +74,6 @@ namespace GenesysHandoff.Services
                 }
             }
             return filteredEntities;
-        }
-
-        /// <summary>
-        /// Gets the icon name from the appearance image, defaulting to Image if the value is unknown or invalid.
-        /// </summary>
-        private static ClientCitationIconName GetIconNameOrDefault(ClientCitationIconName? iconName)
-        {
-            if (iconName == null)
-            {
-                return ClientCitationIconName.Image;
-            }
-
-            // Check if the enum value is defined, otherwise use default
-            if (!Enum.IsDefined(typeof(ClientCitationIconName), iconName))
-            {
-                return ClientCitationIconName.Image;
-            }
-
-            return iconName;
         }
     }
 }
