@@ -167,8 +167,6 @@ the application starts.
 
 Create `instrumentation.py` without importing any Agents SDK telemetry module:
 
-Create `instrumentation.py` without importing any Agents SDK telemetry module:
-
 ```python
 from __future__ import annotations
 
