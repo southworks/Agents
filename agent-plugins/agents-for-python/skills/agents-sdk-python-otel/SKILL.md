@@ -486,10 +486,8 @@ status = "ok"
 with TRACER.start_as_current_span("agent.route.execute") as span:
     try:
         await handle_message(context)
-    except Exception as error:
+    except Exception:
         status = "error"
-        span.record_exception(error)
-        span.set_status(Status(StatusCode.ERROR))
         raise
     finally:
         attributes = {
