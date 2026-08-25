@@ -47,7 +47,7 @@ SDK spans set `ERROR`, record propagated exceptions, and re-raise them.
 | `agents.user_token_client.request.count` | Counter | request |
 | `agents.user_token_client.request.duration` | Histogram | ms |
 | `agents.auth.token.request.count` | Counter | request |
-| `agents.auth.token.duration` | Histogram | ms |
+| `agents.auth.token.request.duration` | Histogram | ms |
 
 Python records `agents.turn.duration` on both success and error paths.
 
