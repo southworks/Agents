@@ -19,7 +19,7 @@ import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
 } from '@opentelemetry/semantic-conventions'
-import { SpanExporter } from '@opentelemetry/sdk-trace-base'
+import { AlwaysOnSampler, SpanExporter } from '@opentelemetry/sdk-trace-base'
 import { hostname } from 'os'
 
 const traceExporter: SpanExporter = new OTLPTraceExporter()
@@ -28,6 +28,7 @@ const logExporter: LogRecordExporter = new OTLPLogExporter()
 
 // configure the SDK to export telemetry data.
 const sdk = new NodeSDK({
+  sampler: new AlwaysOnSampler(),
   resource: resourceFromAttributes({
     [ATTR_SERVICE_NAME]: 'OTelAgent',
     [ATTR_SERVICE_VERSION]: '1.0.0',
