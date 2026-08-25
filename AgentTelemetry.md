@@ -22,6 +22,8 @@ The M365 Agents SDK provides built-in instrumentation to help developers monitor
   - [UserTokenClient Spans](#usertokenclient-spans)
   - [Dialog Spans](#dialog-spans)
   - [Copilot Studio Client Spans](#copilot-studio-client-spans)
+  - [Named Pipe Spans](#named-pipe-spans)
+  - [Slack Spans](#slack-spans)
   - [Error Handling in Spans](#error-handling-in-spans)
   - [Disabling Span Categories](#disabling-span-categories)
 - [Metrics](#javascript-metrics)
@@ -32,6 +34,9 @@ The M365 Agents SDK provides built-in instrumentation to help developers monitor
   - [Dialog Metrics](#dialog-metrics)
   - [Proactive Metrics](#proactive-metrics)
   - [Copilot Studio Client Metrics](#copilot-studio-client-metrics)
+  - [Named Pipe Metrics](#named-pipe-metrics)
+  - [Slack Metrics](#slack-metrics)
+- [Log Records](#javascript-log-records)
 
 ### C# Telemetry
 - [System.Diagnostics Integration](#systemdiagnostics-integration)
@@ -112,17 +117,21 @@ const sdk = new NodeSDK({
 sdk.start();
 ```
 
+The JavaScript telemetry package treats `@opentelemetry/api` as an optional peer dependency and uses safe no-op trace and metric helpers when it is unavailable. Configure a metric reader/exporter to export metrics. To mirror SDK logs into OpenTelemetry, also install `@opentelemetry/api-logs` and configure a logger provider and processor/exporter; otherwise logs continue through the SDK's `debug` output only.
+
 ---
 
 # JavaScript Telemetry
 
-This section documents the OpenTelemetry spans and metrics emitted by the JavaScript/TypeScript M365 Agents SDK.
+This section documents the OpenTelemetry spans, metrics, and log records emitted by the JavaScript/TypeScript M365 Agents SDK.
 
 ---
 
 ## JavaScript Spans
 
 Spans represent individual operations within your agent's request processing. Each span includes attributes that provide context about the operation.
+
+The JavaScript trace helper does not set `SpanKind` explicitly, so these spans use OpenTelemetry's default `INTERNAL` kind.
 
 ### CloudAdapter Spans
 
@@ -150,7 +159,7 @@ Span for sending one or more activities to a conversation.
 |-----------|------|-------------|
 | `activity.count` | number | Number of activities being sent |
 
-**Span Events (per activity):**
+**`activity.sent` span event (per activity):**
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
@@ -202,7 +211,7 @@ Span for creating a connector client instance.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `service_url` | string | The Bot Framework service URL |
-| `auth.scope` | string | The authentication scope |
+| `auth.scopes` | string[] | The authentication scopes |
 | `activity.is_agentic` | boolean | Whether this is for an agentic request (when using identity variant) |
 
 ---
@@ -230,6 +239,7 @@ Main execution span for the AgentApplication.
 |-----------|------|-------------|
 | `activity.type` | string | The type of activity being processed |
 | `activity.channel_id` | string | The channel identifier |
+| `activity.name` | string | The activity name |
 | `route.authorized` | boolean | Whether the request was authorized |
 | `route.matched` | boolean | Whether a route handler matched the activity |
 
@@ -290,7 +300,7 @@ Span for sending activities through the turn context.
 |-----------|------|-------------|
 | `activity.count` | number | Number of activities being sent |
 
-**Span Events (per activity):**
+**`activity.sent` span event (per activity):**
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
@@ -466,7 +476,7 @@ Span for acquiring an access token.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `auth.scope` | string | The authentication scope requested |
-| `auth.method` | string | The authentication method used (secret, certificate, managed_identity, wid, fic) |
+| `auth.method` | string | The resolved `AuthType` value, such as `ClientSecret`, `Certificate`, `WorkloadIdentity`, or `FederatedCredentials` |
 
 ---
 
@@ -839,7 +849,7 @@ Span for starting a new conversation with a Copilot Studio agent.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `copilot.emit_start_event` | boolean | Whether a start event was emitted (conditional) |
-| `copilot.request` | string | The request identifier (conditional) |
+| `copilot.request` | boolean | `true` when the operation uses the request path instead of emitting a start event (conditional) |
 
 ---
 
@@ -863,7 +873,7 @@ Span for making an HTTP request to the Copilot Studio API.
 | `copilot.post_request.url` | string | The request URL |
 | `copilot.post_request.method` | string | The HTTP method |
 
-**Span Events (per response activity):**
+**`activity.received` span event (per response activity):**
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
@@ -880,12 +890,59 @@ Span for creating a WebChat connection to a Copilot Studio agent.
 |-----------|------|-------------|
 | `copilot.webchat.show_typing` | boolean | Whether typing indicators are shown |
 
-**Span Events (per received activity):**
+---
+
+#### agents.copilot_client.webchat.start_conversation
+
+Span for starting a WebChat conversation and receiving its initial activities.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `copilot.webchat.activity.type` | string | The type of received activity |
-| `copilot.webchat.activity.conversation_id` | string | The conversation identifier |
+| `copilot.webchat.activity.received_count` | number | Number of initial activities received |
+| `copilot.webchat.conversation_id` | string | The WebChat conversation identifier |
+
+---
+
+#### agents.copilot_client.webchat.post_activity
+
+Span for posting an activity to a WebChat conversation and collecting response activities.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `copilot.webchat.activity.id` | string | The posted activity identifier |
+| `copilot.webchat.activity.type` | string | The posted activity type |
+| `copilot.webchat.activity.received_count` | number | Number of response activities received |
+| `copilot.webchat.conversation_id` | string | The WebChat conversation identifier |
+
+**`activity.sent` span event:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `copilot.webchat.activity.id` | string | The sent activity identifier |
+| `copilot.webchat.activity.type` | string | The sent activity type |
+| `copilot.webchat.activity.conversation_id` | string | The WebChat conversation identifier |
+
+---
+
+#### agents.copilot_client.webchat.receive_activity
+
+Span for receiving an activity from a WebChat conversation.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `copilot.webchat.activity.id` | string | The received activity identifier |
+| `copilot.webchat.activity.type` | string | The received activity type |
+| `copilot.webchat.activity.conversation_id` | string | The WebChat conversation identifier |
+
+---
+
+#### agents.copilot_client.webchat.end_connection
+
+Span for ending a WebChat connection.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `copilot.webchat.conversation_id` | string | The WebChat conversation identifier |
 
 ---
 
@@ -909,12 +966,67 @@ Span for subscribing to async events from a Copilot Studio agent.
 | `copilot.subscribe_async.conversation_id` | string | The conversation identifier |
 | `copilot.subscribe_async.last_received_event_id` | string | The last received event ID |
 
-**Span Events (per received event):**
+**`event.received` span event (per received event):**
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `copilot.subscribe_async.event.id` | string | The event identifier |
 | `copilot.subscribe_async.event.activity.type` | string | The type of activity in the event |
+
+---
+
+### Named Pipe Spans
+
+Named pipe spans are emitted by the `@microsoft/agents-hosting-directline-namedpipes` package.
+
+#### agents.named_pipe.connect
+
+Span for establishing a named pipe connection.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `agents.named_pipe.pipe_name` | string | The connected pipe name |
+
+---
+
+#### agents.named_pipe.dispatch
+
+Span for dispatching an inbound named pipe request to the activity handler.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `agents.named_pipe.request.verb` | string | The request verb |
+| `agents.named_pipe.request.path` | string | The request path |
+| `agents.named_pipe.response.status_code` | number | The response status code |
+
+---
+
+#### agents.named_pipe.send
+
+Span for sending a response over the named pipe.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `agents.named_pipe.response.status_code` | number | The response status code |
+| `agents.named_pipe.response.body_size` | number | The response body size in bytes |
+
+---
+
+### Slack Spans
+
+Slack spans are emitted by the `@microsoft/agents-hosting-extensions-slack` package.
+
+#### agents.slack.api.call
+
+Span for an outbound Slack Web API call.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `slack.api.method` | string | The Slack Web API method, such as `chat.postMessage` |
+| `http.method` | string | Always `POST` |
+| `http.status_code` | string | The HTTP response status code, or `unknown` when no response is available |
+| `slack.api.error_code` | string | The Slack API error code (only present when Slack returns one) |
+| `server.address` | string | Always `slack.com` |
 
 ---
 
@@ -925,8 +1037,8 @@ All spans created by the SDK automatically handle errors. When an exception occu
 
 1. The span status is set to `ERROR` with the error message
 2. The exception is recorded on the span via `recordException()`
-3. A `{spanName}_failed` event is added with `error.type` and `error.message` attributes
-4. The span is ended and the error is re-thrown
+3. The span's definition-specific end hook runs and can inspect the error
+4. The span is ended and the original error is re-thrown
 
 On success, the span status is set to `OK`.
 
@@ -945,14 +1057,18 @@ AGENTS_TELEMETRY_DISABLED_SPAN_CATEGORIES=STORAGE,AUTHORIZATION
 AGENTS_TELEMETRY_DISABLED_SPAN_CATEGORIES=STORAGE AUTHORIZATION
 ```
 
-Valid category names are:
+Valid category names are case-insensitive:
 
-- `STORAGE`
-- `AUTHENTICATION`
-- `AUTHORIZATION`
-- `DIALOGS`
+| Category | Disabled spans |
+|----------|----------------|
+| `STORAGE` | `agents.storage.*` |
+| `AUTHENTICATION` | `agents.authentication.*` |
+| `AUTHORIZATION` | `agents.authorization.*` and `agents.user_token_client.*` |
+| `DIALOGS` | `agents.dialogs.*` |
 
-When a span category is disabled, the trace helper still executes your callback with an active non-recording span so your code path and span API calls remain safe, but no telemetry is emitted for that span.
+When a span category is disabled, the trace helper still executes your callback with no-op `record` and `actions` helpers so the instrumented code path remains safe, but it does not create a span or emit the metrics normally recorded by that span's end hook.
+
+The setting is read once when the telemetry module loads. Unknown categories are ignored with a warning, and duplicate categories are de-duplicated.
 
 
 ## JavaScript Metrics
@@ -986,6 +1102,7 @@ Counters track the total number of activities processed.
 |-----------|------|-------------|
 | `activity.type` | string | Type of activity sent |
 | `activity.channel_id` | string | Target channel |
+| `activity.conversation_id` | string | The conversation identifier |
 
 ---
 
@@ -1040,6 +1157,7 @@ Counters for outbound requests.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `target.endpoint` | string | Target agent endpoint |
+| `target.client_id` | string | Target agent client ID |
 | `http.status_code` | string | HTTP response status code |
 
 ---
@@ -1052,7 +1170,7 @@ Counters for outbound requests.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `auth.method` | string | Authentication method used (secret, certificate, managed_identity, obo, agentic_instance, agentic_user, etc.) |
+| `auth.method` | string | The resolved `AuthType` value, or `obo`, `agentic_instance`, or `agentic_user` for those flows |
 | `auth.success` | boolean | Whether the token acquisition succeeded |
 
 ---
@@ -1084,7 +1202,7 @@ Counters for turn processing.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `activity.type` | string | Type of activity processed |
-| `activity.conversation_id` | string | The conversation identifier |
+| `activity.channel_id` | string | The channel identifier |
 
 ---
 
@@ -1125,6 +1243,7 @@ Histograms track the distribution of operation durations.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `operation` | string | Connector operation name |
+| `http.method` | string | HTTP method used |
 | `http.status_code` | string | HTTP response status code |
 
 ---
@@ -1138,6 +1257,8 @@ Histograms track the distribution of operation durations.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `target.endpoint` | string | Target agent endpoint |
+| `target.client_id` | string | Target agent client ID |
+| `http.status_code` | string | HTTP response status code |
 
 ---
 
@@ -1151,7 +1272,6 @@ Histograms track the distribution of operation durations.
 |-----------|------|-------------|
 | `activity.type` | string | Type of activity processed |
 | `activity.channel_id` | string | The channel identifier |
-| `activity.conversation_id` | string | The conversation identifier |
 
 ---
 
@@ -1164,6 +1284,7 @@ Histograms track the distribution of operation durations.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `storage.operation` | string | Storage operation type (read, write, delete) |
+| `storage.key.count` | number | Number of keys in the operation |
 
 ---
 
@@ -1188,6 +1309,7 @@ Histograms track the distribution of operation durations.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `operation` | string | Operation name |
+| `http.method` | string | HTTP method used |
 | `http.status_code` | string | HTTP response status code |
 
 ---
@@ -1199,13 +1321,14 @@ Metrics for dialog lifecycle operations from `@microsoft/agents-hosting-dialogs`
 #### agents.dialogs.context.count
 
 **Type:** Counter
-**Unit:** operation
-**Description:** Total number of dialog context operations (begin, continue, end, replace, cancel).
+**Unit:** operations
+**Description:** Total number of dialog context operations (begin, continue, end, replace, cancel_all).
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `dialog.operation` | string | The dialog operation type |
-| `dialog.id` | string | The dialog identifier |
+| `operation` | string | `begin`, `continue`, `end`, `replace`, or `cancel_all` |
+| `result.status` | string | The resulting dialog turn status |
+| `dialog.cancel_parents` | boolean | Whether parent dialogs are canceled (only present for `cancel_all`) |
 
 ---
 
@@ -1217,8 +1340,9 @@ Metrics for dialog lifecycle operations from `@microsoft/agents-hosting-dialogs`
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `dialog.operation` | string | The dialog operation type |
-| `dialog.id` | string | The dialog identifier |
+| `operation` | string | `begin`, `continue`, `end`, `replace`, or `cancel_all` |
+| `result.status` | string | The resulting dialog turn status |
+| `dialog.cancel_parents` | boolean | Whether parent dialogs are canceled (only present for `cancel_all`) |
 
 ---
 
@@ -1230,11 +1354,17 @@ Metrics for proactive messaging operations.
 
 **Type:** Counter
 **Unit:** operation
-**Description:** Total number of proactive operations (store, get, delete, send, continue, create).
+**Description:** Total number of proactive send, continue, and create operations.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `proactive.operation` | string | The proactive operation type |
+| `operation` | string | `send.activity`, `continue.conversation`, or `create.conversation` |
+| `operation.success` | boolean | Whether the operation completed without an error |
+| `activity.channel_id` | string | The channel identifier |
+| `activity.type` | string | The activity type (only present for `send.activity`) |
+| `proactive.has_auto_sign_in` | boolean | Whether auto sign-in is configured (only present for `continue.conversation`) |
+| `proactive.store_conversation` | boolean | Whether the conversation is stored (only present for `create.conversation`) |
+| `proactive.has_handler` | boolean | Whether a handler was provided (only present for `create.conversation`) |
 
 ---
 
@@ -1246,7 +1376,13 @@ Metrics for proactive messaging operations.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `proactive.operation` | string | The proactive operation type |
+| `operation` | string | `send.activity`, `continue.conversation`, or `create.conversation` |
+| `operation.success` | boolean | Whether the operation completed without an error |
+| `activity.channel_id` | string | The channel identifier |
+| `activity.type` | string | The activity type (only present for `send.activity`) |
+| `proactive.has_auto_sign_in` | boolean | Whether auto sign-in is configured (only present for `continue.conversation`) |
+| `proactive.store_conversation` | boolean | Whether the conversation is stored (only present for `create.conversation`) |
+| `proactive.has_handler` | boolean | Whether a handler was provided (only present for `create.conversation`) |
 
 ---
 
@@ -1260,6 +1396,10 @@ Metrics for the `@microsoft/agents-copilotstudio-client` package.
 **Unit:** activities
 **Description:** Total number of activities received from a Copilot Studio agent.
 
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `copilot.activity.type` | string | The received activity type |
+
 ---
 
 #### agents.copilot_client.activities.sent
@@ -1267,6 +1407,10 @@ Metrics for the `@microsoft/agents-copilotstudio-client` package.
 **Type:** Counter
 **Unit:** activities
 **Description:** Total number of activities sent to a Copilot Studio agent.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `copilot.activity.type` | string | The sent activity type |
 
 ---
 
@@ -1276,6 +1420,12 @@ Metrics for the `@microsoft/agents-copilotstudio-client` package.
 **Unit:** conversations
 **Description:** Total number of conversations started with Copilot Studio agents.
 
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `operation` | string | Always `startConversationStreaming` |
+| `copilot.emit_start_event` | boolean | `true` when a start event is emitted (conditional) |
+| `copilot.request` | boolean | `true` when the request path is used (conditional) |
+
 ---
 
 #### agents.copilot_client.webchat.connection.count
@@ -1284,21 +1434,38 @@ Metrics for the `@microsoft/agents-copilotstudio-client` package.
 **Unit:** connections
 **Description:** Total number of WebChat connections created.
 
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `copilot.webchat.show_typing` | boolean | Whether typing indicators are shown |
+
 ---
 
 #### agents.copilot_client.request.count
 
 **Type:** Counter
-**Unit:** request
-**Description:** Total number of HTTP requests to the Copilot Studio API.
+**Unit:** requests
+**Description:** Total number of HTTP/SSE requests to the Copilot Studio API.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `operation` | string | Always `postRequestAsync` |
+| `copilot.post_request.url` | string | The request URL |
+| `copilot.post_request.method` | string | The HTTP method |
 
 ---
 
 #### agents.copilot_client.request.error.count
 
 **Type:** Counter
-**Unit:** request
-**Description:** Total number of failed HTTP requests to the Copilot Studio API.
+**Unit:** requests
+**Description:** Total number of failed requests to the Copilot Studio API.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `operation` | string | Always `postRequestAsync` |
+| `copilot.post_request.url` | string | The request URL |
+| `copilot.post_request.method` | string | The HTTP method |
+| `error.type` | string | The error class or thrown value type |
 
 ---
 
@@ -1306,7 +1473,14 @@ Metrics for the `@microsoft/agents-copilotstudio-client` package.
 
 **Type:** Histogram
 **Unit:** ms
-**Description:** Duration of HTTP requests to the Copilot Studio API in milliseconds.
+**Description:** Duration of requests to the Copilot Studio API in milliseconds.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `operation` | string | `startConversationStreaming`, `sendActivityStreaming`, or `executeStreaming` |
+| `copilot.emit_start_event` | boolean | `true` for a start-conversation event path (conditional) |
+| `copilot.request` | boolean | `true` for a start-conversation request path (conditional) |
+| `copilot.activity.type` | string | Activity type for send and execute operations |
 
 ---
 
@@ -1314,23 +1488,37 @@ Metrics for the `@microsoft/agents-copilotstudio-client` package.
 
 **Type:** Histogram
 **Unit:** ms
-**Description:** Duration of streaming operations in milliseconds.
+**Description:** Duration of SSE stream sessions in milliseconds.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `operation` | string | `postRequestAsync` or `subscribeAsync` |
+| `copilot.post_request.url` | string | The request URL (only present for `postRequestAsync`) |
+| `copilot.post_request.method` | string | The HTTP method (only present for `postRequestAsync`) |
 
 ---
 
 #### agents.copilot_client.execute_streaming.count
 
 **Type:** Counter
-**Unit:** operation
+**Unit:** operations
 **Description:** Total number of streaming execution operations.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `copilot.activity.type` | string | The activity type |
 
 ---
 
 #### agents.copilot_client.subscribe_async.count
 
 **Type:** Counter
-**Unit:** operation
+**Unit:** operations
 **Description:** Total number of async subscription operations.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `operation` | string | Always `subscribeAsync` |
 
 ---
 
@@ -1339,6 +1527,119 @@ Metrics for the `@microsoft/agents-copilotstudio-client` package.
 **Type:** Counter
 **Unit:** events
 **Description:** Total number of events received via async subscriptions.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `copilot.subscribe_async.event.id` | string | The event identifier |
+| `copilot.subscribe_async.event.activity.type` | string | The activity type in the event |
+
+---
+
+### Named Pipe Metrics
+
+Metrics emitted by the `@microsoft/agents-hosting-directline-namedpipes` package.
+
+#### agents.named_pipe.connection.count
+
+**Type:** Counter
+**Unit:** connection
+**Description:** Total number of named pipe connections established.
+
+*No metric attributes.*
+
+---
+
+#### agents.named_pipe.dispatch.count
+
+**Type:** Counter
+**Unit:** request
+**Description:** Total number of inbound requests dispatched to the activity handler.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `request.verb` | string | The request verb |
+| `request.path` | string | The request path |
+
+---
+
+#### agents.named_pipe.dispatch.duration
+
+**Type:** Histogram
+**Unit:** ms
+**Description:** Duration of activity-handler request dispatch in milliseconds.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `request.verb` | string | The request verb |
+| `request.path` | string | The request path |
+
+---
+
+#### agents.named_pipe.dispatch.error.count
+
+**Type:** Counter
+**Unit:** error
+**Description:** Total number of named pipe dispatch errors.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `error.type` | string | The error class or thrown value type |
+
+---
+
+#### agents.named_pipe.send.count
+
+**Type:** Counter
+**Unit:** response
+**Description:** Total number of responses sent over the named pipe.
+
+*No metric attributes.*
+
+---
+
+#### agents.named_pipe.send.duration
+
+**Type:** Histogram
+**Unit:** ms
+**Description:** Duration of named pipe response send operations in milliseconds.
+
+*No metric attributes.*
+
+---
+
+### Slack Metrics
+
+Metrics emitted by the `@microsoft/agents-hosting-extensions-slack` package.
+
+#### agents.slack.api.request.count
+
+**Type:** Counter
+**Unit:** request
+**Description:** Total number of outbound Slack Web API requests.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `slack.api.method` | string | The Slack Web API method |
+| `http.method` | string | Always `POST` |
+| `http.status_code` | string | The HTTP response status code, or `unknown` |
+| `slack.api.error_code` | string | The Slack API error code (conditional) |
+| `operation.success` | boolean | Whether the operation completed without an error |
+
+---
+
+#### agents.slack.api.request.duration
+
+**Type:** Histogram
+**Unit:** ms
+**Description:** Duration of outbound Slack Web API requests in milliseconds.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `slack.api.method` | string | The Slack Web API method |
+| `http.method` | string | Always `POST` |
+| `http.status_code` | string | The HTTP response status code, or `unknown` |
+| `slack.api.error_code` | string | The Slack API error code (conditional) |
+| `operation.success` | boolean | Whether the operation completed without an error |
 
 ---
 
@@ -1432,8 +1733,20 @@ SpanNames.COPILOT_START_CONVERSATION   // 'agents.copilot_client.start_conversat
 SpanNames.COPILOT_SEND_ACTIVITY        // 'agents.copilot_client.send_activity'
 SpanNames.COPILOT_POST_REQUEST         // 'agents.copilot_client.post_request'
 SpanNames.COPILOT_CREATE_CONNECTION    // 'agents.copilot_client.webchat.create_connection'
+SpanNames.COPILOT_WEBCHAT_START_CONVERSATION // 'agents.copilot_client.webchat.start_conversation'
+SpanNames.COPILOT_WEBCHAT_POST_ACTIVITY      // 'agents.copilot_client.webchat.post_activity'
+SpanNames.COPILOT_WEBCHAT_RECEIVE_ACTIVITY   // 'agents.copilot_client.webchat.receive_activity'
+SpanNames.COPILOT_WEBCHAT_END_CONNECTION     // 'agents.copilot_client.webchat.end_connection'
 SpanNames.COPILOT_EXECUTE_STREAMING    // 'agents.copilot_client.execute_streaming'
 SpanNames.COPILOT_SUBSCRIBE_ASYNC      // 'agents.copilot_client.subscribe_async'
+
+// Named Pipe
+SpanNames.NAMED_PIPE_CONNECT           // 'agents.named_pipe.connect'
+SpanNames.NAMED_PIPE_DISPATCH          // 'agents.named_pipe.dispatch'
+SpanNames.NAMED_PIPE_SEND              // 'agents.named_pipe.send'
+
+// Slack
+SpanNames.SLACK_API_CALL               // 'agents.slack.api.call'
 ```
 
 ---
@@ -1498,7 +1811,35 @@ MetricNames.CSC_REQUEST_DURATION          // 'agents.copilot_client.request.dura
 MetricNames.CSC_EXECUTE_STREAMING         // 'agents.copilot_client.execute_streaming.count'
 MetricNames.CSC_SUBSCRIBE_ASYNC           // 'agents.copilot_client.subscribe_async.count'
 MetricNames.CSC_SUBSCRIBE_EVENT           // 'agents.copilot_client.subscribe_event.count'
+
+// Named Pipe metrics
+MetricNames.NAMED_PIPE_CONNECTIONS         // 'agents.named_pipe.connection.count'
+MetricNames.NAMED_PIPE_DISPATCHES          // 'agents.named_pipe.dispatch.count'
+MetricNames.NAMED_PIPE_DISPATCH_DURATION   // 'agents.named_pipe.dispatch.duration'
+MetricNames.NAMED_PIPE_DISPATCH_ERRORS     // 'agents.named_pipe.dispatch.error.count'
+MetricNames.NAMED_PIPE_SENDS               // 'agents.named_pipe.send.count'
+MetricNames.NAMED_PIPE_SEND_DURATION       // 'agents.named_pipe.send.duration'
+
+// Slack metrics
+MetricNames.SLACK_API_REQUESTS             // 'agents.slack.api.request.count'
+MetricNames.SLACK_API_REQUEST_DURATION     // 'agents.slack.api.request.duration'
 ```
+
+---
+
+## JavaScript Log Records
+
+The `@microsoft/agents-telemetry` `debug(namespace)` helper always writes through the SDK's `debug` logger. When the optional `@opentelemetry/api-logs` package is available, it also emits an OpenTelemetry log record through the logger named by `namespace`.
+
+| Field | Value |
+|-------|-------|
+| Severity number | OpenTelemetry `DEBUG`, `INFO`, `WARN`, or `ERROR` |
+| Severity text | `DEBUG`, `INFO`, `WARN`, or `ERROR` |
+| Body | The message followed by serialized extra arguments |
+| `log.namespace` | The logger namespace passed to `debug(namespace)` |
+| `log.level` | Lowercase `debug`, `info`, `warn`, or `error` |
+
+An `Error` argument is serialized as its name and message. Other non-string arguments are JSON-serialized when possible. Applications must configure an OpenTelemetry logger provider and processor/exporter to export these records. If `@opentelemetry/api-logs` is absent, tracing and metrics can still operate through `@opentelemetry/api`, while log emission falls back to the SDK's `debug` output only.
 
 ---
 
