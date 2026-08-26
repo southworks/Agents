@@ -14,6 +14,7 @@ import {
   LogRecordExporter,
 } from '@opentelemetry/sdk-logs'
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http'
+import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici'
 import { resourceFromAttributes } from '@opentelemetry/resources'
 import {
   ATTR_SERVICE_NAME,
@@ -41,20 +42,39 @@ const sdk = new NodeSDK({
     new BatchLogRecordProcessor({ exporter: logExporter }),
   ],
   instrumentations: [
-    new HttpInstrumentation()
+    new HttpInstrumentation(),
+    new UndiciInstrumentation()
   ]
 })
 
 sdk.start()
 
-const shutdownHandler = () => {
+let isShuttingDown = false
+
+const shutdownHandler = (signal: NodeJS.Signals) => {
+  if (isShuttingDown) {
+    return
+  }
+  isShuttingDown = true
+
+  const shutdownTimeout = setTimeout(() => {
+    console.error(`OTel SDK shutdown timed out after receiving ${signal}`)
+    process.exit(1)
+  }, 5000)
+  shutdownTimeout.unref()
+
   sdk.shutdown()
-    .then(() => console.log('OTel SDK shut down successfully'))
+    .then(() => {
+      console.log('OTel SDK shut down successfully')
+      clearTimeout(shutdownTimeout)
+      process.exit(0)
+    })
     .catch((error) => {
       console.error('Error shutting down OTel SDK', error)
-      process.exitCode = 1
+      clearTimeout(shutdownTimeout)
+      process.exit(1)
     })
 }
 
-process.on('SIGTERM', shutdownHandler)
-process.on('SIGINT', shutdownHandler)
+process.once('SIGTERM', () => shutdownHandler('SIGTERM'))
+process.once('SIGINT', () => shutdownHandler('SIGINT'))
