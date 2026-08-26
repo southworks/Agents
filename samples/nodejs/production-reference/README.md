@@ -6,9 +6,10 @@ This sample is a deployable reference, not a production certification. It captur
 
 ## Coverage
 
-- Web Chat JWT authentication, exact audience, and service URL validation.
+- Web Chat JWT authentication, issuer and exact-audience validation, and service URL validation.
+- A bounded outbound-host policy for token-bearing Web Chat replies.
 - Azure Blob durable state: Azurite locally; managed identity in Azure.
-- 256 KB JSON limit, safe errors, liveness, write-capable storage readiness, and graceful shutdown.
+- 256 KB JSON limit, SDK authentication errors, generic application errors, liveness, write-capable storage readiness, and graceful shutdown.
 - Azure Monitor OpenTelemetry export for built-in Agents SDK instrumentation and small application-specific spans and metrics.
 - App Service, Azure Bot, and Web Chat Bicep; deployment instructions; and operator runbook.
 
@@ -18,7 +19,7 @@ Use the guide to plan or review production requirements. Use this sample to insp
 
 ## Hosting choice
 
-Use the SDK `startServer` helper for a simple agent that accepts its default JSON parser, endpoint pipeline, and shutdown behavior. This sample owns its Express host because it must set the JSON limit before the agent route, reject non-Web-Chat service URLs on that route, add error handling after the route, and close the HTTP server before telemetry shutdown. The SDK helper's optional rate limit is IP-based and runs before JWT validation; it is not a trusted per-user limit for Web Chat.
+Use the SDK `startServer` helper for a simple agent that accepts its default JSON parser, endpoint pipeline, and shutdown behavior. This sample owns its Express host because it must set the JSON limit before the agent route, apply JWT authentication before its Web Chat host policy, add error handling after the route, and close the HTTP server before telemetry shutdown. The health routes remain anonymous. The SDK helper's optional rate limit is IP-based and runs before JWT validation; it is not a trusted per-user limit for Web Chat.
 
 The start commands preload `telemetry.js` so Azure Monitor initializes before Agents SDK components run. The SDK then emits its built-in instrumentation automatically. Set `AGENTS_TELEMETRY_DISABLED_SPAN_CATEGORIES` only when a built-in category is not required; valid values are `STORAGE`, `AUTHENTICATION`, `AUTHORIZATION`, and `DIALOGS`.
 
@@ -66,12 +67,14 @@ az bicep build --file infra/main.bicep
 
 ## Configuration rules
 
-- Production requires `BLOB_CONTAINER_URL`, Application Insights connection string, `clientId`, `tenantId`, `authType`, and the complete connection map: connection name, service URL, and audience.
+- Production requires `BLOB_CONTAINER_URL`, Application Insights connection string, `clientId`, `tenantId`, `authType`, issuer validation, the complete connection map, and the bounded outbound-host policy.
 - Bicep provisions one user-assigned managed identity, attaches it to App Service, grants it Blob access, and configures Azure Bot to use it. Its client ID is the exact connection-map audience. Bicep also creates Web Chat.
-- The SDK requires `connectionsMap` service URL `*` to select its default named connection. The HTTP middleware explicitly rejects a service URL outside `webchat.botframework.com`; adapter validation binds it to the signed JWT claim.
+- The SDK requires `connectionsMap` service URL `*` to select its default named connection. In production, JWT audience and issuer validation run first. HTTP middleware then rejects a service URL outside `webchat.botframework.com`. The configured outbound-host policy restricts token-bearing SDK client paths. Development allows the loopback service URL used by Agents Playground.
+- This sample deliberately sets `OutboundHostValidator__IncludeDefaultMicrosoftHosts=false` because its production boundary contains only Web Chat. It explicitly lists `webchat.botframework.com`. Add and test every required host before extending the sample to another channel or token-bearing SDK client.
 - `BLOB_CONTAINER_URL` includes the container path, for example `https://contoso.blob.core.windows.net/agents-production-reference-state`.
 - Bicep grants the agent identity `Storage Blob Data Contributor` on the state storage account.
 - This sample uses no user-delegated downstream API. It shows inbound channel authentication only. Add user authorization when a feature calls an API for the signed-in user.
+- This Web Chat-only path receives calls through Azure Bot Service. It does not use an application caller allow list. Add an `azp`/`appid` allow list after JWT validation for agent-to-agent or trusted-application endpoints.
 
 ## Intentional limits
 

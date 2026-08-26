@@ -7,7 +7,7 @@ import test from 'node:test'
 import { MemoryStorage, type Storage } from '@microsoft/agents-hosting'
 import { loadConfig } from '../src/config.js'
 import { createAgent } from '../src/agent.js'
-import { createServer } from '../src/server.js'
+import { createServer, isAllowedActivityServiceUrl, isTrustedIssuer, isWebChatServiceUrl, usesNativeIssuerValidation } from '../src/server.js'
 
 class UnavailableStorage implements Pick<Storage, 'write' | 'delete'> {
   async write (): Promise<never> {
@@ -16,6 +16,29 @@ class UnavailableStorage implements Pick<Storage, 'write' | 'delete'> {
 
   async delete (): Promise<void> {}
 }
+
+test('issuer authorization requires an exact configured issuer', () => {
+  const trusted = ['https://api.botframework.com', 'https://login.microsoftonline.com/tenant-id/v2.0']
+  assert.equal(isTrustedIssuer('https://api.botframework.com', trusted), true)
+  assert.equal(isTrustedIssuer('https://login.microsoftonline.com/other-tenant/v2.0', trusted), false)
+  assert.equal(isTrustedIssuer(undefined, trusted), false)
+})
+
+test('issuer fallback yields to SDK-native issuer validation', () => {
+  assert.equal(usesNativeIssuerValidation({ validateIssuer: true } as never), true)
+  assert.equal(usesNativeIssuerValidation({} as never), false)
+})
+
+test('service URL policy allows local development and requires the exact production host', () => {
+  assert.equal(isWebChatServiceUrl('https://webchat.botframework.com/'), true)
+  assert.equal(isWebChatServiceUrl('https://subdomain.webchat.botframework.com/'), false)
+  assert.equal(isWebChatServiceUrl('https://webchat.botframework.com.example/'), false)
+  assert.equal(isWebChatServiceUrl('not-a-url'), false)
+  assert.equal(isAllowedActivityServiceUrl('http://localhost:3978/', false), true)
+  assert.equal(isAllowedActivityServiceUrl('http://127.0.0.1:3978/', false), true)
+  assert.equal(isAllowedActivityServiceUrl('https://example.com/', false), false)
+  assert.equal(isAllowedActivityServiceUrl('http://localhost:3978/', true), false)
+})
 
 async function withHttpServer (storage: Pick<Storage, 'write' | 'delete'>, run: (baseUrl: string) => Promise<void>): Promise<void> {
   const original = { ...process.env }
@@ -62,7 +85,7 @@ test('message endpoint rejects an oversized payload', async () => {
   })
 })
 
-test('message endpoint rejects unsigned, invalid-token, and non-Web-Chat requests', async () => {
+test('production message endpoint authenticates before channel authorization', async () => {
   const original = { ...process.env }
   process.env.NODE_ENV = 'production'
   process.env.TEST_MODE = 'true'
@@ -71,9 +94,13 @@ test('message endpoint rejects unsigned, invalid-token, and non-Web-Chat request
   process.env.connections__serviceConnection__settings__clientId = 'agent-app-id'
   process.env.connections__serviceConnection__settings__tenantId = 'tenant-id'
   process.env.connections__serviceConnection__settings__authType = 'UserManagedIdentity'
+  process.env.connections__serviceConnection__settings__validateIssuer = 'true'
   process.env.connectionsMap__0__connection = 'serviceConnection'
   process.env.connectionsMap__0__audience = 'agent-app-id'
   process.env.connectionsMap__0__serviceUrl = '*'
+  process.env.OutboundHostValidator__Enabled = 'true'
+  process.env.OutboundHostValidator__IncludeDefaultMicrosoftHosts = 'false'
+  process.env.OutboundHostValidator__Hosts = 'webchat.botframework.com'
 
   const config = loadConfig()
   const agent = createAgent(config, new MemoryStorage())
@@ -89,12 +116,19 @@ test('message endpoint rejects unsigned, invalid-token, and non-Web-Chat request
     })
     assert.equal(response.status, 401)
 
+    const malformedHeader = await fetch(`http://127.0.0.1:${address.port}/api/messages`, {
+      method: 'POST',
+      headers: { authorization: 'Basic invalid', 'content-type': 'application/json' },
+      body: '{}',
+    })
+    assert.equal(malformedHeader.status, 401)
+
     const wrongChannel = await fetch(`http://127.0.0.1:${address.port}/api/messages`, {
       method: 'POST',
       headers: { authorization: 'Bearer invalid', 'content-type': 'application/json' },
       body: JSON.stringify({ serviceUrl: 'https://example.com/' }),
     })
-    assert.equal(wrongChannel.status, 400)
+    assert.equal(wrongChannel.status, 401)
 
     const invalidToken = await fetch(`http://127.0.0.1:${address.port}/api/messages`, {
       method: 'POST',

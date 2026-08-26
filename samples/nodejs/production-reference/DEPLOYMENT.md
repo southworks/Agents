@@ -65,14 +65,20 @@ BLOB_CONTAINER_URL=https://<storage-account>.blob.core.windows.net/agents-produc
 connections__serviceConnection__settings__clientId=<agent-managed-identity-client-id>
 connections__serviceConnection__settings__tenantId=<tenant-id>
 connections__serviceConnection__settings__authType=UserManagedIdentity
+connections__serviceConnection__settings__validateIssuer=true
 connectionsMap__0__connection=serviceConnection
 connectionsMap__0__serviceUrl=*
 connectionsMap__0__audience=<agent-managed-identity-client-id>
+OutboundHostValidator__Enabled=true
+OutboundHostValidator__IncludeDefaultMicrosoftHosts=false
+OutboundHostValidator__Hosts=webchat.botframework.com
 APPLICATIONINSIGHTS_CONNECTION_STRING=<application-insights-connection-string>
 OTEL_SERVICE_NAME=agents-sdk-production-reference
 ```
 
-The SDK uses `*` only to select its default named connection. The HTTP middleware rejects any activity whose `serviceUrl` host is not `webchat.botframework.com`; `validateServiceUrl` then binds that URL to the signed JWT claim. The audience remains the exact agent Entra application ID.
+The SDK uses `*` only to select its default named connection. JWT audience and issuer validation run first. HTTP middleware then checks that the activity `serviceUrl` host is `webchat.botframework.com`. The configured outbound-host policy restricts token-bearing SDK client paths and validates the service URL against the authenticated claim.
+
+This bounded deployment deliberately disables the built-in Microsoft host list and explicitly allows only `webchat.botframework.com`. If you add another channel or token-bearing SDK client, identify, configure, and test every required host before deployment.
 
 Use a Key Vault reference only if a required dependency cannot authenticate with managed identity. Do not add a Blob client secret.
 
@@ -108,7 +114,7 @@ The timeout is 10 minutes and applies to the Azure CLI wait operation. If the co
 4. Use the Azure Bot resource's Web Chat test or a token-based Web Chat client, then send an issue summary and impact. Never expose the Web Chat secret in browser code.
 5. Restart the App Service. In the same conversation, verify state remains available.
 6. Check telemetry for request failures and Blob dependency latency. Verify no issue summary, raw activity, user identifier, token, or credential is present.
-7. Verify `/api/messages` rejects missing, invalid, and wrong-audience JWTs and a signed activity with a non-Web-Chat service URL.
+7. Verify `/api/messages` rejects missing, invalid, wrong-audience, and wrong-issuer JWTs; a signed activity with a non-Web-Chat service URL; and a signed activity whose service URL differs from its token claim.
 
 ## Rollback
 

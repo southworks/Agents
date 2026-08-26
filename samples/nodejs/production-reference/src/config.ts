@@ -11,6 +11,7 @@ export interface AppConfig {
 }
 
 const sdkDefaultServiceUrl = '*'
+const webChatServiceHost = 'webchat.botframework.com'
 
 function required (name: string): string {
   const value = process.env[name]?.trim()
@@ -41,6 +42,9 @@ export function loadConfig (): AppConfig {
     if (required('connections__serviceConnection__settings__authType') !== 'UserManagedIdentity') {
       throw new Error('connections__serviceConnection__settings__authType must be "UserManagedIdentity".')
     }
+    if (required('connections__serviceConnection__settings__validateIssuer').toLowerCase() !== 'true') {
+      throw new Error('connections__serviceConnection__settings__validateIssuer must be "true".')
+    }
     if (required('connectionsMap__0__connection') !== 'serviceConnection') {
       throw new Error('connectionsMap__0__connection must be "serviceConnection".')
     }
@@ -48,6 +52,15 @@ export function loadConfig (): AppConfig {
     if (audience !== clientId) throw new Error('connectionsMap__0__audience must equal the agent client ID.')
     if (required('connectionsMap__0__serviceUrl') !== sdkDefaultServiceUrl) {
       throw new Error('connectionsMap__0__serviceUrl must be "*" for the SDK default connection. Web Chat host enforcement is in the HTTP middleware.')
+    }
+    if (required('OutboundHostValidator__Enabled').toLowerCase() !== 'true') {
+      throw new Error('OutboundHostValidator__Enabled must be "true".')
+    }
+    if (required('OutboundHostValidator__IncludeDefaultMicrosoftHosts').toLowerCase() !== 'false') {
+      throw new Error('OutboundHostValidator__IncludeDefaultMicrosoftHosts must be "false" for the bounded Web Chat profile.')
+    }
+    if (required('OutboundHostValidator__Hosts').toLowerCase() !== webChatServiceHost) {
+      throw new Error(`OutboundHostValidator__Hosts must be "${webChatServiceHost}".`)
     }
   }
 

@@ -52,10 +52,11 @@ packages. It is not a general production-readiness skill.
   the answer.
 - Inspect the candidate Agents SDK sample before asking questions. If multiple
   samples exist, identify the requested sample or ask which one is in scope.
-- Identify channel, host, inbound and downstream identities, state, external
+- Identify channel, cloud, host, inbound audiences and issuers, trusted calling
+  applications, downstream identities, outbound hosts, state, external
   dependencies, data classes, retention, scale, side effects, long-running
-  work, model calls, retrieval, tools, attachments, transcripts, and proactive
-  messaging.
+  work, model calls, retrieval, tools, token-bearing downloaders, attachments,
+  transcripts, and proactive messaging.
 - State the deployment boundary. Do not broaden channel, host, identity, data,
   or application scope without user approval.
 
@@ -90,9 +91,10 @@ packages. It is not a general production-readiness skill.
 
 - Run the repository-supported build, lint, unit, and integration checks that
   apply to the changed Agents SDK code.
-- Exercise failed production configuration, authentication rejection, service
-  URL validation, payload rejection, safe errors, probes, graceful shutdown,
-  and telemetry shutdown/redaction.
+- Exercise failed production configuration, authentication rejection, issuer
+  and audience rejection, applicable caller authorization, service URL claim
+  and outbound-host validation, payload rejection, safe errors, probes,
+  graceful shutdown, and telemetry shutdown/redaction.
 - Validate state recovery only when state exists. Validate conditional controls
   only for capabilities in scope.
 - Separate local verification from deployed evidence. Do not claim that a
@@ -128,9 +130,30 @@ without losing the selected boundary, decisions, statuses, or next phase.
   survive a turn, restart, or replica must use a durable store.
 - Protect the message endpoint and every non-health endpoint that changes data,
   sends messages, or calls a downstream API.
+- Do not add `authorizeJWT` when `startServer` or
+  `createAgentRequestHandler` already owns JWT validation. Use an explicit
+  adapter pipeline when caller or channel authorization must run after JWT
+  validation and before activity processing.
+- Enable issuer validation in production. Configure the expected tenant and
+  cloud-specific authority or issuers.
+- Decide whether application caller authorization applies. For trusted-app or
+  agent-to-agent endpoints, authorize the verified `azp` or `appid` claim
+  before adapter processing.
+- Treat the SDK outbound-host policy as opt-in and enable it explicitly in
+  production. Decide whether the selected channel needs the built-in Microsoft
+  hosts or a complete explicit host set. Configured hosts are suffix rules and
+  also allow subdomains. Apply separate destination and network egress controls
+  to arbitrary HTTP, model, retrieval, and tool clients.
+- For local tools that use loopback service URLs, disable the validator or allow
+  only the required local host. Never carry a local-host exception into
+  production.
 - When the installed SDK requires `connectionsMap.serviceUrl=*` to select a
-  default named connection, enforce the known channel host in HTTP middleware
-  and keep exact audience validation enabled.
+  default named connection, treat the wildcard only as connection selection
+  and keep exact audience and outbound-host validation enabled. Add channel-host
+  middleware after JWT validation only when the deployment boundary is narrower
+  than the SDK host policy.
+- Reuse the outbound policy with supported attachment downloaders. Do not
+  assume that adapter validation protects arbitrary downloads or HTTP calls.
 - Do not describe an agent as production-ready without deployment, test, and
   operator evidence. Use the maturity states instead.
 - Keep the user’s scenario small. A production reference demonstrates architecture, not every SDK feature.

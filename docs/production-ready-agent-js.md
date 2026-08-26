@@ -1,132 +1,299 @@
-# Production-ready JavaScript Agents
+# Prepare a JavaScript agent for production
 
-This guide moves a JavaScript Agents SDK sample toward a production deployment. It is a baseline, not a certification. Apply your organization’s security, privacy, reliability, and compliance reviews.
+This guide explains how to move a JavaScript or TypeScript Microsoft 365 Agents SDK agent toward a bounded, evidence-backed production deployment.
 
-A Tier 3 production reference includes durable state, production identity, health checks, observability, tests, infrastructure as code, deployment guidance, rollback, and an operator runbook. The tier describes the evidence supplied by the sample. It does not certify a deployment for every organization or workload.
+Production readiness is more than secure source code. It includes identity, state, traffic protection, observability, infrastructure, tests, deployment evidence, rollback, and operator procedures.
 
-The companion [Web Chat production reference](../samples/nodejs/production-reference/README.md) proves one supported path: Azure App Service, managed identity, Blob state, and Web Chat. AI controls below apply when an agent invokes a model.
+> [!IMPORTANT]
+> This guide is a baseline, not a production certification. Apply your organization's security, privacy, reliability, and compliance requirements. Do not describe an agent as production-ready until its selected environment has passed the required deployment and operator checks.
 
-## How the artifacts work together
+The companion [Web Chat production reference](../samples/nodejs/production-reference/README.md) demonstrates one supported path: Azure App Service, Azure Bot Service Web Chat, managed identity, and Blob state. It does not demonstrate every Agents SDK feature.
 
-- Use this guide when you plan or review a production deployment, or when you add an optional feature. It defines the baseline and feature-specific controls.
-- Use the [sample](../samples/nodejs/production-reference/README.md) when you need an executable example of one bounded deployment path. It is not a catalog of SDK features.
-- Use the [AI skill](../agent-plugins/agents-for-js/skills/agents-sdk-to-prod/SKILL.md) when you want an AI coding agent to assess or harden a selected JavaScript scenario. The skill applies the guide and adds conditional controls only for features in that scenario.
+The reference labels itself Tier 3 because it supplies durable state, production identity, health checks, observability, tests, infrastructure as code, deployment guidance, rollback, and an operator runbook. The tier describes supplied evidence. It does not certify a deployed workload.
+
+## Production controls
+
+The following control groups apply to a production deployment. Conditional controls apply only when the listed feature exists.
+
+| Control group | Protects against |
+|---|---|
+| Deployment boundary | Unsupported channels, callers, data, hosts, and operating assumptions |
+| Inbound authentication and authorization | Unauthenticated or authenticated-but-unauthorized callers |
+| Service URL and outbound-host validation | Spoofed destinations, confused-deputy attacks, SSRF, and token exfiltration |
+| Configuration, identity, and secrets | Unsafe defaults, missing controls, excessive privilege, and credential exposure |
+| Durable state and concurrency | State loss, replica inconsistency, and conflicting turns |
+| HTTP and traffic protection | Oversized payloads, abuse, unsafe retries, and abrupt termination |
+| Observability and operations | Undetected failures, sensitive telemetry, and unsafe recovery |
+| AI, retrieval, and tools | Prompt injection, unsafe output, data exposure, and unauthorized side effects |
+
+### Maturity states
+
+Use these states instead of a general “production-ready” claim:
+
+- **Code-hardened:** Applicable source controls exist and local checks pass.
+- **Deployment-ready:** Infrastructure, production configuration, smoke tests, rollback, and operator documentation exist.
+- **Production-verified:** The deployed environment has passed authentication, authorization, state recovery where applicable, telemetry, alert, traffic-protection, smoke, and rollback checks.
+
+## Prerequisites
+
+- A JavaScript or TypeScript agent built with `@microsoft/agents-hosting` or a related Agents SDK package.
+- A selected channel, host, identity model, state provider, and deployment environment.
+- Access to the infrastructure, identity, telemetry, and traffic-protection configuration for that environment.
+- An operator who owns deployment, incidents, retention, deletion, and rollback.
+
+Use the [production reference sample](../samples/nodejs/production-reference/README.md) for executable code. Use the [production-readiness skill](../agent-plugins/agents-for-js/skills/agents-sdk-to-prod/SKILL.md) when an AI coding agent must assess or harden a selected JavaScript scenario.
 
 ## Define the deployment boundary
 
-Record the supported channel, host, identities, data classes, dependencies, scale target, retention policy, and operational owner. Reject channels and callers outside this boundary. A sample that supports every channel by default has no meaningful production boundary.
+Before you write code, answer these questions:
 
-For the reference path:
+- **Channel:** Which chat platforms can users connect through?
+- **Cloud and host:** Which cloud and hosting service run the agent?
+- **Access:** Which channel services, tenants, and calling applications can access it?
+- **Data:** Which data classes flow through the agent?
+- **Dependencies:** Which services and outbound hosts must be available?
+- **Scale and retention:** How many conversations must it support, and how long does it keep them?
+- **Operations:** Who deploys, monitors, supports, and rolls back the deployment?
 
-- Azure Bot Service Web Chat is the only channel.
-- This user-assigned managed identity path is single-tenant.
-- The JWT audience equals the deployed agent Entra application ID.
-- The SDK requires `connectionsMap.serviceUrl=*` to select its default named connection. Require the exact audience in that map, then enforce the Web Chat service URL host in HTTP middleware.
-- Enable the Cloud Adapter service URL check to bind that service URL to the authenticated caller claim.
+Reject channels and callers outside this boundary. Do not add broad host or caller wildcards only to make configuration easier.
 
-## Required controls
+The production reference uses this boundary:
 
-### Identity and configuration
+| Property | Selected value |
+|---|---|
+| Channel | Azure Bot Service Web Chat only |
+| Cloud | Azure public cloud |
+| Host | Azure App Service |
+| Identity | Single-tenant, user-assigned managed identity |
+| Inbound audience | Exact agent Entra application ID |
+| Activity service host | `webchat.botframework.com` |
+| State | Azure Blob Storage |
+| Attachments, tools, retrieval, models, proactive messages | Not included |
 
-- Use environment configuration from App Service. Do not commit `.env` files.
-- Fail startup when required production configuration is absent.
-- Prefer managed identity, workload identity, or certificates. Use a client secret only where no secretless option exists; store it in Key Vault and rotate it.
-- Use least privilege. Scope Blob roles to the storage resource and AI permissions to the workload identity that needs them.
-- Keep health endpoints anonymous and non-sensitive. A readiness probe can use a fixed, non-user health record to verify a dependency. Protect every other endpoint that accepts messages, changes data, sends messages, or invokes a downstream API.
+## Secure inbound and outbound traffic
 
-### State and concurrency
+An agent receives untrusted traffic and makes outbound, often token-bearing, calls. Protect both directions.
 
-`MemoryStorage` is only for local development. Use a durable store for user, conversation, authorization, dialog, or proactive state.
+### Validate inbound JWTs
 
-- Use Blob or Cosmos based on workload needs. The reference uses Blob.
-- Define state versioning before schema changes. Deploy readers that handle the old and new versions before writers.
-- Handle optimistic concurrency conflicts with bounded, idempotent domain retries when a conversation can receive concurrent turns.
-- Define state retention and deletion. Do not keep completed conversations indefinitely.
-- Never silently fall back to memory state in Azure.
+Require JWT authentication on the messaging endpoint and every non-health endpoint that changes data, sends messages, or invokes a downstream API. Keep anonymous access for local development only.
 
-### HTTP reliability and traffic protection
+Use `startServer` or `createAgentRequestHandler` when their complete pipeline fits the application. They apply JWT authentication. For route-specific authorization, use an explicit Express pipeline and keep this order:
 
-- Use the SDK `startServer` helper when its default JSON parser, message pipeline, and shutdown behavior fit the deployment. Own the Express host when you need a payload limit, route-specific middleware, an error handler after the message route, or graceful HTTP drain.
-- Set a JSON payload limit before the agent handler.
-- Rate limit the message route at an authenticated edge such as Front Door or API Management. Do not use the Azure Bot connector IP as the end-user identity.
-- Give downstream calls a timeout, bounded retry policy, exponential backoff with jitter, and a clear degraded behavior.
+1. Parse JSON with a bounded payload size.
+2. Apply `authorizeJWT`.
+3. Authorize the calling application when required.
+4. Validate the selected channel and service URL.
+5. Process the activity with the adapter.
+6. Handle errors after the route.
+
+> [!WARNING]
+> Do not apply `authorizeJWT` again when `startServer` or `createAgentRequestHandler` already owns authentication. Use the lower-level adapter pipeline when authorization must run between JWT validation and activity processing.
+
+In production:
+
+- Require the exact application audience.
+- Enable `connections__<connection>__settings__validateIssuer=true`.
+- Configure the expected tenant and cloud-specific authority or issuer list.
+- Fail startup when required authentication settings are missing or unsafe.
+- Test missing, malformed, expired, wrong-audience, wrong-issuer, and wrong-tenant tokens in the target environment.
+
+### Authorize calling applications
+
+Authentication proves that a token is valid. It does not always prove that the calling application is allowed.
+
+For agent-to-agent or trusted-application endpoints, compare the verified `req.user.azp` claim for v2 tokens or `req.user.appid` claim for v1 tokens with an explicit application allow list. Reject a missing or unauthorized caller before `adapter.process`.
+
+The caller application ID is not the end-user identity. Record whether caller authorization applies to the selected channel. The Web Chat production reference receives channel traffic through Azure Bot Service and does not apply an application caller allow list.
+
+### Validate activity service URLs
+
+An activity contains a service URL that the adapter can use for token-bearing replies. Treat this URL as untrusted.
+
+- Enable the SDK outbound-host validator in production.
+- Allow only hosts required by the deployment boundary.
+- Compare the activity service URL with the authenticated token's `serviceurl` claim.
+- Keep exact channel-host middleware when the deployment boundary is narrower than the SDK's built-in Microsoft host list.
+
+> [!IMPORTANT]
+> Outbound host validation is opt-in. When it is disabled, a `serviceurl` claim mismatch is logged as a warning and the activity can continue. Enable the validator explicitly in production.
+
+The SDK can require `connectionsMap.serviceUrl=*` to select its default named connection. This wildcard is connection selection, not authorization. Pair it with an exact audience and an outbound-host policy.
+
+For a general deployment that uses Microsoft channels and services:
+
+```dotenv
+OutboundHostValidator__Enabled=true
+OutboundHostValidator__IncludeDefaultMicrosoftHosts=true
+```
+
+> [!NOTE]
+> The bounded Web Chat production reference intentionally sets `OutboundHostValidator__IncludeDefaultMicrosoftHosts=false` and explicitly allows only `webchat.botframework.com`. Use this stricter configuration only when the deployment lists and tests every required host.
+>
+> A configured host suffix also allows its subdomains. Use the narrowest suffix that supports the selected channel. Verify sovereign-cloud and custom-channel hosts explicitly.
+
+Use the Microsoft defaults for a general Microsoft channel deployment. Set `OutboundHostValidator__IncludeDefaultMicrosoftHosts=false` only for a narrow, tested deployment that explicitly lists every required host. The built-in Microsoft host suffixes include:
+
+- `botframework.com`
+- `smba.trafficmanager.net`, `teams.microsoft.com`, and `teams.microsoft.us`
+- `graph.microsoft.com`
+- `sharepoint.com`
+- `svc.ms`
+- `blob.core.windows.net`
+
+Local tools such as Agents Playground can use a loopback service URL without authentication. Keep the validator disabled for local development or explicitly allow the required local host. Never carry a local-host exception into production.
+
+The SDK validator protects activity service URLs and supported downloaders that receive the same policy. It is not a process-wide firewall and does not automatically protect arbitrary `fetch` calls, model clients, retrieval clients, or tool implementations. Apply a typed destination allow list and network egress controls to those paths.
+
+### Protect token-bearing downloads
+
+When the agent accepts attachments:
+
+- Pass the same enabled outbound policy to `AttachmentDownloader` or `TeamsAttachmentDownloader`.
+- Validate source, media type, size, and file name before processing.
+- Define malware scanning, timeout, storage, retention, and deletion policies.
+- Test a disallowed attachment host and a failed or oversized download.
+
+For explicit JavaScript configuration, share one validator instance between the adapter and supported downloaders:
+
+```typescript
+import {
+  AgentApplication,
+  AttachmentDownloader,
+  CloudAdapter,
+  loadAuthConfigFromEnv,
+  OutboundHostValidator
+} from '@microsoft/agents-hosting'
+
+const authConfig = loadAuthConfigFromEnv()
+const outboundHostValidator = new OutboundHostValidator({
+  enabled: true,
+  includeDefaultMicrosoftHosts: true,
+  hosts: ['<custom-host>']
+})
+
+const adapter = new CloudAdapter(
+  authConfig,
+  undefined,
+  undefined,
+  undefined,
+  outboundHostValidator
+)
+
+const agent = new AgentApplication({
+  adapter,
+  fileDownloaders: [
+    new AttachmentDownloader('inputFiles', outboundHostValidator)
+  ]
+})
+```
+
+The production reference excludes attachments, so these controls are not applicable to that sample.
+
+## Validate configuration and protect credentials
+
+- Use deployment environment configuration. Do not commit `.env` files.
+- Validate required production values and fail startup when a value is absent or unsafe.
+- Prefer managed identity, workload identity, or certificates.
+- If a secret is unavoidable, store it in Key Vault, rotate it, and restrict access.
+- Use a separate identity and configuration for each environment.
+- Apply least privilege. Scope Blob roles, model access, downstream API permissions, and deployment permissions to the required resource and operation.
+- Run secret scanning where available.
+
+## Use durable state when state must survive
+
+`MemoryStorage` is for local development. A stateless agent does not need durable state. Use Blob, Cosmos DB, or an equivalent durable provider when conversation, user, authorization, dialog, proactive, or job state must survive a turn, restart, or replica.
+
+- Never silently fall back to memory state in production.
+- Define state schema versioning before a schema change.
+- Deploy backward-compatible readers before new writers.
+- Use bounded, idempotent domain retries for optimistic concurrency conflicts.
+- Define retention, access review, deletion, backup, and recovery.
+- Verify that state survives restart and replica changes.
+
+## Protect the HTTP host
+
+- Set a JSON payload limit before the message route.
+- Keep liveness dependency-independent.
+- Make readiness check required dependencies without exposing details.
+- Apply rate limits at an authenticated, caller-aware edge such as Front Door or API Management. The Azure Bot connector IP is not an end-user identity.
+- Add timeouts, bounded retries, exponential backoff with jitter, and degraded behavior for downstream calls.
 - Make externally visible side effects idempotent.
-- Send generic error messages to users. Log only structured, redacted diagnostics.
+- Send generic client errors. Log only structured, redacted operator diagnostics.
 - Drain HTTP traffic and flush telemetry on `SIGTERM` and `SIGINT`.
 
-### Observability and operations
+## Add observability and operator controls
 
-Collect traces, metrics, and structured logs for request rate, failures, latency, authentication rejection, state dependency health, and process restarts. Add model fallback signals when an agent invokes a model.
+Collect the traces, metrics, and structured logs required to operate the selected scenario. Include request rate, failures, latency, authentication and authorization rejections, state health, outbound-policy rejections, dependency health, and process restarts.
 
-- Initialize the OpenTelemetry providers and exporters for the signals you need before Agents SDK components run. The SDK then emits its built-in instrumentation through the global OpenTelemetry APIs. Configure trace, metric, and log pipelines separately as applicable. Use an application bootstrap or Node preload when module import order could initialize the SDK first.
-- Use `AGENTS_TELEMETRY_DISABLED_SPAN_CATEGORIES` to disable unwanted built-in span categories. Supported values are `STORAGE`, `AUTHENTICATION`, `AUTHORIZATION`, and `DIALOGS`, separated by commas or spaces. Keep categories that support required operational signals.
+- Initialize telemetry before Agents SDK components run.
+- Configure trace, metric, and log pipelines separately as required.
 - Add service name, deployment environment, and component attributes.
-- Do not record raw activities, user identifiers, prompts, completions, access tokens, cookies, or connection strings by default.
-- Set sampling and retention deliberately. Test redaction rather than assuming it.
-- Publish alerts for readiness failure, elevated 5xx, auth rejection changes, dependency latency/failure, and restart loops. Add model fallback alerts when applicable.
-- Maintain a runbook with rollback and data-retention actions.
+- Do not record raw activities, user identifiers, prompts, completions, access tokens, cookies, connection strings, or attachment contents by default.
+- Set sampling and retention deliberately. Test redaction.
+- Alert on readiness failure, elevated 5xx, authentication changes, outbound-policy rejection, dependency failure, and restart loops.
+- Maintain deployment, rollback, incident, retention, and deletion procedures.
 
-## Conditional AI controls
+Use `AGENTS_TELEMETRY_DISABLED_SPAN_CATEGORIES` only when a built-in category is not required. Supported values are `STORAGE`, `AUTHENTICATION`, `AUTHORIZATION`, and `DIALOGS`, separated by commas or spaces.
 
-AI controls are required when the agent invokes a model. They do not replace normal web-service controls.
+## Add AI controls when the agent invokes a model
+
+AI controls do not replace normal web-service controls.
 
 ### Treat model input as untrusted
 
-User messages, retrieved documents, tool responses, and conversation history are data, not instructions. Keep security policy and tool constraints in trusted code. Do not grant instructions in user content authority over system policy.
+User messages, retrieved documents, tool responses, and conversation history are data, not trusted instructions.
 
-- Bound input length and conversation history.
-- Use a narrow system instruction that specifies the task and output contract.
-- Do not interpolate secrets, credentials, hidden policy, or unnecessary personal data into prompts.
-- Validate model output against a typed allow-list or schema before use.
-- Use timeout, output token budget, and bounded retries. Define fallback behavior before deployment.
-- Apply an input and output content-safety policy for the use case. Define when to block, retry, ask for clarification, or escalate to a person.
-- Set request and deployment-level token and cost budgets. Alert before the budget is exhausted and define the degraded behavior.
+- Bound input length, history, output tokens, time, retries, and cost.
+- Keep security policy and tool constraints in trusted code.
+- Do not put secrets or unnecessary personal data in prompts.
+- Validate model output against a typed schema or allow list.
+- Define input and output safety actions: block, retry, clarify, or escalate.
+- Define fallback behavior for invalid output, policy rejection, budget exhaustion, and model outage.
 
-### Tools and external actions
+### Protect tools and external actions
 
-The reference sample has no tools. Before adding one:
-
-- Allow-list each tool and validate typed input server-side.
-- Give each tool only the identity permissions it needs and authorize every action server-side.
+- Allow-list each tool and validate typed input on the server.
+- Authorize every action with the least-privileged identity.
 - Require explicit user confirmation for irreversible or high-impact actions.
-- Enforce idempotency keys, rate limits, timeouts, and audit events.
-- Never pass inbound authorization headers, cookies, or raw model output to a tool.
+- Apply destination allow lists, timeouts, idempotency keys, rate limits, and audit events.
+- Never forward inbound authorization headers, cookies, or raw model output to a tool.
 
-### Evaluation and safety operations
+### Evaluate before release
 
-Build a versioned evaluation set that covers expected requests, prompt injection, data exfiltration attempts, malformed model output, tool misuse, unsafe content, and model outage. Run it before model, prompt, deployment, or tool changes. Track fallback rate, policy rejection, latency, token use, and cost without storing content by default.
+Maintain a versioned evaluation set for expected requests, prompt injection, data exfiltration, malformed output, unsafe content, tool misuse, and outages. Run it before model, prompt, deployment, retrieval, or tool changes.
 
-## Conditional controls
-
-Add these only if the feature exists:
-
-Use long-running work only when an operation cannot reliably finish within the channel or host request deadline. Acknowledge the request, store durable job state, run the work outside the request, and provide authenticated status and cancellation. Set a deadline, make retries idempotent, and use proactive delivery only when the channel and caller are authorized.
+## Apply feature-specific controls
 
 | Feature | Required controls |
 |---|---|
-| Downstream user APIs | User authorization handler, minimum scopes, sign-out, no token logs |
-| Proactive messaging | Durable conversation references, caller allow-list, idempotency |
-| Attachments | Source/type/size checks, malware policy, egress controls, retention |
-| Transcripts | Legal basis, disclosure, encryption, access review, retention/deletion |
-| Retrieval | Source authorization, tenant boundary, provenance, injection resistance |
+| Delegated user APIs | User authorization handler, minimum scopes, sign-out, token redaction, and consent/error tests |
+| Proactive messaging | Durable conversation references, authorized caller and delivery path, outbound-host validation, idempotency, and failure handling |
+| Long-running work | Durable job state, acknowledgment, authenticated status and cancellation, deadline, bounded retry, and authorized delivery |
+| Attachments | Shared outbound policy, source/type/size validation, malware policy, timeout, and retention/deletion |
+| Transcripts | Legal basis, disclosure, encryption, access review, content-safe telemetry, retention, and deletion |
+| Retrieval | Source authorization, tenant isolation, provenance, injection resistance, bounded content, destination policy, and evaluation |
+| Tools and side effects | Tool allow list, typed validation, authorization, destination policy, confirmation, idempotency, and audit evidence |
 
-## Release checklist
+## Production checklist
 
-- Build, lint, unit tests, HTTP integration tests, and deployment smoke test pass on supported Node versions.
-- Startup fails for missing production identity, state, channel, or settings required by selected conditional features.
-- Message endpoint rejects invalid JWTs, wrong audience, and non-Web-Chat service URLs.
-- Liveness is `200`; readiness becomes `503` when state is unavailable.
-- State survives restart. If concurrent turns can update the same state, conflict behavior is tested or the no-contention assumption is documented.
-- When a model is used, timeout, invalid output, safety rejection, budget exhaustion, and outage use a bounded fallback.
-- Telemetry tests prove sensitive data is excluded.
-- IaC validates; rollback and operator actions are documented.
+- [ ] The channel, cloud, host, identities, callers, data, dependencies, scale, retention, and owner are explicit.
+- [ ] Production configuration fails when required identity, issuer, state, telemetry, or outbound-host settings are absent or unsafe.
+- [ ] The message endpoint rejects missing, invalid, wrong-audience, wrong-issuer, wrong-tenant, and unauthorized-caller tokens as applicable.
+- [ ] The adapter rejects a disallowed service host and a service URL that differs from the authenticated claim.
+- [ ] Supported token-bearing downloaders use the same outbound policy.
+- [ ] Arbitrary HTTP, model, retrieval, and tool clients have separate destination and network egress controls.
+- [ ] Payload limits, safe middleware order, generic failures, probes, and graceful shutdown work.
+- [ ] Durable state survives restart; conflict and retention behavior are defined.
+- [ ] Telemetry excludes sensitive content and alerts cover required operational signals.
+- [ ] Applicable AI, retrieval, tool, attachment, transcript, proactive, and long-running controls pass their tests.
+- [ ] Infrastructure validates; deployment smoke, rollback, and operator procedures have been exercised.
 
-## Related material
+## Next steps
 
-- [Production reference sample](../samples/nodejs/production-reference/README.md)
-- [Agents SDK storage documentation](https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/storage)
-- [Agents SDK JavaScript authentication](https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/azure-bot-authentication-for-javascript)
-- [Agents SDK telemetry package](https://github.com/microsoft/Agents-for-js/tree/main/packages/agents-telemetry)
-- [Azure Bot managed identity setup](https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/azure-bot-create-managed-identity)
-- [Managed identities for App Service](https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity)
-- [JavaScript production skill](../agent-plugins/agents-for-js/skills/agents-sdk-to-prod/SKILL.md)
+- Run the [Web Chat production reference](../samples/nodejs/production-reference/README.md).
+- Use the [production-readiness skill](../agent-plugins/agents-for-js/skills/agents-sdk-to-prod/SKILL.md) to assess a selected JavaScript scenario.
+- Review [Agents SDK JavaScript authentication](https://learn.microsoft.com/microsoft-365/agents-sdk/azure-bot-authentication-for-javascript).
+- Review [Agents SDK storage](https://learn.microsoft.com/microsoft-365/agents-sdk/storage).
+- Review the [Agents SDK telemetry package](https://github.com/microsoft/Agents-for-js/tree/main/packages/agents-telemetry).
+- Review [managed identities for App Service](https://learn.microsoft.com/azure/app-service/overview-managed-identity).

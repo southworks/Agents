@@ -99,9 +99,13 @@ resource app 'Microsoft.Web/sites@2022-03-01' = {
         { name: 'connections__serviceConnection__settings__clientId', value: agentIdentity.properties.clientId }
         { name: 'connections__serviceConnection__settings__tenantId', value: agentIdentity.properties.tenantId }
         { name: 'connections__serviceConnection__settings__authType', value: 'UserManagedIdentity' }
+        { name: 'connections__serviceConnection__settings__validateIssuer', value: 'true' }
         { name: 'connectionsMap__0__connection', value: 'serviceConnection' }
         { name: 'connectionsMap__0__serviceUrl', value: '*' }
         { name: 'connectionsMap__0__audience', value: agentIdentity.properties.clientId }
+        { name: 'OutboundHostValidator__Enabled', value: 'true' }
+        { name: 'OutboundHostValidator__IncludeDefaultMicrosoftHosts', value: 'false' }
+        { name: 'OutboundHostValidator__Hosts', value: 'webchat.botframework.com' }
       ]
     }
   }

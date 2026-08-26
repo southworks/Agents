@@ -3,8 +3,7 @@
 
 import type { Server } from 'node:http'
 import express, { type Express, type Request, type Response } from 'express'
-import { createAgentRequestHandler } from '@microsoft/agents-hosting-express'
-import { loadAuthConfigFromEnv, type AgentApplication, type Storage, type TurnState } from '@microsoft/agents-hosting'
+import { authorizeJWT, createCloudAdapter, loadAuthConfigFromEnv, type AgentApplication, type AuthConfiguration, type Storage, type TurnState } from '@microsoft/agents-hosting'
 import { recordFailure } from './telemetry.js'
 
 const readinessKey = 'health.readiness'
@@ -26,24 +25,30 @@ export function createServer (agent: AgentApplication<TurnState>, storage: Pick<
     }
   })
 
-  const handler = createAgentRequestHandler(agent, loadAuthConfigFromEnv())
+  const authConfig = loadAuthConfigFromEnv()
+  const { adapter, headerPropagation } = createCloudAdapter(agent, authConfig)
   app.post(
     '/api/messages',
+    authorizeJWT(authConfig),
+    requireTrustedIssuer(authConfig.issuers ?? [], usesNativeIssuerValidation(authConfig)),
     requireWebChatServiceUrl,
     async (request, response, next) => {
       try {
-        await handler(request, response)
+        await adapter.process(request, response, (context) => agent.run(context), headerPropagation)
       } catch (error) {
         next(error)
       }
     }
   )
 
-  app.use((error: unknown, _request: Request, response: Response, _next: express.NextFunction) => {
+  app.use((error: unknown, _request: Request, response: Response, next: express.NextFunction) => {
     const status = httpErrorStatus(error)
     const category = status < 500 ? 'payload' : 'http'
     recordFailure(category)
-    if (response.headersSent) return
+    if (response.headersSent) {
+      next(error)
+      return
+    }
     response.status(status).json({ error: 'Request could not be processed.' })
   })
   return app
@@ -55,22 +60,56 @@ function httpErrorStatus (error: unknown): number {
   return status >= 400 && status < 500 ? status : 500
 }
 
-function requireWebChatServiceUrl (request: Request, response: Response, next: express.NextFunction): void {
-  // Let the SDK return 401 for an unsigned request before inspecting its activity payload.
-  if (!request.headers.authorization) {
-    next()
-    return
-  }
-  try {
-    const host = new URL(String(request.body?.serviceUrl ?? '')).hostname.toLowerCase()
-    if (host === 'webchat.botframework.com') {
+function requireTrustedIssuer (trustedIssuers: readonly string[], nativeValidationEnabled: boolean): express.RequestHandler {
+  return (request, _response, next) => {
+    if (process.env.NODE_ENV !== 'production' || nativeValidationEnabled) {
       next()
       return
     }
-  } catch {
-    // Reject a malformed service URL with the same generic client error.
+    const identity = (request as Request & { user?: { iss?: unknown } }).user
+    if (isTrustedIssuer(identity?.iss, trustedIssuers)) {
+      next()
+      return
+    }
+    next(Object.assign(new Error('Unauthorized issuer.'), { status: 401 }))
   }
-  response.status(400).json({ error: 'Unsupported channel.' })
+}
+
+export function usesNativeIssuerValidation (authConfig: AuthConfiguration): boolean {
+  return (authConfig as AuthConfiguration & { validateIssuer?: unknown }).validateIssuer === true
+}
+
+export function isTrustedIssuer (issuer: unknown, trustedIssuers: readonly string[]): boolean {
+  if (typeof issuer !== 'string') return false
+  const candidate = issuer.toLowerCase()
+  return trustedIssuers.some((trustedIssuer) => trustedIssuer.toLowerCase() === candidate)
+}
+
+function requireWebChatServiceUrl (request: Request, _response: Response, next: express.NextFunction): void {
+  if (isAllowedActivityServiceUrl(request.body?.serviceUrl, process.env.NODE_ENV === 'production')) {
+    next()
+    return
+  }
+  next(Object.assign(new Error('Unsupported channel.'), { status: 400 }))
+}
+
+export function isAllowedActivityServiceUrl (serviceUrl: unknown, isProduction: boolean): boolean {
+  if (isWebChatServiceUrl(serviceUrl)) return true
+  if (isProduction) return false
+  try {
+    const host = new URL(String(serviceUrl ?? '')).hostname.toLowerCase()
+    return host === 'localhost' || host === '127.0.0.1' || host === '[::1]'
+  } catch {
+    return false
+  }
+}
+
+export function isWebChatServiceUrl (serviceUrl: unknown): boolean {
+  try {
+    return new URL(String(serviceUrl ?? '')).hostname.toLowerCase() === 'webchat.botframework.com'
+  } catch {
+    return false
+  }
 }
 
 export function listen (app: Express, port: number): Server {
