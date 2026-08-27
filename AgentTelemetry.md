@@ -246,6 +246,7 @@ Main execution span for the AgentApplication.
 **Child Spans:**
 - `agents.app.route_handler` - Includes `route.is_invoke` and `route.is_agentic` attributes
 - `agents.app.download_files` - Includes `agents.attachments.count` attribute
+- `agents.app.typing_indicator` - Includes activity context and the typing notification sequence
 - `agents.app.before_turn` - Before-turn handlers execution
 - `agents.app.after_turn` - After-turn handlers execution
 
@@ -285,6 +286,19 @@ Span for downloading file attachments.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `agents.attachments.count` | number | Number of attachments being downloaded |
+
+---
+
+#### agents.app.typing_indicator
+
+Span for sending a periodic typing activity while a turn is being processed. A new span is emitted for each typing notification.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.type` | string | The activity type (`typing`; defaults to `unknown` when unavailable) |
+| `activity.channel_id` | string | The channel identifier, or `unknown` when unavailable |
+| `activity.conversation_id` | string | The conversation identifier, or `unknown` when unavailable |
+| `typing.notification.sequence` | number | One-based sequence number of the typing notification for the current typing timer |
 
 ---
 
@@ -1665,6 +1679,7 @@ SpanNames.AGENTS_APP_ROUTE_HANDLER     // 'agents.app.route_handler'
 SpanNames.AGENTS_APP_BEFORE_TURN       // 'agents.app.before_turn'
 SpanNames.AGENTS_APP_AFTER_TURN        // 'agents.app.after_turn'
 SpanNames.AGENTS_APP_DOWNLOAD_FILES    // 'agents.app.download_files'
+SpanNames.AGENTS_APP_TYPING_INDICATOR  // 'agents.app.typing_indicator'
 
 // ConnectorClient
 SpanNames.CONNECTOR_SEND_TO_CONVERSATION   // 'agents.connector.send_to_conversation'
