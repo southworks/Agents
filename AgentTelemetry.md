@@ -60,8 +60,7 @@ The M365 Agents SDK provides built-in instrumentation to help developers monitor
   - [UserTokenClient Metrics](#c-usertokenclient-metrics)
   - [Storage Metrics](#c-storage-metrics)
   - [Authentication Metrics](#c-authentication-metrics)
-- [Disabling or Filtering Telemetry](#c-disabling-or-filtering-telemetry)
-- [Span Constants Reference](#c-span-constants-reference)
+- - [Span Constants Reference](#c-span-constants-reference)
 - [Attribute Constants Reference](#c-attribute-constants-reference)
 
 ### Python Telemetry
@@ -1928,9 +1927,6 @@ For a complete working example including console and OTLP exporters, see
 
 In the C# SDK, what this document calls a "span" is a `System.Diagnostics.Activity` created from `AgentsTelemetry.ActivitySource`. The term "span" is used here for consistency with the JavaScript and Python SDKs, whose observability is built directly on OpenTelemetry. The underlying `System.Diagnostics.Activity` objects are fully compatible with OpenTelemetry when a listener such as the OpenTelemetry .NET SDK is configured.
 
-See [`AgentsTelemetryIssues.md`](AgentsTelemetryIssues.md) for current
-production call-site and instrumentation-coverage gaps.
-
 ---
 
 ### C# CloudAdapter Spans
@@ -2455,18 +2451,14 @@ recording behavior when used by an instrumented operation:
 2. An `exception` event is added to the `System.Diagnostics.Activity` with `exception.type`, `exception.message`, and `exception.stacktrace` tags, following OpenTelemetry semantic conventions.
 
 On clean exit the activity status remains `Unset`, which OpenTelemetry
-exporters commonly render as `OK`. See
-[`AgentsTelemetryIssues.md`](AgentsTelemetryIssues.md) for current call-site
-coverage.
+exporters commonly render as `OK`.
 
 ---
 
 ## C# Metrics
 
 All metric instruments are created from `AgentsTelemetry.Meter` (name
-`"Microsoft.Agents.Core"`). See
-[`AgentsTelemetryIssues.md`](AgentsTelemetryIssues.md) for the current
-relationship between sampled activities and metric callbacks.
+`"Microsoft.Agents.Core"`).
 
 ### C# Activity Counters
 
@@ -2672,19 +2664,6 @@ relationship between sampled activities and metric callbacks.
 
 ---
 
-## C# Disabling or Filtering Telemetry
-
-The C# SDK has no SDK-specific environment variable or category switch for
-disabling telemetry. Omit `.AddSource(AgentsTelemetry.SourceName)` and
-`.AddMeter(AgentsTelemetry.SourceName)` to disable SDK export, or configure
-the `ActivityListener`/OpenTelemetry sampler to filter activities from
-`Microsoft.Agents.Core`.
-
-See [`AgentsTelemetryIssues.md`](AgentsTelemetryIssues.md) for current
-filtering and metric-callback limitations.
-
----
-
 ## C# Span Constants Reference
 
 Span name constants are defined across several `Constants` classes in the SDK:
@@ -2868,9 +2847,6 @@ metrics.set_meter_provider(meter_provider)
 ```
 
 > **Important**: Providers must be configured before most SDK modules are imported. The tracer and meter are resolved at import time, so OpenTelemetry must be fully set up before importing packages such as `microsoft_agents.hosting.core`. `microsoft_agents.activity` contains no telemetry and is safe to import beforehand.
-
-This import-order constraint is also tracked in
-[`AgentsTelemetryIssues.md`](AgentsTelemetryIssues.md).
 
 The SDK can also instrument the `aiohttp` server, `aiohttp` client, and `requests` libraries via optional OpenTelemetry instrumentation packages:
 
@@ -3257,9 +3233,7 @@ HTTP method and status code appear only in metrics, not on the span itself.
 
 #### agents.user_token_client.get_sign_in_resource
 
-This span has no caller-supplied telemetry attributes. See
-[`AgentsTelemetryIssues.md`](AgentsTelemetryIssues.md) for its current
-placeholder attributes.
+This span has no caller-supplied telemetry attributes.
 
 ---
 
@@ -3694,9 +3668,7 @@ trace.set_tracer_provider(tracer_provider)
 ```
 
 Importing SDK constants before provider setup can initialize the SDK tracer
-too early, so use literal span names in provider bootstrap code. Additional
-filtering limitations are documented in
-[`AgentsTelemetryIssues.md`](AgentsTelemetryIssues.md).
+too early, so use literal span names in provider bootstrap code.
 
 ---
 
