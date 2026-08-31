@@ -12,14 +12,14 @@
     "start": "node --env-file .env ./dist/index.js"
   },
   "dependencies": {
-    "@microsoft/agents-activity": "^1.7.2",
-    "@microsoft/agents-hosting": "^1.7.2",
-    "@microsoft/agents-hosting-express": "^1.7.2",
+    "@microsoft/agents-activity": "^1.8.1",
+    "@microsoft/agents-hosting": "^1.8.1",
+    "@microsoft/agents-hosting-express": "^1.8.1",
     "express": "^5.2.1"
   },
   "devDependencies": {
-    "@types/express": "^5.0.3",
-    "@types/node": "^24.0.10",
-    "typescript": "^5.9.2"
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.4.0",
+    "typescript": "^7.0.2"
   }
 }

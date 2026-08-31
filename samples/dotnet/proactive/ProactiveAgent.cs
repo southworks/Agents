@@ -121,7 +121,7 @@ public class ProactiveAgent : AgentApplication
                     new { type = "TextBlock", text = "Commands:", weight = "Bolder", spacing = "Medium", wrap = true, horizontalAlignment = "Left" },
                     new { type = "TextBlock", text = "• -s: Store this conversation.", wrap = true, horizontalAlignment = "Left" },
                     new { type = "TextBlock", text = "• -c: Continue this conversation proactively.", wrap = true, horizontalAlignment = "Left" },
-                    new { type = "TextBlock", text = "• -c &lt;conversation-id&gt;: Continue a stored conversation.", wrap = true, horizontalAlignment = "Left" },
+                    new { type = "TextBlock", text = "• -c <conversation-id>: Continue a stored conversation.", wrap = true, horizontalAlignment = "Left" },
                     new { type = "TextBlock", text = "• -convo: Show the conversation data for the HTTP example.", wrap = true, horizontalAlignment = "Left" },
                     new { type = "TextBlock", text = "Send other text to echo it from a proactive turn.", spacing = "Medium", wrap = true, horizontalAlignment = "Left" }
                 }

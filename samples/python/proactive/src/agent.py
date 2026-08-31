@@ -29,7 +29,7 @@ for connection in agents_sdk_config.get("CONNECTIONS", {}).values():
     settings = connection.get("SETTINGS", {})
     scopes = settings.get("SCOPES")
     if isinstance(scopes, dict):
-        settings["SCOPES"] = list(scopes.values())
+        settings["SCOPES"] = [scopes[key] for key in sorted(scopes, key=int)]
 
 STORAGE = MemoryStorage()
 CONNECTION_MANAGER = MsalConnectionManager(**agents_sdk_config)
@@ -55,7 +55,7 @@ WELCOME_CARD = {
         {"type": "TextBlock", "text": "Commands:", "weight": "Bolder", "spacing": "Medium", "wrap": True, "horizontalAlignment": "Left"},
         {"type": "TextBlock", "text": "• -s: Store this conversation.", "wrap": True, "horizontalAlignment": "Left"},
         {"type": "TextBlock", "text": "• -c: Continue this conversation proactively.", "wrap": True, "horizontalAlignment": "Left"},
-        {"type": "TextBlock", "text": "• -c &lt;conversation-id&gt;: Continue a stored conversation.", "wrap": True, "horizontalAlignment": "Left"},
+        {"type": "TextBlock", "text": "• -c <conversation-id>: Continue a stored conversation.", "wrap": True, "horizontalAlignment": "Left"},
         {"type": "TextBlock", "text": "• -convo: Show the conversation data for the HTTP example.", "wrap": True, "horizontalAlignment": "Left"},
         {"type": "TextBlock", "text": "Send other text to echo it from a proactive turn.", "spacing": "Medium", "wrap": True, "horizontalAlignment": "Left"},
     ],
