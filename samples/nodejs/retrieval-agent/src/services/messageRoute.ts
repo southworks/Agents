@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
 import { createSourceCard } from './card.js'
 import type { RetrievalResult, RetrievalStatus } from './retrievalClient.js'
 

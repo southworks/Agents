@@ -1,8 +1,11 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
 import { startServer } from '@microsoft/agents-hosting-express'
 import { AgentApplication, MemoryStorage, MessageFactory, TurnContext, TurnState } from '@microsoft/agents-hosting'
 import { Activity } from '@microsoft/agents-activity'
-import { handleBuildGenieMessage, buildGenieResponses } from './messageRoute.js'
-import { getRetrievalOptions, retrieveSharePoint } from './retrievalClient.js'
+import { handleBuildGenieMessage, buildGenieResponses } from './services/messageRoute.js'
+import { getRetrievalOptions, retrieveSharePoint } from './services/retrievalClient.js'
 
 class RetrievalAgent extends AgentApplication<TurnState> {
   constructor () {

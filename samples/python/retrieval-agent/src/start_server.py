@@ -1,8 +1,10 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+
 from os import environ
 
 from aiohttp.web import Application, Request, Response, run_app
 from microsoft_agents.hosting.aiohttp import (
-    CloudAdapter,
     jwt_authorization_middleware,
     start_agent_process,
 )

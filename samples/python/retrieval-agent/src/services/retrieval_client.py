@@ -1,5 +1,9 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -79,6 +83,8 @@ async def retrieve_sharepoint(
 
     try:
         access_token = await get_access_token()
+    except asyncio.CancelledError:
+        raise
     except Exception:
         logger.warning("The delegated Microsoft Graph token was not available.")
         return RetrievalResult(RetrievalStatus.NOT_SIGNED_IN, [])
@@ -105,6 +111,8 @@ async def retrieve_sharepoint(
             if items
             else RetrievalResult(RetrievalStatus.NO_RESULTS, [])
         )
+    except asyncio.CancelledError:
+        raise
     except Exception:
         logger.error("Copilot Retrieval API request failed.")
         return RetrievalResult(RetrievalStatus.SERVICE_UNAVAILABLE, [])

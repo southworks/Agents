@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+
 from __future__ import annotations
 
 import logging
@@ -17,8 +20,8 @@ from microsoft_agents.hosting.core import (
     TurnState,
 )
 
-from .message_route import handle_build_genie_message
-from .retrieval_client import get_retrieval_options, retrieve_sharepoint
+from .services.message_route import handle_build_genie_message
+from .services.retrieval_client import get_retrieval_options, retrieve_sharepoint
 
 logger = logging.getLogger(__name__)
 load_dotenv()

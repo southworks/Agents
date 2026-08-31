@@ -22,7 +22,7 @@ The retrieval client owns token use, site validation, Microsoft Graph request co
 - A Microsoft 365 tenant with Copilot Retrieval API entitlement, a user who can sign in, and a SharePoint site that user can read
 - [Dev Tunnels](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started) for Web Chat testing
 
-Upload [ContosoBuildSessions2025.docx](ContosoBuildSessions2025.docx) to the configured SharePoint site's **Documents** library.
+Upload [ContosoBuildSessions2025.docx](Sharepoint/ContosoBuildSessions2025.docx) to the configured SharePoint site's **Documents** library.
 
 ## Configure Azure Bot OAuth
 

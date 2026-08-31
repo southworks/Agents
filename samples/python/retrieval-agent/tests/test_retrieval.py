@@ -1,7 +1,11 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+
+import asyncio
 import unittest
 
-from src.message_route import BUILD_GENIE_RESPONSES, handle_build_genie_message
-from src.retrieval_client import (
+from src.services.message_route import BUILD_GENIE_RESPONSES, handle_build_genie_message
+from src.services.retrieval_client import (
     RetrievalItem,
     RetrievalOptions,
     RetrievalResult,
@@ -48,6 +52,21 @@ class RetrievalTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await retrieve_sharepoint("Build", no_token, OPTIONS)).status, RetrievalStatus.NOT_SIGNED_IN)
         self.assertEqual((await retrieve_sharepoint("Build", lambda: _token("token"), OPTIONS, failed_request)).status, RetrievalStatus.SERVICE_UNAVAILABLE)
         self.assertEqual((await retrieve_sharepoint("Build", lambda: _token("token"), OPTIONS, lambda _token, _body: _response(200, {"retrievalHits": []}))).status, RetrievalStatus.NO_RESULTS)
+
+    async def test_propagates_cancellation(self):
+        async def cancelled_token():
+            raise asyncio.CancelledError
+
+        with self.assertRaises(asyncio.CancelledError):
+            await retrieve_sharepoint("Build", cancelled_token, OPTIONS)
+
+        async def cancelled_request(_token: str, _body: dict):
+            raise asyncio.CancelledError
+
+        with self.assertRaises(asyncio.CancelledError):
+            await retrieve_sharepoint(
+                "Build", lambda: _token("token"), OPTIONS, cancelled_request
+            )
 
     async def test_message_route_sends_grounded_text_and_source_card(self):
         messages: list[str] = []
