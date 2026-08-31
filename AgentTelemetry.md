@@ -50,6 +50,7 @@ The M365 Agents SDK provides built-in instrumentation to help developers monitor
   - [Storage Spans](#c-storage-spans)
   - [Authentication Spans](#c-authentication-spans)
   - [Authorization Spans](#c-authorization-spans)
+  - [Proactive Spans](#c-proactive-spans)
   - [Error Handling in Spans](#c-error-handling-in-spans)
 - [Metrics](#c-metrics)
   - [Activity Counters](#c-activity-counters)
@@ -59,7 +60,7 @@ The M365 Agents SDK provides built-in instrumentation to help developers monitor
   - [UserTokenClient Metrics](#c-usertokenclient-metrics)
   - [Storage Metrics](#c-storage-metrics)
   - [Authentication Metrics](#c-authentication-metrics)
-- [Span Constants Reference](#c-span-constants-reference)
+- - [Span Constants Reference](#c-span-constants-reference)
 - [Attribute Constants Reference](#c-attribute-constants-reference)
 
 ### Python Telemetry
@@ -67,6 +68,7 @@ The M365 Agents SDK provides built-in instrumentation to help developers monitor
 - [Traces (Spans)](#python-spans)
   - [Adapter Spans](#python-adapter-spans)
   - [AgentApplication Spans](#python-agentapplication-spans)
+  - [Proactive Spans](#python-proactive-spans)
   - [TurnContext Spans](#python-turncontext-spans)
   - [ConnectorClient Spans](#python-connectorclient-spans)
   - [Storage Spans](#python-storage-spans)
@@ -1876,6 +1878,7 @@ Both are published under the source name **`Microsoft.Agents.Core`**. Any listen
 ```csharp
 // The single source used for all SDK traces and metrics
 AgentsTelemetry.SourceName    // "Microsoft.Agents.Core"
+AgentsTelemetry.SourceVersion // Assembly file version
 AgentsTelemetry.ActivitySource // System.Diagnostics.ActivitySource
 AgentsTelemetry.Meter          // System.Diagnostics.Metrics.Meter
 ```
@@ -1915,7 +1918,8 @@ builder.Services.AddOpenTelemetry()
 
 Because the SDK emits standard `System.Diagnostics` signals, you can substitute any exporter (Console, Azure Monitor, Jaeger, Prometheus, etc.) without changing the agent code.
 
-For a complete working example including console and OTLP exporters, see the [`TelemetryAgent` sample](src/samples/InstrumentedAgent/).
+For a complete working example including console and OTLP exporters, see
+`src/samples/InstrumentedAgent/` in the .NET SDK repository.
 
 ---
 
@@ -1943,7 +1947,8 @@ Main processing span for each incoming activity.
 
 #### agents.adapter.write_response
 
-Span for synchronous responses: `invoke` activities and `expectReplies` delivery mode.
+Span used by response handlers for streamed activities, A2A responses, and
+the final `invoke` or `expectReplies` response.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
@@ -1980,7 +1985,7 @@ Span for deleting an activity.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `activity.type` | string | The type of the activity being deleted |
+| `activity.type` | string | Always `"event"`; taken from the synthesized continuation activity |
 | `activity.conversation.id` | string | The conversation identifier |
 
 ---
@@ -2028,6 +2033,7 @@ Main execution span for a turn through `AgentApplication`.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `activity.type` | string | The type of activity being processed |
+| `activity.name` | string | The name of the activity |
 | `activity.channel_id` | string | The channel identifier |
 | `activity.conversation.id` | string | The conversation identifier |
 | `activity.id` | string | The activity identifier |
@@ -2069,6 +2075,18 @@ Span for downloading file attachments.
 
 ---
 
+#### agents.app.typing_indicator
+
+Span for sending an automatic typing indicator during a turn.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.type` | string | Always `"typing"` |
+| `activity.channel_id` | string | The channel identifier |
+| `activity.conversation.id` | string | The conversation identifier |
+
+---
+
 ### C# TurnContext Spans
 
 #### agents.turn.send_activities
@@ -2097,6 +2115,7 @@ Span emitted by `TurnContext` each time activities are sent.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `activity.conversation.id` | string | The target conversation identifier |
+| `activity.id` | string | The activity identifier (when provided) |
 
 ---
 
@@ -2114,6 +2133,7 @@ Span emitted by `TurnContext` each time activities are sent.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `activity.conversation.id` | string | The conversation identifier |
+| `activity.id` | string | The activity being deleted |
 
 ---
 
@@ -2131,7 +2151,12 @@ No span-level attributes.
 
 #### agents.connector.get_conversation_members
 
-No span-level attributes.
+This span covers both `GetConversationMembersAsync` and the singular
+`GetConversationMemberAsync` operation.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.conversation.id` | string | The conversation identifier |
 
 ---
 
@@ -2162,7 +2187,9 @@ No span-level attributes.
 
 ### C# UserTokenClient Spans
 
-All user token client spans record `auth.connection.name`, `user.id`, and `activity.channel_id` when provided.
+User token client spans record `auth.connection.name`, `user.id`, and
+`activity.channel_id` when the scope receives those values. Missing channel
+IDs are recorded as `"unknown"`.
 
 #### agents.user_token_client.get_user_token
 
@@ -2185,8 +2212,6 @@ All user token client spans record `auth.connection.name`, `user.id`, and `activ
 ---
 
 #### agents.user_token_client.get_sign_in_resource
-
-*C#-only span — not present in the JS or Python SDKs.*
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
@@ -2220,7 +2245,6 @@ All user token client spans record `auth.connection.name`, `user.id`, and `activ
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `auth.connection.name` | string | The OAuth connection name |
 | `user.id` | string | The user identifier |
 | `activity.channel_id` | string | The channel identifier |
 
@@ -2238,7 +2262,7 @@ All user token client spans record `auth.connection.name`, `user.id`, and `activ
 
 ### C# Storage Spans
 
-All storage implementations (`MemoryStorage`, `BlobsStorage`, `CosmosDbPartitionedStorage`) emit these spans.
+`BlobsStorage` and `CosmosDbPartitionedStorage` emit these spans.
 
 #### agents.storage.read
 
@@ -2273,8 +2297,8 @@ All storage implementations (`MemoryStorage`, `BlobsStorage`, `CosmosDbPartition
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `auth.method` | string | The authentication method (e.g., `"secret"`, `"certificate"`, `"managed_identity"`) |
-| `auth.scopes` | string | Comma-separated authentication scopes |
+| `auth.method` | string | The authentication method — value is `AuthTypes.ToString()` (for example, `"ClientSecret"`, `"Certificate"`, `"CertificateSubjectName"`, `"UserManagedIdentity"`, `"SystemManagedIdentity"`, `"WorkloadIdentity"`, `"FederatedCredentials"`, or `"IdentityProxyManager"`) |
+| `auth.scopes` | string | Comma-separated authentication scopes; `"unknown"` when null or empty |
 
 ---
 
@@ -2283,7 +2307,7 @@ All storage implementations (`MemoryStorage`, `BlobsStorage`, `CosmosDbPartition
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `auth.method` | string | Always `"obo"` |
-| `auth.scopes` | string | Comma-separated authentication scopes |
+| `auth.scopes` | string | Comma-separated authentication scopes; `"unknown"` when null or empty |
 
 ---
 
@@ -2303,7 +2327,7 @@ All storage implementations (`MemoryStorage`, `BlobsStorage`, `CosmosDbPartition
 | `auth.method` | string | Always `"agentic_user"` |
 | `agentic.instance_id` | string | The agentic application instance ID |
 | `agentic.user_id` | string | The agentic user ID |
-| `auth.scopes` | string | Comma-separated authentication scopes |
+| `auth.scopes` | string | Comma-separated authentication scopes; `"unknown"` when null or empty |
 
 ---
 
@@ -2350,21 +2374,91 @@ All storage implementations (`MemoryStorage`, `BlobsStorage`, `CosmosDbPartition
 
 ---
 
+### C# Proactive Spans
+
+#### agents.proactive.store_conversation
+
+Span for storing a conversation reference for later proactive use.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.conversation.id` | string | The conversation identifier being stored |
+
+---
+
+#### agents.proactive.get_conversation
+
+Span for retrieving a stored conversation reference.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.conversation.id` | string | The conversation identifier being retrieved |
+| `proactive.conversation.found` | boolean | Whether the conversation was found |
+
+---
+
+#### agents.proactive.delete_conversation
+
+Span for deleting a stored conversation reference.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.conversation.id` | string | The conversation identifier being deleted |
+
+---
+
+#### agents.proactive.send_activity
+
+Span for sending an activity proactively to an existing conversation. Supports an `ActivityLink` for telemetry correlation with the originating turn.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.conversation.id` | string | The target conversation identifier |
+| `activity.type` | string | The type of the activity being sent |
+| `activity.channel_id` | string | The channel identifier |
+
+---
+
+#### agents.proactive.continue_conversation
+
+Span for continuing a stored conversation proactively. Supports an `ActivityLink` for telemetry correlation.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.conversation.id` | string | The target conversation identifier |
+| `activity.type` | string | The type of the continuation activity |
+| `activity.channel_id` | string | The channel identifier |
+
+---
+
+#### agents.proactive.create_conversation
+
+Span for creating a new proactive conversation.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.channel_id` | string | The target channel identifier |
+| `proactive.members.count` | integer | Number of members in the conversation |
+
+---
+
 ## C# Error Handling in Spans
 
-All spans created by the SDK automatically handle errors. When an exception propagates out of a traced operation:
+`TelemetryScope.SetError`, `Wrap`, and `WrapAsync` provide the following error
+recording behavior when used by an instrumented operation:
 
 1. The span status is set to `Error` with the exception message.
 2. An `exception` event is added to the `System.Diagnostics.Activity` with `exception.type`, `exception.message`, and `exception.stacktrace` tags, following OpenTelemetry semantic conventions.
-3. The exception is re-raised — it is never swallowed by the telemetry layer.
 
-On clean exit the activity's status is left at the default (`Unset`), which OpenTelemetry exporters render as `OK`.
+On clean exit the activity status remains `Unset`, which OpenTelemetry
+exporters commonly render as `OK`.
 
 ---
 
 ## C# Metrics
 
-All metric instruments are created from `AgentsTelemetry.Meter` (name `"Microsoft.Agents.Core"`).
+All metric instruments are created from `AgentsTelemetry.Meter` (name
+`"Microsoft.Agents.Core"`).
 
 ### C# Activity Counters
 
@@ -2390,7 +2484,7 @@ All metric instruments are created from `AgentsTelemetry.Meter` (name `"Microsof
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `activity.type` | string | Activity type |
-| `activity.channel_id` | string | Channel identifier |
+| `activity.channel_id` | `ChannelId` | Raw `ChannelId` value; exporter representation can vary |
 
 ---
 
@@ -2402,7 +2496,7 @@ All metric instruments are created from `AgentsTelemetry.Meter` (name `"Microsof
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `activity.channel_id` | string | Channel identifier |
+| `activity.channel_id` | `ChannelId` | Raw `ChannelId` value; exporter representation can vary |
 
 ---
 
@@ -2414,7 +2508,7 @@ All metric instruments are created from `AgentsTelemetry.Meter` (name `"Microsof
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `activity.channel_id` | string | Channel identifier |
+| `activity.channel_id` | `ChannelId` | Raw `ChannelId` value; exporter representation can vary |
 
 ---
 
@@ -2424,7 +2518,7 @@ All metric instruments are created from `AgentsTelemetry.Meter` (name `"Microsof
 
 **Type:** Counter  
 **Unit:** turn  
-**Description:** Total turns successfully processed.
+**Description:** Counter intended to track successfully processed turns.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
@@ -2437,7 +2531,7 @@ All metric instruments are created from `AgentsTelemetry.Meter` (name `"Microsof
 
 **Type:** Counter  
 **Unit:** turn  
-**Description:** Total turns that resulted in an error.
+**Description:** Counter intended to track turns that resulted in an error.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
@@ -2450,7 +2544,7 @@ All metric instruments are created from `AgentsTelemetry.Meter` (name `"Microsof
 
 **Type:** Histogram  
 **Unit:** ms  
-**Description:** End-to-end turn processing duration. Recorded only on successful turns — not recorded when the turn raises an exception.
+**Description:** End-to-end turn processing duration.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
@@ -2554,7 +2648,7 @@ All metric instruments are created from `AgentsTelemetry.Meter` (name `"Microsof
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `auth.method` | string | Authentication method (e.g., `"secret"`, `"obo"`, `"agentic_instance"`, `"agentic_user"`) |
+| `auth.method` | string | Authentication method (e.g., `"ClientSecret"`, `"Certificate"`, `"obo"`, `"agentic_instance"`, `"agentic_user"`) |
 
 ---
 
@@ -2574,11 +2668,13 @@ All metric instruments are created from `AgentsTelemetry.Meter` (name `"Microsof
 
 Span name constants are defined across several `Constants` classes in the SDK:
 
-> **Note:** Most of these constants are currently `internal`. They are listed here as string literals for reference. We are considering making them public once the telemetry implementation is more stable.
+> **Note:** All of these constants are currently `internal`. They are listed
+> here as string literals for reference.
 
 ```csharp
 using Microsoft.Agents.Builder.Telemetry.Adapter;
 using Microsoft.Agents.Builder.Telemetry.App;
+using Microsoft.Agents.Builder.Telemetry.Proactive;
 using Microsoft.Agents.Builder.Telemetry.TurnContext;
 using Microsoft.Agents.Builder.Telemetry.Authorization;
 using Microsoft.Agents.Connector.Telemetry;
@@ -2601,6 +2697,7 @@ using Microsoft.Agents.Authentication.Telemetry;
 "agents.app.before_turn"
 "agents.app.after_turn"
 "agents.app.download_files"
+"agents.app.typing_indicator"
 
 // TurnContext
 "agents.turn.send_activities"
@@ -2620,7 +2717,7 @@ using Microsoft.Agents.Authentication.Telemetry;
 // UserTokenClient
 "agents.user_token_client.get_user_token"
 "agents.user_token_client.sign_out"
-"agents.user_token_client.get_sign_in_resource"   // C#-only
+"agents.user_token_client.get_sign_in_resource"
 "agents.user_token_client.exchange_token"
 "agents.user_token_client.get_token_or_sign_in_resource"
 "agents.user_token_client.get_token_status"
@@ -2642,6 +2739,14 @@ using Microsoft.Agents.Authentication.Telemetry;
 "agents.authorization.azure_bot_token"
 "agents.authorization.azure_bot_signin"
 "agents.authorization.azure_bot_signout"
+
+// Proactive
+"agents.proactive.store_conversation"
+"agents.proactive.get_conversation"
+"agents.proactive.delete_conversation"
+"agents.proactive.send_activity"
+"agents.proactive.continue_conversation"
+"agents.proactive.create_conversation"
 ```
 
 ---
@@ -2656,6 +2761,7 @@ using Microsoft.Agents.Core.Telemetry;
 TagNames.ActivityDeliveryMode   // "activity.delivery_mode"
 TagNames.ActivityChannelId      // "activity.channel_id"
 TagNames.ActivityId             // "activity.id"
+TagNames.ActivityName           // "activity.name"
 TagNames.ActivityCount          // "activities.count"
 TagNames.ActivityType           // "activity.type"
 TagNames.AgenticUserId          // "agentic.user_id"
@@ -2667,12 +2773,14 @@ TagNames.AuthHandlerId          // "auth.handler.id"
 TagNames.AuthMethod             // "auth.method"
 TagNames.AuthScopes             // "auth.scopes"
 TagNames.AuthSuccess            // "auth.success"
+TagNames.ConversationFound      // "proactive.conversation.found"
 TagNames.ConversationId         // "activity.conversation.id"
 TagNames.ExchangeConnection     // "auth.connection.name"
 TagNames.HttpMethod             // "http.method"
 TagNames.HttpStatusCode         // "http.status_code"
 TagNames.IsAgentic              // "activity.is_agentic_request"
 TagNames.KeyCount               // "storage.keys.count"
+TagNames.MembersCount           // "proactive.members.count"
 TagNames.Operation              // "operation"
 TagNames.RouteAuthorized        // "route.authorized"
 TagNames.RouteIsInvoke          // "route.is_invoke"
@@ -2697,10 +2805,11 @@ This section documents the OpenTelemetry spans and metrics emitted by the Python
 
 ## Python Setup
 
-Install the required packages:
+`microsoft-agents-hosting-core` requires Python 3.10 or later and installs
+`opentelemetry-api` and `opentelemetry-sdk`. Install an exporter for your
+telemetry backend:
 
 ```bash
-pip install opentelemetry-sdk opentelemetry-api
 # For exporting to an OTLP collector (Jaeger, Grafana, Azure Monitor, etc.)
 pip install opentelemetry-exporter-otlp
 ```
@@ -2747,7 +2856,7 @@ pip install opentelemetry-instrumentation-aiohttp-client
 pip install opentelemetry-instrumentation-requests
 ```
 
-See `test_samples/otel/src/telemetry.py` for a complete example using `AioHttpServerInstrumentor`, `AioHttpClientInstrumentor`, and `RequestsInstrumentor`.
+See `test_samples/otel/quickstart/src/telemetry.py` for a complete example using `AioHttpClientInstrumentor` and `RequestsInstrumentor`.
 
 ---
 
@@ -2863,8 +2972,9 @@ Main execution span for an `AgentApplication` turn.
 |-----------|------|-------------|
 | `activity.type` | string | Type of activity being processed |
 | `activity.id` | string | Activity identifier (`"unknown"` if not set) |
-| `route.authorized` | boolean | Whether the route was authorized |
-| `route.matched` | boolean | Whether a route handler matched the activity |
+| `activity.name` | string | Activity name (`"unknown"` if not set) |
+| `route.authorized` | boolean | Whether the route was authorized; added after routing completes |
+| `route.matched` | boolean | Whether a route handler matched the activity; added after routing completes |
 
 ---
 
@@ -2901,6 +3011,76 @@ Span for downloading file attachments.
 
 ---
 
+#### agents.app.typing_indicator
+
+Span for sending a typing indicator.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.channel_id` | string | Channel identifier (`"unknown"` if not provided) |
+| `activity.conversation.id` | string | Conversation identifier (`"unknown"` if not provided) |
+
+---
+
+### Python Proactive Spans
+
+Proactive conversation operations emit the following spans. Send and continue
+operations can include an OpenTelemetry link to the originating span context.
+
+#### agents.proactive.store_conversation
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.conversation.id` | string | Stored conversation identifier (`"unknown"` if empty) |
+
+---
+
+#### agents.proactive.get_conversation
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.conversation.id` | string | Requested conversation identifier (`"unknown"` if empty) |
+| `proactive.conversation.found` | boolean or string | Whether the conversation was found; `"unknown"` if the result was not shared with the span |
+
+---
+
+#### agents.proactive.delete_conversation
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.conversation.id` | string | Deleted conversation identifier (`"unknown"` if empty) |
+
+---
+
+#### agents.proactive.send_activity
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.conversation.id` | string | Target conversation identifier (`"unknown"` if empty) |
+| `activity.type` | string | Activity type (`"unknown"` if not provided) |
+| `activity.channel_id` | string | Channel identifier (`"unknown"` if not provided) |
+
+---
+
+#### agents.proactive.continue_conversation
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.conversation.id` | string | Continued conversation identifier (`"unknown"` if empty) |
+| `activity.type` | string | Activity type (`"unknown"` if not provided) |
+| `activity.channel_id` | string | Channel identifier (`"unknown"` if not provided) |
+
+---
+
+#### agents.proactive.create_conversation
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `activity.channel_id` | string | Channel identifier |
+| `proactive.members.count` | integer or string | Number of members when available |
+
+---
+
 ### Python TurnContext Spans
 
 #### agents.turn.send_activities
@@ -2931,6 +3111,7 @@ Emitted by `TurnContext` each time an activity is sent.
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `activity.conversation.id` | string | Target conversation identifier |
+| `activity.id` | string | Activity identifier, when provided |
 
 ---
 
@@ -3050,6 +3231,12 @@ HTTP method and status code appear only in metrics, not on the span itself.
 
 ---
 
+#### agents.user_token_client.get_sign_in_resource
+
+This span has no caller-supplied telemetry attributes.
+
+---
+
 #### agents.user_token_client.exchange_token
 
 | Attribute | Type | Description |
@@ -3092,7 +3279,7 @@ HTTP method and status code appear only in metrics, not on the span itself.
 
 ### Python Authentication Spans
 
-MSAL token acquisition operations emit these spans. Each authentication span also records [Authentication Metrics](#python-auth-metrics).
+MSAL token acquisition operations emit these spans. Each authentication span also records [Authentication Metrics](#python-authentication-metrics).
 
 #### agents.authentication.get_access_token
 
@@ -3208,7 +3395,8 @@ Span for signing out a user via Azure Bot Service.
 #### agents.activities.received
 
 **Type:** Counter  
-**Unit:** activity  
+**Unit:** none
+
 **Description:** Total activities received — incremented once per `process_request` call, including non-POST and bad-JSON calls (where type and channel default to `"unknown"`).
 
 | Attribute | Type | Description |
@@ -3221,7 +3409,8 @@ Span for signing out a user via Azure Bot Service.
 #### agents.activities.sent
 
 **Type:** Counter  
-**Unit:** activity  
+**Unit:** none
+
 **Description:** Total outbound activities sent.
 
 | Attribute | Type | Description |
@@ -3234,7 +3423,8 @@ Span for signing out a user via Azure Bot Service.
 #### agents.activities.updated
 
 **Type:** Counter  
-**Unit:** activity  
+**Unit:** none
+
 **Description:** Total activity updates.
 
 | Attribute | Type | Description |
@@ -3246,7 +3436,8 @@ Span for signing out a user via Azure Bot Service.
 #### agents.activities.deleted
 
 **Type:** Counter  
-**Unit:** activity  
+**Unit:** none
+
 **Description:** Total activity deletions.
 
 | Attribute | Type | Description |
@@ -3403,7 +3594,7 @@ Span for signing out a user via Azure Bot Service.
 
 ---
 
-#### agents.auth.token.duration
+#### agents.auth.token.request.duration
 
 **Type:** Histogram  
 **Unit:** ms  
@@ -3418,33 +3609,66 @@ Span for signing out a user via Azure Bot Service.
 
 ## Python Disabling Span Categories
 
-To suppress specific spans in production, use an OpenTelemetry [sampler](https://opentelemetry.io/docs/concepts/sampling/). A sampler receives the span name before any work is done and can return `DROP` to discard it entirely — no attributes are set, no metrics are recorded for that span.
+To suppress specific spans in production, use an OpenTelemetry [sampler](https://opentelemetry.io/docs/concepts/sampling/). A sampler receives the span name before any work is done and can return `DROP` to avoid recording and exporting that span.
 
 ```python
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.sampling import ParentBased, Decision, Sampler, SamplingResult
+from opentelemetry.sdk.trace.sampling import (
+    Decision,
+    ParentBased,
+    Sampler,
+    SamplingResult,
+    TraceIdRatioBased,
+)
 
-SUPPRESSED_SPANS = {
-    "agents.storage.read",
-    "agents.storage.write",
-    "agents.storage.delete",
-}
+SUPPRESSED_SPANS = frozenset(
+    {
+        "agents.storage.read",
+        "agents.storage.write",
+        "agents.storage.delete",
+    }
+)
 
 class SpanFilterSampler(Sampler):
-    def should_sample(self, parent_context, trace_id, name, kind, attributes, links):
+    def __init__(self, delegate: Sampler) -> None:
+        self._delegate = delegate
+
+    def should_sample(
+        self,
+        parent_context,
+        trace_id,
+        name,
+        kind=None,
+        attributes=None,
+        links=None,
+        trace_state=None,
+    ):
         if name in SUPPRESSED_SPANS:
             return SamplingResult(Decision.DROP)
-        return SamplingResult(Decision.RECORD_AND_SAMPLE)
+
+        return self._delegate.should_sample(
+            parent_context=parent_context,
+            trace_id=trace_id,
+            name=name,
+            kind=kind,
+            attributes=attributes,
+            links=links,
+            trace_state=trace_state,
+        )
 
     def get_description(self):
-        return "SpanFilterSampler"
+        return f"SpanFilterSampler({self._delegate.get_description()})"
 
-tracer_provider = TracerProvider(sampler=ParentBased(root=SpanFilterSampler()))
+sampler = SpanFilterSampler(
+    ParentBased(root=TraceIdRatioBased(0.1))
+)
+tracer_provider = TracerProvider(sampler=sampler)
 trace.set_tracer_provider(tracer_provider)
 ```
 
-Use the span name constants from the [Span Constants Reference](#python-span-constants-reference) to identify which spans to suppress.
+Importing SDK constants before provider setup can initialize the SDK tracer
+too early, so use literal span names in provider bootstrap code.
 
 ---
 
@@ -3467,6 +3691,7 @@ Span name constants are defined across several modules in `microsoft_agents.host
 ```python
 from microsoft_agents.hosting.core.telemetry.adapter import constants as adapter_constants
 from microsoft_agents.hosting.core.app.telemetry import constants as app_constants
+from microsoft_agents.hosting.core.app.proactive.telemetry import constants as proactive_constants
 from microsoft_agents.hosting.core.connector.telemetry import constants as connector_constants
 from microsoft_agents.hosting.core.storage.telemetry import constants as storage_constants
 from microsoft_agents.hosting.core.telemetry.turn_context import constants as turn_context_constants
@@ -3489,6 +3714,15 @@ app_constants.SPAN_ROUTE_HANDLER                  # 'agents.app.route_handler'
 app_constants.SPAN_BEFORE_TURN                    # 'agents.app.before_turn'
 app_constants.SPAN_AFTER_TURN                     # 'agents.app.after_turn'
 app_constants.SPAN_DOWNLOAD_FILES                 # 'agents.app.download_files'
+app_constants.SPAN_SEND_TYPING                     # 'agents.app.typing_indicator'
+
+# Proactive
+proactive_constants.SPAN_STORE_CONVERSATION       # 'agents.proactive.store_conversation'
+proactive_constants.SPAN_GET_CONVERSATION         # 'agents.proactive.get_conversation'
+proactive_constants.SPAN_DELETE_CONVERSATION      # 'agents.proactive.delete_conversation'
+proactive_constants.SPAN_SEND_ACTIVITY            # 'agents.proactive.send_activity'
+proactive_constants.SPAN_CONTINUE_CONVERSATION    # 'agents.proactive.continue_conversation'
+proactive_constants.SPAN_CREATE_CONVERSATION      # 'agents.proactive.create_conversation'
 
 # TurnContext
 turn_context_constants.SPAN_TURN_SEND_ACTIVITIES  # 'agents.turn.send_activities'
@@ -3525,6 +3759,7 @@ oauth_constants.AZURE_BOT_SIGN_OUT                # 'agents.authorization.azure_
 # UserTokenClient
 connector_constants.SPAN_GET_USER_TOKEN                  # 'agents.user_token_client.get_user_token'
 connector_constants.SPAN_SIGN_OUT                        # 'agents.user_token_client.sign_out'
+connector_constants.SPAN_GET_SIGN_IN_RESOURCE             # 'agents.user_token_client.get_sign_in_resource'
 connector_constants.SPAN_EXCHANGE_TOKEN                  # 'agents.user_token_client.exchange_token'
 connector_constants.SPAN_GET_TOKEN_OR_SIGN_IN_RESOURCE   # 'agents.user_token_client.get_token_or_sign_in_resource'
 connector_constants.SPAN_GET_TOKEN_STATUS                # 'agents.user_token_client.get_token_status'
@@ -3568,38 +3803,41 @@ connector_constants.METRIC_USER_TOKEN_CLIENT_REQUEST_DURATION   # 'agents.user_t
 
 # Authentication
 auth_constants.METRIC_AUTH_TOKEN_REQUEST_COUNT      # 'agents.auth.token.request.count'
-auth_constants.METRIC_AUTH_TOKEN_REQUEST_DURATION   # 'agents.auth.token.duration'
+auth_constants.METRIC_AUTH_TOKEN_REQUEST_DURATION   # 'agents.auth.token.request.duration'
 ```
 
 ---
 
 # Appendix: Common Span Attributes
 
-These attributes appear across multiple spans and follow OpenTelemetry semantic conventions where applicable.
+These attributes appear across multiple spans and follow OpenTelemetry semantic conventions where applicable. Attribute names and types can differ by SDK; C# and Python variants are noted below.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `activity.type` | string | Bot Framework activity type (message, conversationUpdate, invoke, etc.) |
 | `activity.id` | string | Unique identifier for the activity |
+| `activity.name` | string | Name of the activity (C# and Python) |
 | `activity.channel_id` | string | Channel identifier (msteams, webchat, directline, etc.) |
-| `activity.conversation_id` | string | Unique identifier for the conversation |
-| `activity.is_agentic` | boolean | Whether this is an agentic (agent-to-agent) request |
+| `activity.conversation_id` | string | Unique identifier for the conversation; C# and Python use `activity.conversation.id` |
+| `activity.is_agentic` | boolean | Whether this is an agentic (agent-to-agent) request; C# and Python use `activity.is_agentic_request` |
 | `activity.delivery_mode` | string | The delivery mode of the activity |
-| `auth.scope` | string | Authentication scope for token requests |
-| `auth.scopes` | string[] | Authentication scopes for multi-scope requests |
-| `auth.method` | string | Authentication method used (secret, certificate, managed_identity, etc.) |
+| `auth.scope` | string | Authentication scope for token requests (JS only) |
+| `auth.scopes` | string | Authentication scopes; C# and Python record a comma-separated string |
+| `auth.method` | string | Authentication method used; C# `get_access_token` uses `AuthTypes` enum values, while other C# authentication operations use `"obo"`, `"agentic_instance"`, or `"agentic_user"` |
 | `auth.connection.name` | string | The OAuth connection name |
 | `auth.handler.id` | string | The authorization handler identifier |
-| `error.type` | string | Exception/error class name when an error occurs |
-| `http.method` | string | HTTP method for outbound requests |
-| `http.status_code` | string | HTTP response status code |
+| `error.type` | string | Exception/error class name when an error occurs (JS only; C# and Python use an `exception` event with `exception.type`) |
+| `http.method` | string | HTTP method for outbound requests (not currently emitted by C#) |
+| `http.status_code` | string | HTTP response status code; not currently emitted by C#, and Python records an integer |
 | `user.id` | string | The user identifier |
 
 ---
 
 # Appendix: Span Kind Reference
 
-The SDK uses OpenTelemetry SpanKind to categorize spans:
+The SDKs can use OpenTelemetry SpanKind to categorize spans. C# uses
+`INTERNAL` for every current span (usually by default and explicitly for two
+proactive scopes). Python uses the default `INTERNAL` kind for all spans.
 
 | Kind | Value | Usage |
 |------|-------|-------|
