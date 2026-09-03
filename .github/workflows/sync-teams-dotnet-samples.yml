@@ -33,13 +33,13 @@ jobs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - name: Checkout Agents repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Checkout upstream Teams samples
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: OfficeDev/Microsoft-Teams-Samples
           ref: main
@@ -48,9 +48,9 @@ jobs:
           persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: ${{ env.SYNC_SKILL }}/scripts/package-lock.json
 
@@ -81,7 +81,7 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
       - name: Upload synchronization plan
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teams-sample-sync-plan
           path: .sync/plan.json
@@ -119,13 +119,13 @@ jobs:
       copilot-requests: write
     steps:
       - name: Checkout Agents repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Checkout upstream Teams samples
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: OfficeDev/Microsoft-Teams-Samples
           ref: main
@@ -134,20 +134,20 @@ jobs:
           persist-credentials: false
 
       - name: Download synchronization plan
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: teams-sample-sync-plan
           path: .sync
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: ${{ env.SYNC_SKILL }}/scripts/package-lock.json
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
 
@@ -191,7 +191,7 @@ jobs:
           mkdir -p .sync
           copilot --prompt "$COPILOT_PROMPT" \
             --silent \
-            --available-tools='edit,view,grep,glob' \
+            --available-tools='apply_patch,create,edit,view,grep,glob' \
             --allow-tool='write' \
             --deny-tool='shell,url' \
             --disable-builtin-mcps \
@@ -280,7 +280,7 @@ jobs:
         run: |
           copilot --prompt "$COPILOT_PROMPT" \
             --silent \
-            --available-tools='edit,view,grep,glob' \
+            --available-tools='apply_patch,create,edit,view,grep,glob' \
             --allow-tool='write' \
             --deny-tool='shell,url' \
             --disable-builtin-mcps \
@@ -348,7 +348,7 @@ jobs:
         run: |
           copilot --prompt "$COPILOT_PROMPT" \
             --silent \
-            --available-tools='edit,view,grep,glob' \
+            --available-tools='apply_patch,create,edit,view,grep,glob' \
             --allow-tool='write' \
             --deny-tool='shell,url' \
             --disable-builtin-mcps \
@@ -471,7 +471,7 @@ jobs:
 
       - name: Upload sample result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teams-sample-sync-${{ matrix.sample }}
           path: .sync/output/${{ matrix.sample }}
@@ -509,14 +509,14 @@ jobs:
       statuses: write
     steps:
       - name: Checkout Agents repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: ${{ env.SYNC_SKILL }}/scripts/package-lock.json
 
@@ -526,13 +526,13 @@ jobs:
           npm run build --prefix "$SYNC_SKILL/scripts"
 
       - name: Download sample result
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: teams-sample-sync-${{ matrix.sample }}
           path: .sync/result
 
       - name: Download synchronization plan
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: teams-sample-sync-plan
           path: .sync/plan

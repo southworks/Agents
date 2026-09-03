@@ -1162,7 +1162,12 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         ? resolveFromInvocation(invocationRoot, parsed.values.output)
         : undefined;
     writeResult(result, output);
-    return parsed.command === "verify" && !result.passed ? 1 : 0;
+    if (parsed.command === "verify" && !result.passed) {
+      const errors = Array.isArray(result.errors) ? result.errors : ["Unknown verification failure"];
+      for (const error of errors) process.stderr.write(`Verification failed: ${String(error)}\n`);
+      return 1;
+    }
+    return 0;
   } catch (error) {
     process.stderr.write(`${JSON.stringify({ error: errorMessage(error) })}\n`);
     return 2;

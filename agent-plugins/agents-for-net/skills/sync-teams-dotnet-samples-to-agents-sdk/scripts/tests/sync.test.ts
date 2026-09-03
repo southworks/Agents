@@ -13,6 +13,7 @@ import {
   captureProposal,
   directoryDigest,
   finalizeState,
+  main,
   ownershipClass,
   verifySample,
 } from "../sync.js";
@@ -228,6 +229,34 @@ describe("Teams sample synchronization", () => {
     assert.equal(ownershipClass("Program.cs", ownership), "agents-owned");
     assert.equal(ownershipClass("appManifest/manifest.json", ownership), "generated");
     assert.equal(ownershipClass("README.md", ownership), "upstream-owned");
+  });
+
+  test("verify CLI reports manifest failures in stderr", async () => {
+    const sampleRoot = path.join(fixture.repository, "samples", "dotnet", "teams", "sample-a");
+    mkdirSync(sampleRoot, { recursive: true });
+    writeFileSync(path.join(sampleRoot, "Program.cs"), "target", "utf8");
+    const output = path.join(temporaryRoot, "verification.json");
+    const originalWrite = process.stderr.write;
+    let stderr = "";
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderr += chunk.toString();
+      return true;
+    }) as typeof process.stderr.write;
+    try {
+      const exitCode = await main([
+        "--repo-root",
+        fixture.repository,
+        "verify",
+        "--sample",
+        "sample-a",
+        "--output",
+        output,
+      ]);
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /Verification failed: Missing appManifest\/manifest\.json/);
+    } finally {
+      process.stderr.write = originalWrite;
+    }
   });
 
   test("proposed decision blocks verification and state advance", async () => {

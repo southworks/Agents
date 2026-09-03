@@ -6,7 +6,7 @@
 - Do not build upstream projects.
 - Give the migration agent repository read/write access only to the isolated checkout. Do not give it pull-request write credentials.
 - Authenticate GitHub Copilot CLI with the job `GITHUB_TOKEN` and `copilot-requests: write`. Do not require an OpenAI key or a personal token.
-- Pin the Copilot CLI version. Expose only edit, view, grep, and glob tools. Disable shell, URL, memory, GitHub MCP, and runner temporary-directory access.
+- Pin the Copilot CLI version. Expose only apply-patch, create, edit, view, grep, and glob tools. Disable shell, URL, memory, GitHub MCP, and runner temporary-directory access.
 - Compile the validator outside the agent-writable workspace. After each agent pass, reject every changed path except the selected sample and the permitted initial proposal record.
 - Create or update pull requests in a later trusted job.
 - Attest each validated proposal commit with repository-side provenance before human resolution.

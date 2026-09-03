@@ -95,21 +95,21 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
       - name: Checkout exact pull-request head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ steps.event.outputs.sha }}
           fetch-depth: 2
           persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: ${{ env.SYNC_SKILL }}/scripts/package-lock.json
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
 
@@ -201,7 +201,7 @@ jobs:
 
       - name: Checkout pinned upstream revision
         if: steps.probe.outputs.value == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: OfficeDev/Microsoft-Teams-Samples
           ref: ${{ steps.inspect.outputs.upstream }}
@@ -317,7 +317,7 @@ jobs:
 
       - name: Upload targeted decision result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teams-sample-decision-${{ github.run_id }}-${{ github.run_attempt }}
           path: .sync/decision

@@ -41,3 +41,4 @@ Approval or rejection becomes durable only when the pull request merges. Normal 
 Retain the immutable proposal patch as decision evidence. Do not reuse or modify it.
 
 Reopen a decision only when an `invalidatesOn` condition is observed. Report the observed condition in the new proposal.
+A superseded simulation has no human authority. It does not prevent a new proposal when product intent remains unresolved.
