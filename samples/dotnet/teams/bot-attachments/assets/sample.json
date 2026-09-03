@@ -4,7 +4,7 @@
     "source": "officeDev",
     "title": "Bot Attachments",
     "shortDescription": "This sample demonstrates how to send and receive file attachments in Microsoft Teams using a bot built with the Teams SDK.",
-    "url": "https://github.com/OfficeDev/Microsoft-Teams-Samples/tree/main/samples/TeamsSDK/bot-attachments/dotnet/bot-attachments",
+    "url": "https://github.com/microsoft/Agents/tree/main/samples/dotnet/teams/bot-attachments",
     "longDescription": [
       "This sample demonstrates file attachment handling in Microsoft Teams using a bot built with the Teams SDK. When a user sends a file, the bot downloads it, stores it in memory, and sends a File Consent Card requesting permission to upload to OneDrive. Upon acceptance, the bot uploads the file and sends a File Info Card with a direct link. Declined requests are handled gracefully with a notification message."
     ],
@@ -35,7 +35,7 @@
       {
         "type": "image",
         "order": 100,
-        "url": "https://raw.githubusercontent.com/OfficeDev/Microsoft-Teams-Samples/main/samples/TeamsSDK/bot-attachments/bot-attachments.gif",
+        "url": "https://raw.githubusercontent.com/microsoft/Agents/main/samples/dotnet/teams/bot-attachments/bot-attachments.gif",
         "alt": "Solution UX showing bot attachments with file consent and OneDrive upload using Teams SDK"
       }
     ],

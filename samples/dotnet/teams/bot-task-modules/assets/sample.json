@@ -4,7 +4,7 @@
     "source": "officeDev",
     "title": "Task Modules Bot using Teams SDK for dotnet",
     "shortDescription": "This sample app demonstrates how to use Task Modules",
-    "url": "https://github.com/OfficeDev/Microsoft-Teams-Samples/tree/main/samples/TeamsSDK/bot-task-modules/dotnet/bot-task-modules",
+    "url": "https://github.com/microsoft/Agents/tree/main/samples/dotnet/teams/bot-task-modules",
     "longDescription": [
       "This sample app demonstrates how to use Task Modules"
     ],
@@ -35,7 +35,7 @@
       {
         "type": "image",
         "order": 100,
-        "url": "https://raw.githubusercontent.com/OfficeDev/Microsoft-Teams-Samples/main/samples/TeamsSDK/bot-task-modules/bot-task-modules.gif",
+        "url": "https://raw.githubusercontent.com/microsoft/Agents/main/samples/dotnet/teams/bot-task-modules/bot-task-modules.gif",
         "alt": "Solution UX showing Task Modules"
       }
     ],

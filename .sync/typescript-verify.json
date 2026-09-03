@@ -1,0 +1,10 @@
+{
+  "errors": [],
+  "externalValidationRequired": [
+    "Microsoft Teams, Entra, Graph, Azure Bot, and portal behavior when applicable"
+  ],
+  "outputDigest": "sha256:76f7a0ec20f33bad527c697cc48cba4759a3ea8dda271c7f7713f0ee6fb24b0a",
+  "passed": true,
+  "sample": "agent-targeted-messages",
+  "version": 1
+}

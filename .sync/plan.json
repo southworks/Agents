@@ -1,0 +1,105 @@
+{
+  "matrix": [],
+  "newSampleCandidates": [
+    "bot-auth-quickstart",
+    "bot-proactive-message",
+    "bot-quickstart"
+  ],
+  "samples": {
+    "agent-targeted-messages": {
+      "changedComponents": [],
+      "componentDigests": {
+        "canonicalSample": "sha256:a672a65f0b91ee39bc8f52e6e56a438c0c6139b053a77a1ce655582e84c1aa39",
+        "decisions": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "manifestSkill": "sha256:956b5f84b734a64906fea4a488736de786a2a1501bc5877a06ecbf3c3e037928",
+        "migrationSkill": "sha256:a5435faa1e1035ff230def923a27f816959d2ae7354f25682161f4805f85c704",
+        "ownership": "sha256:b73af0f1793a59141292f0e5045dca751d856079f0ea6c4f366e3cd9b0099f92",
+        "packagePolicy": "sha256:bbd484f32c59085802c9087283e92c8bdfb5e27d331d0ed61e7ade7c9b9faa6c",
+        "sourceTree": "6a058ba4b86a6311bbf894bd5a6f721f1838fb44",
+        "target": "sha256:007f2cdfde5e6ce08cb4d80639220ca5ae441034c97ffe4af0800a71ea7134fd",
+        "validator": "sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+      },
+      "decisions": {
+        "durable": [],
+        "proposed": []
+      },
+      "destination": "samples/dotnet/teams/agent-targeted-messages",
+      "inputDigest": "sha256:e2011f5494c0c1f0ac55fac0cc1f9a19584723d627d8c27e3e5237312a5d3827",
+      "ownership": {
+        "classes": {
+          "agents-owned": [
+            "Program.cs",
+            "*Agent.cs",
+            "*.csproj"
+          ],
+          "generated": [
+            "appManifest/manifest.json",
+            "appPackage/manifest.json"
+          ],
+          "human-owned": [
+            "manifest-evidence.md",
+            "**/manifest-evidence.md"
+          ],
+          "template-owned": [
+            "AspNetExtensions.cs",
+            "Properties/launchSettings.json",
+            "appsettings.json"
+          ],
+          "upstream-owned": [
+            "**"
+          ]
+        },
+        "outputDigestExcludes": [
+          "bin/**",
+          "obj/**",
+          ".vs/**",
+          "*.user",
+          "*.suo"
+        ],
+        "precedence": [
+          "human-owned",
+          "agents-owned",
+          "generated",
+          "template-owned",
+          "upstream-owned"
+        ],
+        "version": 1
+      },
+      "previousState": {
+        "componentDigests": {
+          "canonicalSample": "sha256:a672a65f0b91ee39bc8f52e6e56a438c0c6139b053a77a1ce655582e84c1aa39",
+          "decisions": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "manifestSkill": "sha256:956b5f84b734a64906fea4a488736de786a2a1501bc5877a06ecbf3c3e037928",
+          "migrationSkill": "sha256:a5435faa1e1035ff230def923a27f816959d2ae7354f25682161f4805f85c704",
+          "ownership": "sha256:b73af0f1793a59141292f0e5045dca751d856079f0ea6c4f366e3cd9b0099f92",
+          "packagePolicy": "sha256:bbd484f32c59085802c9087283e92c8bdfb5e27d331d0ed61e7ade7c9b9faa6c",
+          "sourceTree": "6a058ba4b86a6311bbf894bd5a6f721f1838fb44",
+          "target": "sha256:007f2cdfde5e6ce08cb4d80639220ca5ae441034c97ffe4af0800a71ea7134fd",
+          "validator": "sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+        },
+        "inputDigest": "sha256:e2011f5494c0c1f0ac55fac0cc1f9a19584723d627d8c27e3e5237312a5d3827",
+        "outputDigest": "sha256:831bebbffea0c2b8d0005c6c17ebdc538ed78b6f830061243a8972a426b08d44",
+        "sample": "agent-targeted-messages",
+        "sourceTree": "6a058ba4b86a6311bbf894bd5a6f721f1838fb44",
+        "status": "verified",
+        "upstreamCommit": "2718855c7f5b8156406d138e58da8644e75ac4d1",
+        "version": 1
+      },
+      "requiresAgent": false,
+      "sourceTree": "6a058ba4b86a6311bbf894bd5a6f721f1838fb44",
+      "status": "unchanged",
+      "target": {
+        "destination": "agent-targeted-messages",
+        "manifest": {
+          "distribution": "sample",
+          "packageDirectory": "appManifest",
+          "placeholderConvention": "double-braces"
+        },
+        "source": "agent-targeted-messages/dotnet/agent-targeted-messages"
+      },
+      "upstreamCommit": "2718855c7f5b8156406d138e58da8644e75ac4d1"
+    }
+  },
+  "upstreamCommit": "2718855c7f5b8156406d138e58da8644e75ac4d1",
+  "version": 1
+}

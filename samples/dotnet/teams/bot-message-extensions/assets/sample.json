@@ -4,7 +4,7 @@
     "source": "officeDev",
     "title": "Bot Message Extensions - Search Based Messaging Extension",
     "shortDescription": "This dotnet sample demonstrates how to create a search-based messaging extension in Microsoft Teams that allows users to perform searches and retrieve results.",
-    "url": "https://github.com/OfficeDev/Microsoft-Teams-Samples/tree/main/samples/TeamsSDK/bot-message-extensions/dotnet",
+    "url": "https://github.com/microsoft/Agents/tree/main/samples/dotnet/teams/bot-message-extensions",
     "longDescription": [
       "This sample showcases the capabilities of a search-based messaging extension in Microsoft Teams. Users can search for Wikipedia articles directly within the Teams compose area. The extension supports search commands, item selection, link unfurling, and result display."
     ],
@@ -35,7 +35,7 @@
       {
         "type": "image",
         "order": 100,
-        "url": "https://raw.githubusercontent.com/OfficeDev/Microsoft-Teams-Samples/main/samples/TeamsSDK/bot-message-extensions/bot-message-extensions.gif",
+        "url": "https://raw.githubusercontent.com/microsoft/Agents/main/samples/dotnet/teams/bot-message-extensions/bot-message-extensions.gif",
         "alt": "Solution UX showing search based messaging extension"
       }
     ],

@@ -4,7 +4,7 @@
     "source": "officeDev",
     "title": "Quickstart Agent using Teams SDK",
     "shortDescription": "This sample demonstrates targeted messaging capabilities of Microsoft Teams using dotnet.",
-    "url": "https://github.com/OfficeDev/Microsoft-Teams-Samples/tree/main/samples/TeamsSDK/agent-targeted-messages/dotnet/agent-targeted-messages",
+    "url": "https://github.com/microsoft/Agents/tree/main/samples/dotnet/teams/agent-targeted-messages",
     "longDescription": [
       "This sample demonstrates how to send targeted messages in Microsoft Teams using dotnet. Targeted messages are only visible to a specific user in a channel or group chat."
     ],
@@ -35,7 +35,7 @@
       {
         "type": "image",
         "order": 100,
-        "url": "https://raw.githubusercontent.com/OfficeDev/Microsoft-Teams-Samples/main/samples/TeamsSDK/agent-targeted-messages/agent-targeted-messages.gif",
+        "url": "https://raw.githubusercontent.com/microsoft/Agents/main/samples/dotnet/teams/agent-targeted-messages/agent-targeted-messages.gif",
         "alt": "Solution UX showing Targeted Messages Agent using Teams SDK"
       }
     ],

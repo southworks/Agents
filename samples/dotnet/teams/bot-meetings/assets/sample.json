@@ -4,7 +4,7 @@
     "source": "officeDev",
     "title": "Bot Meetings",
     "shortDescription": "This sample demonstrates a bot that handles meeting events and transcripts in Microsoft Teams using dotnet",
-    "url": "https://github.com/OfficeDev/Microsoft-Teams-Samples/tree/main/samples/TeamsSDK/bot-meetings/dotnet",
+    "url": "https://github.com/microsoft/Agents/tree/main/samples/dotnet/teams/bot-meetings",
     "longDescription": [
       "The bot showcases meeting start/end events, participant join/leave notifications, and meeting transcript retrieval"
     ],
@@ -35,7 +35,7 @@
       {
         "type": "image",
         "order": 100,
-        "url": "https://raw.githubusercontent.com/OfficeDev/Microsoft-Teams-Samples/main/samples/TeamsSDK/bot-meetings/Images/bot-meetings.gif",
+        "url": "https://raw.githubusercontent.com/microsoft/Agents/main/samples/dotnet/teams/bot-meetings/Images/bot-meetings.gif",
         "alt": "Solution UX showing meeting events and transcript for teams bot"
       }
     ],
