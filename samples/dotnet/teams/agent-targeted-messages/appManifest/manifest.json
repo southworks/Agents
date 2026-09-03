@@ -1,0 +1,74 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.22/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.22",
+  "version": "1.0.0",
+  "id": "${{AAD_APP_CLIENT_ID}}",
+  "developer": {
+    "name": "Microsoft",
+    "websiteUrl": "https://example.com",
+    "privacyUrl": "https://example.com/privacy",
+    "termsOfUseUrl": "https://example.com/termsofuse"
+  },
+  "name": {
+    "short": "Targeted Messages Agent",
+    "full": "Microsoft 365 Agents SDK Targeted Messages Agent"
+  },
+  "description": {
+    "short": "Demonstrates targeted message delivery and reminder management in Teams.",
+    "full": "A Microsoft 365 Agents SDK sample showing how to send targeted (private) messages to specific users and manage reminders with Adaptive Card actions."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#004578",
+  "bots": [
+    {
+      "botId": "${{AAD_APP_CLIENT_ID}}",
+      "scopes": [
+        "personal",
+        "team"
+      ],
+      "supportsFiles": false,
+      "isNotificationOnly": false,
+      "commandLists": [
+        {
+          "scopes": [
+            "personal",
+            "team"
+          ],
+          "commands": [
+            {
+              "title": "reminder-help",
+              "description": "Show available reminder commands"
+            },
+            {
+              "title": "remind",
+              "description": "Set a reminder for yourself or another user"
+            },
+            {
+              "title": "my-reminders",
+              "description": "List your active reminders"
+            },
+            {
+              "title": "cancel-reminder",
+              "description": "Cancel a reminder by ID"
+            },
+            {
+              "title": "add-reaction",
+              "description": "Add a reaction to a message"
+            },
+            {
+              "title": "remove-reaction",
+              "description": "Remove a reaction from a message"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ]
+}
