@@ -39,10 +39,10 @@ class SpanNameFilteringSampler implements Sampler {
     this.filteredSpanNames = new Set(spanNames)
   }
 
-  shouldSample (...args: Parameters<Sampler['shouldSample']>) {
-    return this.filteredSpanNames.has(args[2])
+  shouldSample: Sampler['shouldSample'] = (context, traceId, spanName, spanKind, attributes, links) => {
+     return this.filteredSpanNames.has(spanName)
       ? { decision: SamplingDecision.NOT_RECORD }
-      : this.parentBased.shouldSample(...args)
+      : this.parentBased.shouldSample(context, traceId, spanName, spanKind, attributes, links)
   }
 
   toString () {
