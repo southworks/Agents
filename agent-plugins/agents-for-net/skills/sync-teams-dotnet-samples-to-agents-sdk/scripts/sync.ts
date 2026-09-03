@@ -3,7 +3,9 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -88,6 +90,12 @@ export interface AgentInputArgs {
   sample: string;
 }
 
+export interface PrepareManifestArgs {
+  repoRoot: string;
+  configDir?: string;
+  sample: string;
+}
+
 export interface VerifyArgs {
   repoRoot: string;
   configDir?: string;
@@ -155,7 +163,7 @@ export function sha256Text(value: string): string {
   return `sha256:${createHash("sha256").update(value, "utf8").digest("hex")}`;
 }
 
-function sha256Buffer(value: Buffer): string {
+export function sha256Buffer(value: Buffer): string {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
@@ -225,6 +233,36 @@ function isRelativeRepositoryPath(value: string): boolean {
   );
 }
 
+function isRelativeRepositorySubdirectory(value: string): boolean {
+  const normalized = value.replaceAll("\\", "/");
+  return (
+    isRelativeRepositoryPath(value) &&
+    normalized !== "." &&
+    normalized !== "./" &&
+    normalized.split("/").every((part) => part !== "" && part !== ".")
+  );
+}
+
+function containedPath(repositoryRoot: string, ...parts: string[]): string {
+  const candidate = path.resolve(repositoryRoot, ...parts);
+  const relative = path.relative(repositoryRoot, candidate);
+  if (relative === "" || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new SyncError(`Path is outside the repository: ${candidate}`);
+  }
+  return candidate;
+}
+
+function rejectSymlinkComponents(repositoryRoot: string, candidate: string): void {
+  const relative = path.relative(repositoryRoot, candidate);
+  let current = repositoryRoot;
+  for (const part of relative.split(path.sep)) {
+    current = path.join(current, part);
+    if (existsSync(current) && lstatSync(current).isSymbolicLink()) {
+      throw new SyncError(`Symbolic links are not supported in manifest package paths: ${current}`);
+    }
+  }
+}
+
 export function validateConfiguration(
   targetsValue: Data,
   decisionsValue: Data,
@@ -250,6 +288,14 @@ export function validateConfiguration(
   if (!isRecord(targetsValue.samples) || Object.keys(targetsValue.samples).length === 0) {
     throw new SyncError("targets.yml must select at least one sample");
   }
+  for (const field of ["destinationRoot", "canonicalSample"] as const) {
+    if (
+      typeof targetsValue[field] !== "string" ||
+      !isRelativeRepositorySubdirectory(targetsValue[field])
+    ) {
+      throw new SyncError(`targets.yml has unsafe ${field} path`);
+    }
+  }
   const destinations = new Set<string>();
   for (const [name, sampleValue] of Object.entries(targetsValue.samples)) {
     if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {
@@ -265,6 +311,15 @@ export function validateConfiguration(
       if (typeof sampleValue[field] !== "string" || !isRelativeRepositoryPath(sampleValue[field])) {
         throw new SyncError(`Sample ${name} has unsafe ${field} path`);
       }
+    }
+    if (!isRecord(sampleValue.manifest)) {
+      throw new SyncError(`Sample ${name} manifest must be a mapping`);
+    }
+    if (
+      typeof sampleValue.manifest.packageDirectory !== "string" ||
+      !isRelativeRepositorySubdirectory(sampleValue.manifest.packageDirectory)
+    ) {
+      throw new SyncError(`Sample ${name} has unsafe manifest packageDirectory path`);
     }
     const destination = String(sampleValue.destination);
     if (destinations.has(destination)) throw new SyncError(`Duplicate destination: ${destination}`);
@@ -594,6 +649,62 @@ export function buildAgentInput(args: AgentInputArgs): Data {
   };
 }
 
+export function prepareManifestPackage(args: PrepareManifestArgs): Data {
+  const repositoryRoot = path.resolve(args.repoRoot);
+  const { targets } = loadConfiguration(repositoryRoot, args.configDir ?? CONFIG_DIRECTORY);
+  const target = targets.samples[args.sample];
+  if (!target) throw new SyncError(`Sample is not selected: ${args.sample}`);
+
+  const sampleRoot = containedPath(repositoryRoot, targets.destinationRoot, target.destination);
+  const packageRoot = containedPath(
+    repositoryRoot,
+    targets.destinationRoot,
+    target.destination,
+    target.manifest.packageDirectory,
+  );
+  rejectSymlinkComponents(repositoryRoot, sampleRoot);
+  rejectSymlinkComponents(repositoryRoot, packageRoot);
+  const directoryAlreadyExisted = existsSync(packageRoot);
+  mkdirSync(packageRoot, { recursive: true });
+
+  const canonicalPackageRoot = containedPath(repositoryRoot, targets.canonicalSample, "appManifest");
+  rejectSymlinkComponents(repositoryRoot, canonicalPackageRoot);
+  const copiedIcons: string[] = [];
+  const iconDigests: Record<string, string> = {};
+  for (const iconName of ["color.png", "outline.png"] as const) {
+    const destination = path.join(packageRoot, iconName);
+    const source = path.join(canonicalPackageRoot, iconName);
+    rejectSymlinkComponents(repositoryRoot, destination);
+    rejectSymlinkComponents(repositoryRoot, source);
+    if (existsSync(destination)) {
+      if (!statSync(destination).isFile()) {
+        throw new SyncError(`Manifest icon path is not a file: ${destination}`);
+      }
+      continue;
+    }
+    if (!existsSync(source) || !statSync(source).isFile()) {
+      throw new SyncError(`Canonical manifest icon does not exist: ${source}`);
+    }
+    copyFileSync(source, destination);
+    copiedIcons.push(iconName);
+    iconDigests[iconName] = sha256Buffer(readFileSync(destination));
+  }
+  for (const iconName of ["color.png", "outline.png"] as const) {
+    if (!(iconName in iconDigests)) {
+      iconDigests[iconName] = sha256Buffer(readFileSync(path.join(packageRoot, iconName)));
+    }
+  }
+
+  return {
+    version: 1,
+    sample: args.sample,
+    packageDirectory: relativePosix(repositoryRoot, packageRoot),
+    createdDirectory: !directoryAlreadyExisted,
+    copiedIcons,
+    iconDigests,
+  };
+}
+
 function collectKeyPaths(value: unknown, prefix = ""): Set<string> {
   const paths = new Set<string>();
   if (!isRecord(value)) return paths;
@@ -667,6 +778,12 @@ export async function checkManifest(
   const manifestPath = path.join(packageRoot, "manifest.json");
   if (!existsSync(manifestPath)) return [`Missing ${packageDirectory}/manifest.json`];
 
+  for (const misplacedName of ["manifest.json", "color.png", "outline.png"] as const) {
+    if (existsSync(path.join(sampleRoot, misplacedName))) {
+      errors.push(`Manifest asset is outside ${packageDirectory}: ${misplacedName}`);
+    }
+  }
+
   let manifestText: string;
   let manifest: Data;
   try {
@@ -683,11 +800,20 @@ export async function checkManifest(
   }
 
   const icons = isRecord(manifest.icons) ? manifest.icons : {};
+  const validIconPaths: string[] = [];
   for (const iconName of ["color", "outline"] as const) {
     const iconPath = icons[iconName];
     if (!iconPath) errors.push(`Manifest is missing icons.${iconName}`);
-    else if (!existsSync(path.join(packageRoot, String(iconPath)))) {
-      errors.push(`Manifest icon does not exist: ${String(iconPath)}`);
+    else if (
+      !isRelativeRepositoryPath(String(iconPath)) ||
+      path.posix.basename(String(iconPath).replaceAll("\\", "/")) !== String(iconPath)
+    ) {
+      errors.push(`Manifest icon must be a file at the package root: ${String(iconPath)}`);
+    } else {
+      const absoluteIconPath = path.join(packageRoot, String(iconPath));
+      if (!existsSync(absoluteIconPath) || !statSync(absoluteIconPath).isFile()) {
+        errors.push(`Manifest icon does not exist: ${String(iconPath)}`);
+      } else validIconPaths.push(absoluteIconPath);
     }
   }
 
@@ -728,10 +854,7 @@ export async function checkManifest(
     }
   }
 
-  const packagePaths = [manifestPath];
-  for (const iconName of ["color", "outline"] as const) {
-    if (icons[iconName]) packagePaths.push(path.join(packageRoot, String(icons[iconName])));
-  }
+  const packagePaths = [manifestPath, ...validIconPaths];
   if (packagePaths.every((filePath) => existsSync(filePath) && statSync(filePath).isFile())) {
     const packageFiles = Object.fromEntries(
       packagePaths.map((filePath) => [path.basename(filePath), new Uint8Array(readFileSync(filePath))]),
@@ -1088,7 +1211,13 @@ function writeResult(value: Data, output?: string): void {
 }
 
 interface ParsedCommand {
-  command: "plan" | "agent-input" | "verify" | "capture-proposal" | "finalize";
+  command:
+    | "plan"
+    | "agent-input"
+    | "prepare-manifest"
+    | "verify"
+    | "capture-proposal"
+    | "finalize";
   repoRoot: string;
   configDir: string;
   values: Record<string, string | boolean>;
@@ -1098,7 +1227,14 @@ function parseCommandLine(argv: string[], invocationRoot: string): ParsedCommand
   let repoRoot = invocationRoot;
   let configDir = CONFIG_DIRECTORY;
   let index = 0;
-  const commands = new Set(["plan", "agent-input", "verify", "capture-proposal", "finalize"]);
+  const commands = new Set([
+    "plan",
+    "agent-input",
+    "prepare-manifest",
+    "verify",
+    "capture-proposal",
+    "finalize",
+  ]);
   while (index < argv.length && !commands.has(argv[index]!)) {
     const option = argv[index];
     const value = argv[index + 1];
@@ -1110,7 +1246,7 @@ function parseCommandLine(argv: string[], invocationRoot: string): ParsedCommand
   const command = argv[index] as ParsedCommand["command"] | undefined;
   if (!command) {
     throw new SyncError(
-      "Expected command: plan, agent-input, verify, capture-proposal, or finalize",
+      "Expected command: plan, agent-input, prepare-manifest, verify, capture-proposal, or finalize",
     );
   }
   index += 1;
@@ -1169,6 +1305,12 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         repoRoot: parsed.repoRoot,
         configDir: parsed.configDir,
         plan: resolveFromInvocation(invocationRoot, requiredValue(parsed.values, "plan")),
+        sample: requiredValue(parsed.values, "sample"),
+      });
+    } else if (parsed.command === "prepare-manifest") {
+      result = prepareManifestPackage({
+        repoRoot: parsed.repoRoot,
+        configDir: parsed.configDir,
         sample: requiredValue(parsed.values, "sample"),
       });
     } else if (parsed.command === "verify") {

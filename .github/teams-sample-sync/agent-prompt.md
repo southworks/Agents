@@ -10,6 +10,8 @@ Use `teams-sdk-to-agents-sdk-dotnet-migration` for semantic code migration. Afte
 
 Create or edit the required repository files before returning. A missing manifest is incomplete work. When the input provides sample distribution, placeholder convention, and package directory, run the manifest skill in Generate mode without asking a question. Return without edits only when the selected destination already satisfies the assigned pass and both skills.
 
+The trusted orchestrator creates the configured manifest package directory and supplies canonical icon files before this pass. Write `manifest.json` inside that configured directory. Do not create another manifest or icon files in the sample root.
+
 Modify only the selected destination sample, its proposed decision entry when required, and deterministic sync artifacts explicitly owned by the workflow. Do not commit, push, create or comment on a pull request, weaken protected tests, add or remove samples, or guess product intent.
 
 In the initial migration pass, when a decision is missing, add exactly one `proposed` decision, leave its blocked behavior unchanged, and finish only independent safe work. In an explicit proposal implementation pass, implement only that decision's recommendation as tentative code. A proposal is reviewable candidate code, not durable authority. Return the structured sample status and a concise change report.

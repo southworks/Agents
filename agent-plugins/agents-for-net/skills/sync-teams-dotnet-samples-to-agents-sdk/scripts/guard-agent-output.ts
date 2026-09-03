@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { parse } from "yaml";
 
-import { CONFIG_DIRECTORY, SyncError, canonicalJson } from "./sync.js";
+import { CONFIG_DIRECTORY, SyncError, canonicalJson, sha256Buffer } from "./sync.js";
 
 type Data = Record<string, unknown>;
 
@@ -16,6 +16,7 @@ interface GuardArgs {
   sample: string;
   mode: "initial" | "stable";
   baseRef: string;
+  manifestBaseline?: string;
 }
 
 function isRecord(value: unknown): value is Data {
@@ -65,10 +66,18 @@ export function guardAgentOutput(args: GuardArgs): Data {
   );
   const samples = isRecord(targets.samples) ? targets.samples : {};
   const target = samples[args.sample];
-  if (!isRecord(target) || typeof target.destination !== "string" || typeof targets.destinationRoot !== "string") {
+  const manifest = isRecord(target) && isRecord(target.manifest) ? target.manifest : undefined;
+  if (
+    !isRecord(target) ||
+    typeof target.destination !== "string" ||
+    typeof targets.destinationRoot !== "string" ||
+    !manifest ||
+    typeof manifest.packageDirectory !== "string"
+  ) {
     throw new SyncError(`Sample is not selected at HEAD: ${args.sample}`);
   }
   const samplePrefix = `${path.posix.join(targets.destinationRoot, target.destination).replaceAll("\\", "/")}/`;
+  const packagePrefix = `${path.posix.join(samplePrefix, manifest.packageDirectory).replaceAll("\\", "/")}/`;
   const decisionsPath = `${CONFIG_DIRECTORY}/decisions.yml`;
   const changed = new Set([
     ...nulPaths(repositoryRoot, ["diff", "--name-only", "-z", args.baseRef]),
@@ -81,6 +90,45 @@ export function guardAgentOutput(args: GuardArgs): Data {
   });
   if (unauthorized.length > 0) {
     throw new SyncError(`Agent changed unauthorized paths: ${unauthorized.sort().join(", ")}`);
+  }
+  const misplacedManifestAssets = [...changed].filter((item) => {
+    const normalized = item.replaceAll("\\", "/");
+    const relativeToSample = normalized.startsWith(samplePrefix)
+      ? normalized.slice(samplePrefix.length)
+      : "";
+    const rootPng = !relativeToSample.includes("/") && relativeToSample.endsWith(".png");
+    return (
+      normalized.startsWith(samplePrefix) &&
+      (path.posix.basename(normalized) === "manifest.json" ||
+        path.posix.basename(normalized) === "color.png" ||
+        path.posix.basename(normalized) === "outline.png" ||
+        rootPng) &&
+      !normalized.startsWith(packagePrefix)
+    );
+  });
+  if (misplacedManifestAssets.length > 0) {
+    throw new SyncError(
+      `Agent placed manifest assets outside ${packagePrefix}: ${misplacedManifestAssets.sort().join(", ")}`,
+    );
+  }
+  if (args.manifestBaseline) {
+    const baseline = yamlRecord(readFileSync(args.manifestBaseline, "utf8"), args.manifestBaseline);
+    if (baseline.sample !== args.sample || baseline.packageDirectory !== packagePrefix.slice(0, -1)) {
+      throw new SyncError("Manifest package baseline does not match the selected sample");
+    }
+    const iconDigests = isRecord(baseline.iconDigests) ? baseline.iconDigests : {};
+    for (const iconName of ["color.png", "outline.png"] as const) {
+      const expectedDigest = iconDigests[iconName];
+      const iconPath = path.join(repositoryRoot, packagePrefix, iconName);
+      if (
+        typeof expectedDigest !== "string" ||
+        !existsSync(iconPath) ||
+        lstatSync(iconPath).isSymbolicLink() ||
+        sha256Buffer(readFileSync(iconPath)) !== expectedDigest
+      ) {
+        throw new SyncError(`Agent changed protected manifest icon: ${packagePrefix}${iconName}`);
+      }
+    }
   }
 
   const before = decisions(yamlRecord(
@@ -152,6 +200,9 @@ function parseArguments(argv: string[], invocationRoot: string): GuardArgs {
     sample: values.sample,
     mode: values.mode,
     baseRef: values["base-ref"],
+    ...(values["manifest-baseline"]
+      ? { manifestBaseline: path.resolve(invocationRoot, values["manifest-baseline"]) }
+      : {}),
   };
 }
 

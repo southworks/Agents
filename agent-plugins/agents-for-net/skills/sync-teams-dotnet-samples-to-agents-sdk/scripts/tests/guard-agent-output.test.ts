@@ -8,6 +8,7 @@ import test from "node:test";
 import { stringify } from "yaml";
 
 import { guardAgentOutput } from "../guard-agent-output.js";
+import { sha256Buffer } from "../sync.js";
 
 function git(root: string, ...args: string[]): void {
   const result = spawnSync("git", args, { cwd: root, encoding: "utf8" });
@@ -24,7 +25,12 @@ function fixture(): string {
     path.join(config, "targets.yml"),
     stringify({
       destinationRoot: "samples/dotnet/teams",
-      samples: { "sample-a": { destination: "sample-a" } },
+      samples: {
+        "sample-a": {
+          destination: "sample-a",
+          manifest: { packageDirectory: "appManifest" },
+        },
+      },
     }),
     "utf8",
   );
@@ -73,6 +79,79 @@ test("rejects agent changes outside the selected sample", () => {
     assert.throws(
       () => guardAgentOutput({ repoRoot: root, sample: "sample-a", mode: "initial", baseRef: "HEAD" }),
       /unauthorized paths: README.md/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects manifest assets outside the configured package directory", () => {
+  const root = fixture();
+  try {
+    writeFileSync(
+      path.join(root, "samples", "dotnet", "teams", "sample-a", "manifest.json"),
+      "{}\n",
+      "utf8",
+    );
+    assert.throws(
+      () => guardAgentOutput({ repoRoot: root, sample: "sample-a", mode: "initial", baseRef: "HEAD" }),
+      /placed manifest assets outside samples\/dotnet\/teams\/sample-a\/appManifest\//,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects a root PNG with a nonstandard icon name", () => {
+  const root = fixture();
+  try {
+    writeFileSync(
+      path.join(root, "samples", "dotnet", "teams", "sample-a", "brand.png"),
+      "icon",
+      "utf8",
+    );
+    assert.throws(
+      () => guardAgentOutput({ repoRoot: root, sample: "sample-a", mode: "initial", baseRef: "HEAD" }),
+      /placed manifest assets outside samples\/dotnet\/teams\/sample-a\/appManifest\//,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects changes to trusted manifest icons", () => {
+  const root = fixture();
+  try {
+    const packageRoot = path.join(root, "samples", "dotnet", "teams", "sample-a", "appManifest");
+    const syncRoot = path.join(root, ".sync");
+    mkdirSync(packageRoot, { recursive: true });
+    mkdirSync(syncRoot);
+    writeFileSync(path.join(packageRoot, "color.png"), "prepared-color", "utf8");
+    writeFileSync(path.join(packageRoot, "outline.png"), "prepared-outline", "utf8");
+    const baseline = path.join(syncRoot, "manifest-package.json");
+    writeFileSync(
+      baseline,
+      JSON.stringify({
+        sample: "sample-a",
+        packageDirectory: "samples/dotnet/teams/sample-a/appManifest",
+        iconDigests: {
+          "color.png": sha256Buffer(Buffer.from("prepared-color")),
+          "outline.png": sha256Buffer(Buffer.from("prepared-outline")),
+        },
+      }),
+      "utf8",
+    );
+    writeFileSync(path.join(packageRoot, "color.png"), "agent-change", "utf8");
+
+    assert.throws(
+      () => guardAgentOutput({
+        repoRoot: root,
+        sample: "sample-a",
+        mode: "initial",
+        baseRef: "HEAD",
+        manifestBaseline: baseline,
+      }),
+      /changed protected manifest icon/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

@@ -12,10 +12,12 @@ import {
   buildAgentInput,
   buildPlan,
   captureProposal,
+  checkManifest,
   directoryDigest,
   finalizeState,
   main,
   ownershipClass,
+  prepareManifestPackage,
   verifySample,
 } from "../sync.js";
 
@@ -93,6 +95,9 @@ class SyncFixture {
     }
     const quickstart = path.join(this.repository, "samples", "dotnet", "quickstart");
     mkdirSync(path.join(quickstart, "Properties"), { recursive: true });
+    mkdirSync(path.join(quickstart, "appManifest"), { recursive: true });
+    writeFileSync(path.join(quickstart, "appManifest", "color.png"), "canonical-color", "utf8");
+    writeFileSync(path.join(quickstart, "appManifest", "outline.png"), "canonical-outline", "utf8");
     writeFileSync(
       path.join(quickstart, "appsettings.json"),
       '{"Logging":{"LogLevel":{"Default":"Information"}}}',
@@ -213,6 +218,74 @@ describe("Teams sample synchronization", () => {
       0,
     );
     assert.deepEqual(JSON.parse(readFileSync(outputPath, "utf8")), input);
+  });
+
+  test("prepares the configured manifest directory and preserves existing icons", () => {
+    const packageRoot = path.join(
+      fixture.repository,
+      "samples",
+      "dotnet",
+      "teams",
+      "sample-a",
+      "appManifest",
+    );
+    mkdirSync(packageRoot, { recursive: true });
+    writeFileSync(path.join(packageRoot, "color.png"), "sample-color", "utf8");
+
+    const result = prepareManifestPackage({
+      repoRoot: fixture.repository,
+      sample: "sample-a",
+    });
+
+    assert.equal(result.packageDirectory, "samples/dotnet/teams/sample-a/appManifest");
+    assert.deepEqual(result.copiedIcons, ["outline.png"]);
+    assert.equal(readFileSync(path.join(packageRoot, "color.png"), "utf8"), "sample-color");
+    assert.equal(
+      readFileSync(path.join(packageRoot, "outline.png"), "utf8"),
+      "canonical-outline",
+    );
+  });
+
+  test("rejects the sample root as a manifest package directory", () => {
+    const targetsPath = path.join(fixture.config, "targets.yml");
+    const targets = asRecord(parse(readFileSync(targetsPath, "utf8")));
+    const samples = asRecord(targets.samples);
+    const sample = asRecord(samples["sample-a"]);
+    const manifest = asRecord(sample.manifest);
+    manifest.packageDirectory = ".";
+    writeFileSync(targetsPath, stringify(targets), "utf8");
+
+    assert.throws(
+      () => prepareManifestPackage({ repoRoot: fixture.repository, sample: "sample-a" }),
+      /unsafe manifest packageDirectory path/,
+    );
+  });
+
+  test("rejects manifest icons outside the package root", async () => {
+    const sampleRoot = path.join(temporaryRoot, "manifest-path-test");
+    const packageRoot = path.join(sampleRoot, "appManifest");
+    mkdirSync(packageRoot, { recursive: true });
+    writeFileSync(path.join(sampleRoot, "brand.png"), "brand", "utf8");
+    writeFileSync(path.join(packageRoot, "outline.png"), "outline", "utf8");
+    writeFileSync(
+      path.join(packageRoot, "manifest.json"),
+      JSON.stringify({
+        $schema: "https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json",
+        manifestVersion: "1.22",
+        version: "1.0.0",
+        id: "${{APP_ID}}",
+        name: { short: "Sample", full: "Sample" },
+        description: { short: "Sample", full: "Sample" },
+        icons: { color: "../brand.png", outline: "outline.png" },
+      }),
+      "utf8",
+    );
+
+    assert.ok(
+      (await checkManifest(sampleRoot, "appManifest", false)).includes(
+        "Manifest icon must be a file at the package root: ../brand.png",
+      ),
+    );
   });
 
   test("skill change requires reconciliation", () => {
