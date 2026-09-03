@@ -81,6 +81,13 @@ interface PlanArgs {
   excludeDecisionId?: string;
 }
 
+export interface AgentInputArgs {
+  repoRoot: string;
+  configDir?: string;
+  plan: string;
+  sample: string;
+}
+
 export interface VerifyArgs {
   repoRoot: string;
   configDir?: string;
@@ -551,6 +558,39 @@ export function buildPlan(args: PlanArgs): Data {
     newSampleCandidates: candidates,
     matrix,
     samples: samplePlans,
+  };
+}
+
+export function buildAgentInput(args: AgentInputArgs): Data {
+  const repositoryRoot = path.resolve(args.repoRoot);
+  const { targets } = loadConfiguration(repositoryRoot, args.configDir ?? CONFIG_DIRECTORY);
+  const plan = loadJson(path.resolve(args.plan));
+  const samples = requireRecord(plan.samples, "plan.samples");
+  const selected = requireRecord(samples[args.sample], `plan.samples.${args.sample}`);
+  const fields = [
+    "status",
+    "changedComponents",
+    "sourceTree",
+    "upstreamCommit",
+    "destination",
+    "target",
+    "ownership",
+    "decisions",
+  ] as const;
+  const sample = Object.fromEntries(fields.map((field) => [field, selected[field]]));
+  return {
+    version: 1,
+    upstreamCommit: plan.upstreamCommit,
+    sampleName: args.sample,
+    repository: {
+      upstream: targets.upstream,
+      destinationRoot: targets.destinationRoot,
+      canonicalSample: targets.canonicalSample,
+      migrationSkill: targets.migrationSkill,
+      manifestSkill: targets.manifestSkill,
+      packagePolicy: targets.packagePolicy,
+    },
+    sample,
   };
 }
 
@@ -1048,7 +1088,7 @@ function writeResult(value: Data, output?: string): void {
 }
 
 interface ParsedCommand {
-  command: "plan" | "verify" | "capture-proposal" | "finalize";
+  command: "plan" | "agent-input" | "verify" | "capture-proposal" | "finalize";
   repoRoot: string;
   configDir: string;
   values: Record<string, string | boolean>;
@@ -1058,7 +1098,7 @@ function parseCommandLine(argv: string[], invocationRoot: string): ParsedCommand
   let repoRoot = invocationRoot;
   let configDir = CONFIG_DIRECTORY;
   let index = 0;
-  const commands = new Set(["plan", "verify", "capture-proposal", "finalize"]);
+  const commands = new Set(["plan", "agent-input", "verify", "capture-proposal", "finalize"]);
   while (index < argv.length && !commands.has(argv[index]!)) {
     const option = argv[index];
     const value = argv[index + 1];
@@ -1068,7 +1108,11 @@ function parseCommandLine(argv: string[], invocationRoot: string): ParsedCommand
     index += 2;
   }
   const command = argv[index] as ParsedCommand["command"] | undefined;
-  if (!command) throw new SyncError("Expected command: plan, verify, capture-proposal, or finalize");
+  if (!command) {
+    throw new SyncError(
+      "Expected command: plan, agent-input, verify, capture-proposal, or finalize",
+    );
+  }
   index += 1;
   const values: Record<string, string | boolean> = {};
   const booleanOptions = new Set(["--run-build", "--no-restore", "--validate-schema", "--allow-proposed"]);
@@ -1119,6 +1163,13 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         ...(typeof parsed.values["exclude-decision"] === "string"
           ? { excludeDecisionId: parsed.values["exclude-decision"] }
           : {}),
+      });
+    } else if (parsed.command === "agent-input") {
+      result = buildAgentInput({
+        repoRoot: parsed.repoRoot,
+        configDir: parsed.configDir,
+        plan: resolveFromInvocation(invocationRoot, requiredValue(parsed.values, "plan")),
+        sample: requiredValue(parsed.values, "sample"),
       });
     } else if (parsed.command === "verify") {
       result = await verifySample({

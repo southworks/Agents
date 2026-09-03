@@ -9,6 +9,7 @@ import { parse, stringify } from "yaml";
 
 import {
   SyncError,
+  buildAgentInput,
   buildPlan,
   captureProposal,
   directoryDigest,
@@ -157,6 +158,61 @@ describe("Teams sample synchronization", () => {
     const secondSample = asRecord(asRecord(second.samples)["sample-a"]);
     assert.equal(secondSample.status, "unchanged");
     assert.deepEqual(second.matrix, []);
+  });
+
+  test("agent input excludes stale state and digest metadata", async () => {
+    const planPath = path.join(temporaryRoot, "plan.json");
+    const outputPath = path.join(temporaryRoot, "agent-input.json");
+    const plan = fixture.plan();
+    writeFileSync(planPath, JSON.stringify(plan), "utf8");
+
+    const input = buildAgentInput({
+      repoRoot: fixture.repository,
+      plan: planPath,
+      sample: "sample-a",
+    });
+    const sample = asRecord(input.sample);
+
+    assert.equal(input.sampleName, "sample-a");
+    assert.equal(input.upstreamCommit, plan.upstreamCommit);
+    assert.deepEqual(input.repository, {
+      upstream: { repository: "example/upstream", ref: "main", root: "samples/TeamsSDK" },
+      destinationRoot: "samples/dotnet/teams",
+      canonicalSample: "samples/dotnet/quickstart",
+      migrationSkill: "skills/migration",
+      manifestSkill: "skills/manifest",
+      packagePolicy: { targetFramework: "net8.0", agentsSdkVersion: "1.7.*" },
+    });
+    assert.deepEqual(Object.keys(sample).sort(), [
+      "changedComponents",
+      "decisions",
+      "destination",
+      "ownership",
+      "sourceTree",
+      "status",
+      "target",
+      "upstreamCommit",
+    ]);
+    assert.equal("previousState" in sample, false);
+    assert.equal("componentDigests" in sample, false);
+    assert.equal("inputDigest" in sample, false);
+    assert.deepEqual(sample.decisions, asRecord(asRecord(plan.samples)["sample-a"]).decisions);
+
+    assert.equal(
+      await main([
+        "--repo-root",
+        fixture.repository,
+        "agent-input",
+        "--plan",
+        planPath,
+        "--sample",
+        "sample-a",
+        "--output",
+        outputPath,
+      ]),
+      0,
+    );
+    assert.deepEqual(JSON.parse(readFileSync(outputPath, "utf8")), input);
   });
 
   test("skill change requires reconciliation", () => {

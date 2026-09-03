@@ -38,6 +38,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Prepare clean synchronization workspace
+        run: |
+          rm -rf .sync
+          mkdir -p .sync
+
       - name: Checkout upstream Teams samples
         uses: actions/checkout@v7
         with:
@@ -124,6 +129,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Prepare clean synchronization workspace
+        run: |
+          rm -rf .sync
+          mkdir -p .sync
+
       - name: Checkout upstream Teams samples
         uses: actions/checkout@v7
         with:
@@ -155,6 +165,8 @@ jobs:
         run: npm install --global @github/copilot@1.0.82
 
       - name: Install deterministic sync dependencies
+        env:
+          SYNC_SAMPLE: ${{ matrix.sample }}
         run: |
           trusted_tool="$RUNNER_TEMP/teams-sample-sync-tool"
           mkdir -p "$trusted_tool"
@@ -162,6 +174,13 @@ jobs:
           npm ci --prefix "$trusted_tool"
           npm run build --prefix "$trusted_tool"
           cp .sync/plan.json "$RUNNER_TEMP/teams-sample-sync-plan.json"
+          node "$trusted_tool/dist/sync.js" \
+            --repo-root . \
+            agent-input \
+            --plan .sync/plan.json \
+            --sample "$SYNC_SAMPLE" \
+            --output .sync/agent-input.json
+          rm .sync/plan.json
           git rev-parse HEAD > "$RUNNER_TEMP/teams-sample-sync-base-sha.txt"
           mkdir -p "$RUNNER_TEMP/teams-sample-sync-verification"
           echo "SYNC_TOOL=$trusted_tool/dist" >> "$GITHUB_ENV"
@@ -183,7 +202,7 @@ jobs:
             - .github/teams-sample-sync/agent-prompt.md
 
             SYNC_SAMPLE=${{ matrix.sample }}
-            PLAN_FILE=.sync/plan.json
+            PLAN_FILE=.sync/agent-input.json
             UPSTREAM_ROOT=.sync/upstream
 
             Process only this selected sample. Do not commit, push, create a pull request, or change protected tests.
@@ -230,15 +249,95 @@ jobs:
             --allow-proposed \
             --output "$VERIFY_ROOT/$SYNC_SAMPLE-first.json"
 
+      - name: Prepare bounded repair context
+        if: steps.verify_first.outcome == 'failure'
+        env:
+          SYNC_SAMPLE: ${{ matrix.sample }}
+        run: cp "$VERIFY_ROOT/$SYNC_SAMPLE-first.json" .sync/verify-first.json
+
+      - name: Run bounded repair agent
+        id: copilot_repair
+        if: steps.verify_first.outcome == 'failure'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          COPILOT_HOME: ${{ runner.temp }}/teams-sample-sync-copilot-repair
+          COPILOT_PROMPT: |
+            Read and follow:
+            - agent-plugins/agents-for-net/skills/sync-teams-dotnet-samples-to-agents-sdk/SKILL.md
+            - agent-plugins/agents-for-net/skills/teams-sdk-to-agents-sdk-dotnet-migration/SKILL.md
+            - agent-plugins/agents-sdk-common/skills/teams-app-manifest/SKILL.md
+            - .github/teams-sample-sync/agent-prompt.md
+
+            SYNC_SAMPLE=${{ matrix.sample }}
+            PLAN_FILE=.sync/agent-input.json
+            VERIFICATION_FILE=.sync/verify-first.json
+            UPSTREAM_ROOT=.sync/upstream
+
+            This is the single bounded repair pass. Read the exact verifier errors and fix every in-scope error with file edits. Do not perform workflow commands, ask questions, or report a plan instead of applying the repair. Do not commit, push, create a pull request, or change protected tests.
+        run: |
+          copilot --prompt "$COPILOT_PROMPT" \
+            --silent \
+            --available-tools='apply_patch,create,edit,view,grep,glob' \
+            --allow-tool='write' \
+            --deny-tool='shell,url' \
+            --disable-builtin-mcps \
+            --disallow-temp-dir \
+            --no-ask-user \
+            --no-auto-update \
+            --no-color \
+            --no-remote \
+            --no-remote-export \
+            | tee .sync/agent-result-repair.txt
+
+      - name: Enforce repair agent write boundary
+        if: steps.copilot_repair.outcome == 'success'
+        env:
+          SYNC_SAMPLE: ${{ matrix.sample }}
+        run: node "$SYNC_TOOL/guard-agent-output.js" --repo-root . --sample "$SYNC_SAMPLE" --mode initial --base-ref "$SYNC_GUARD_BASE"
+
+      - name: Verify repaired result
+        id: verify_repair
+        if: steps.copilot_repair.outcome == 'success'
+        continue-on-error: true
+        env:
+          SYNC_SAMPLE: ${{ matrix.sample }}
+        run: |
+          dotnet restore "samples/dotnet/teams/$SYNC_SAMPLE"
+          node "$SYNC_TOOL/sync.js" \
+            --repo-root . \
+            verify \
+            --sample "$SYNC_SAMPLE" \
+            --run-build \
+            --no-restore \
+            --validate-schema \
+            --allow-proposed \
+            --output "$VERIFY_ROOT/$SYNC_SAMPLE-repair.json"
+
+      - name: Select first successful verification
+        id: first_result
+        if: always()
+        env:
+          SYNC_SAMPLE: ${{ matrix.sample }}
+        run: |
+          if [ "${{ steps.verify_first.outcome }}" = "success" ]; then
+            echo "success=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ steps.verify_repair.outcome }}" = "success" ]; then
+            cp "$VERIFY_ROOT/$SYNC_SAMPLE-repair.json" "$VERIFY_ROOT/$SYNC_SAMPLE-first.json"
+            echo "success=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "success=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Detect proposed decision
         id: proposal_mode
-        if: steps.verify_first.outcome == 'success'
+        if: steps.first_result.outputs.success == 'true'
         env:
           SYNC_SAMPLE: ${{ matrix.sample }}
         run: |
           count=$(node -e "const v=require(process.argv[1]); process.stdout.write(String(v.proposedDecisionIds.length))" "$VERIFY_ROOT/$SYNC_SAMPLE-first.json")
           if [ "$count" = "1" ]; then
             echo "value=true" >> "$GITHUB_OUTPUT"
+            echo "id=$(jq -r '.proposedDecisionIds[0]' "$VERIFY_ROOT/$SYNC_SAMPLE-first.json")" >> "$GITHUB_OUTPUT"
           elif [ "$count" = "0" ]; then
             echo "value=false" >> "$GITHUB_OUTPUT"
           else
@@ -247,7 +346,7 @@ jobs:
           fi
 
       - name: Checkpoint safe migration baseline
-        if: steps.verify_first.outcome == 'success'
+        if: steps.first_result.outputs.success == 'true'
         env:
           SYNC_SAMPLE: ${{ matrix.sample }}
         run: |
@@ -273,7 +372,9 @@ jobs:
             - .github/teams-sample-sync/agent-prompt.md
 
             SYNC_SAMPLE=${{ matrix.sample }}
-            PLAN_FILE=.sync/plan.json
+            PLAN_FILE=.sync/agent-input.json
+            DECISION_ID=${{ steps.proposal_mode.outputs.id }}
+            DECISION_FILE=.github/teams-sample-sync/decisions.yml
             UPSTREAM_ROOT=.sync/upstream
 
             Proposal implementation pass. Exactly one proposed decision exists. Implement only its recommended tentative behavior. Do not change its status or proposal metadata. Do not perform other migration work. Do not commit, push, create a pull request, or change protected tests.
@@ -341,7 +442,9 @@ jobs:
             - .github/teams-sample-sync/agent-prompt.md
 
             SYNC_SAMPLE=${{ matrix.sample }}
-            PLAN_FILE=.sync/plan.json
+            PLAN_FILE=.sync/agent-input.json
+            DECISION_ID=${{ steps.proposal_mode.outputs.id }}
+            DECISION_FILE=.github/teams-sample-sync/decisions.yml
             UPSTREAM_ROOT=.sync/upstream
 
             This is the independent reconciliation pass. Process only this sample. If a proposed decision exists, preserve its tentative implementation without treating it as durable authority. The correct result must make no file changes. Do not commit, push, create a pull request, or change protected tests.
@@ -383,7 +486,7 @@ jobs:
 
       - name: Capture exact decision proposal
         id: proposal
-        if: steps.verify_first.outcome == 'success' && steps.verify_second.outcome == 'success'
+        if: steps.first_result.outputs.success == 'true' && steps.verify_second.outcome == 'success'
         env:
           SYNC_SAMPLE: ${{ matrix.sample }}
         run: |
@@ -410,7 +513,7 @@ jobs:
       - name: Finalize idempotent state
         id: finalize
         if: >-
-          steps.verify_first.outcome == 'success' &&
+          steps.first_result.outputs.success == 'true' &&
           steps.verify_second.outcome == 'success' &&
           steps.proposal.outputs.value == 'false'
         continue-on-error: true
@@ -463,7 +566,10 @@ jobs:
           if [ -f .sync/agent-result-tentative.txt ]; then
             cp .sync/agent-result-tentative.txt ".sync/output/$SYNC_SAMPLE/agent-result-tentative.txt"
           fi
-          for phase in first candidate second; do
+          if [ -f .sync/agent-result-repair.txt ]; then
+            cp .sync/agent-result-repair.txt ".sync/output/$SYNC_SAMPLE/agent-result-repair.txt"
+          fi
+          for phase in first repair candidate second; do
             if [ -f "$VERIFY_ROOT/$SYNC_SAMPLE-$phase.json" ]; then
               cp "$VERIFY_ROOT/$SYNC_SAMPLE-$phase.json" ".sync/output/$SYNC_SAMPLE/verify-$phase.json"
             fi
@@ -480,7 +586,7 @@ jobs:
       - name: Fail unresolved sample
         if: >-
           steps.proposal.outputs.value != 'true' &&
-          (steps.verify_first.outcome != 'success' ||
+          (steps.first_result.outputs.success != 'true' ||
           steps.contract.outcome == 'failure' ||
           steps.reconcile.outcome != 'success' ||
           steps.verify_second.outcome != 'success' ||

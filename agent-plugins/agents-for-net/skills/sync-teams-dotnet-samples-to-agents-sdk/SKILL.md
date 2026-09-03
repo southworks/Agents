@@ -23,6 +23,8 @@ Install and compile the pinned tool with `npm ci` and `npm run build` in `script
 10. Repeat the same synchronization. Run `sync verify` again and use `sync finalize` only when both output digests match and no proposal exists.
 11. Follow [ci-policy.md](references/ci-policy.md) when preparing automation output or a pull request.
 
+When a trusted orchestrator supplies an edit-only automation pass and a `PLAN_FILE`, it owns the CLI sequence above. Read only that reduced input for synchronization state, make the assigned file edits, and return the outcome. Do not try to run plan, build, verify, capture, or finalize commands, and do not ask a user for permission from a non-interactive pass.
+
 ## Invariants
 
 - Selected-sample allowlist controls scope. Report new upstream samples; never migrate them automatically.
