@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 
 import {
   escapeWorkflowCommand,
+  reportRecovery,
   reportVerification,
   unresolvedReason,
 } from "../report-sync.js";
@@ -13,6 +14,16 @@ import {
 test("escapes GitHub workflow command content", () => {
   assert.equal(escapeWorkflowCommand("line 1%\nline 2"), "line 1%25%0Aline 2");
   assert.equal(escapeWorkflowCommand("sample: phase, repair", true), "sample%3A phase%2C repair");
+});
+
+test("summarizes a successful recovery without repeating verifier errors", () => {
+  assert.deepEqual(reportRecovery({ sample: "sample-a", attempts: 2 }), [
+    "### sample-a: migration recovered",
+    "",
+    "- Result: passed after 2 attempts",
+    "- Earlier verification failures were repaired. Exact attempt reports are in the diagnostic artifact.",
+    "",
+  ]);
 });
 
 test("reports each verification error with sample and phase", () => {
@@ -25,9 +36,9 @@ test("reports each verification error with sample and phase", () => {
   );
 
   assert.deepEqual(
-    reportVerification({ verification, phase: "initial", level: "warning" }),
+    reportVerification({ verification, phase: "initial", level: "notice" }),
     [
-      "::warning title=Teams sample sync%3A sample-a (initial)::Missing appManifest/manifest.json",
+      "::notice title=Teams sample sync%3A sample-a (initial)::Missing appManifest/manifest.json",
     ],
   );
 });

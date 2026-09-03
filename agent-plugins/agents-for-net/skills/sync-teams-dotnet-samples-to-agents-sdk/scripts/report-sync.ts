@@ -6,13 +6,19 @@ import { pathToFileURL } from "node:url";
 
 import { SyncError } from "./sync.js";
 
-type AnnotationLevel = "warning" | "error";
+type AnnotationLevel = "notice" | "warning" | "error";
 type Data = Record<string, unknown>;
 
 interface VerificationReportArgs {
   verification: string;
   phase: string;
   level: AnnotationLevel;
+  summary?: string;
+}
+
+interface RecoveryReportArgs {
+  sample: string;
+  attempts: number;
   summary?: string;
 }
 
@@ -92,11 +98,24 @@ export function reportVerification(args: VerificationReportArgs): string[] {
   appendSummary(args.summary, [
     `### ${markdownText(sample)}: ${markdownText(args.phase)} verification`,
     "",
-    `- Result: ${args.level === "warning" ? "repair required" : "failed"}`,
+    `- Result: ${args.level === "error" ? "failed" : "repair required"}`,
     ...errors.map((error) => `- Error: ${markdownText(error)}`),
     "",
   ]);
   return output;
+}
+
+export function reportRecovery(args: RecoveryReportArgs): string[] {
+  if (!Number.isInteger(args.attempts) || args.attempts < 2) return [];
+  const lines = [
+    `### ${markdownText(args.sample)}: migration recovered`,
+    "",
+    `- Result: passed after ${args.attempts} attempts`,
+    "- Earlier verification failures were repaired. Exact attempt reports are in the diagnostic artifact.",
+    "",
+  ];
+  appendSummary(args.summary, lines);
+  return lines;
 }
 
 function existingVerification(paths: string[]): Data | undefined {
@@ -223,8 +242,8 @@ export function main(argv = process.argv.slice(2)): number {
     let output: string[];
     if (command === "verification") {
       const level = required(parsed, "level");
-      if (level !== "warning" && level !== "error") {
-        throw new SyncError("--level must be warning or error");
+      if (level !== "notice" && level !== "warning" && level !== "error") {
+        throw new SyncError("--level must be notice, warning, or error");
       }
       output = reportVerification({
         verification: path.resolve(required(parsed, "verification")),

@@ -11,6 +11,7 @@
 - Keep the reduced agent input and latest verifier report in a read-only context directory. Verify their digests after every agent pass. Keep the upstream checkout read-only and reject any upstream worktree or HEAD change.
 - Compile the validator outside the agent-writable workspace. After each agent pass, reject every changed path except the selected sample and the permitted initial proposal record.
 - For repairable verification failures, repeat the edit-only agent and trusted validation in a bounded loop. Make the total attempt limit configurable; default to five and reject values above the maintained safety cap. Give each repair pass only the latest exact verifier output. Stop when validation passes, the limit is reached, or the output digest and errors repeat. Do not retry agent, write-boundary, restore, or verifier execution failures.
+- Report repairable intermediate failures as notices and keep their exact reports in the diagnostic artifact. When a later attempt passes, summarize the recovery once. Reserve warning or error annotations for unresolved terminal outcomes.
 - Create or update pull requests in a later trusted job.
 - Attest each validated proposal commit with repository-side provenance before human resolution.
 - Validate a human decision with read-only permissions. Use a separate `workflow_run` finalizer with trusted default-branch code for branch writes.

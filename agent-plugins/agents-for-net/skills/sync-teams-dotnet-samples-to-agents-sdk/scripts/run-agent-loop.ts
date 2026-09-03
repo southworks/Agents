@@ -18,7 +18,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { SyncError, canonicalJson, sha256Buffer } from "./sync.js";
-import { escapeWorkflowCommand, reportVerification } from "./report-sync.js";
+import { escapeWorkflowCommand, reportRecovery, reportVerification } from "./report-sync.js";
 
 type Data = Record<string, unknown>;
 type Outcome = "success" | "failure" | "skipped";
@@ -46,7 +46,7 @@ export interface AgentLoopDependencies {
   verify(outputPath: string): Promise<CommandResult>;
   readVerification(filePath: string): Data;
   copyFile(source: string, destination: string): void;
-  reportVerification(filePath: string, phase: string, level: "warning" | "error"): void;
+  reportVerification(filePath: string, phase: string, level: "notice" | "error"): void;
 }
 
 export interface AgentLoopConfig {
@@ -254,6 +254,10 @@ export async function runAgentValidationLoop(
     }
     record.outputDigest = parsed.outputDigest;
     record.errors = parsed.errors;
+    dependencies.copyFile(
+      verificationFile,
+      path.join(config.outputDirectory, `verify-attempt-${attempt}.json`),
+    );
 
     if (verification.status === 0 && parsed.passed) {
       const successfulVerification = path.join(config.verificationRoot, `${config.sample}-first.json`);
@@ -299,7 +303,7 @@ export async function runAgentValidationLoop(
       );
     }
 
-    dependencies.reportVerification(verificationFile, phase, "warning");
+    dependencies.reportVerification(verificationFile, phase, "notice");
     dependencies.copyFile(verificationFile, config.repairContext);
     previousFailureSignature = failureSignature;
   }
@@ -615,7 +619,9 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
           verification: filePath,
           phase,
           level,
-          ...(process.env.GITHUB_STEP_SUMMARY ? { summary: process.env.GITHUB_STEP_SUMMARY } : {}),
+          ...(level === "error" && process.env.GITHUB_STEP_SUMMARY
+            ? { summary: process.env.GITHUB_STEP_SUMMARY }
+            : {}),
         });
         process.stdout.write(`${annotations.join("\n")}\n`);
       },
@@ -639,6 +645,13 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   if (args) {
     mkdirSync(path.dirname(args.resultFile), { recursive: true });
     writeFileSync(args.resultFile, `${JSON.stringify(result, null, 2)}\n`, "utf8");
+  }
+  if (result.success && result.attemptsUsed > 1) {
+    reportRecovery({
+      sample: result.sample,
+      attempts: result.attemptsUsed,
+      ...(process.env.GITHUB_STEP_SUMMARY ? { summary: process.env.GITHUB_STEP_SUMMARY } : {}),
+    });
   }
   writeOutputs(result);
   if (!result.success) workflowError(`Teams sample sync failed: ${result.sample}`, result.message);

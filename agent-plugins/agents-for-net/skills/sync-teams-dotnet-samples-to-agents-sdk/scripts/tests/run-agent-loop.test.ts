@@ -70,7 +70,8 @@ test("passes on the first attempt", async () => {
   assert.equal(result.attemptsUsed, 1);
   assert.equal(result.terminalReason, "passed");
   assert.equal(calls.agents, 1);
-  assert.match(calls.copies[0]!, /sample-a-first\.json$/);
+  assert.ok(calls.copies.some((item) => item.endsWith("sample-a-first.json")));
+  assert.ok(calls.copies.some((item) => item.endsWith("verify-attempt-1.json")));
 });
 
 test("retries verification failures until a later attempt passes", async () => {
@@ -85,9 +86,10 @@ test("retries verification failures until a later attempt passes", async () => {
   assert.equal(result.success, true);
   assert.equal(result.attemptsUsed, 3);
   assert.equal(calls.agents, 3);
+  assert.equal(calls.copies.filter((item) => /verify-attempt-[123]\.json$/.test(item)).length, 3);
   assert.deepEqual(reports, [
-    { phase: "initial", level: "warning" },
-    { phase: "repair-1", level: "warning" },
+    { phase: "initial", level: "notice" },
+    { phase: "repair-1", level: "notice" },
   ]);
   assert.equal(calls.copies.filter((item) => item.endsWith("verify-latest.json")).length, 2);
 });
