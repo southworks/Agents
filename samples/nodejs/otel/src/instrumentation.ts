@@ -40,7 +40,7 @@ class SpanNameFilteringSampler implements Sampler {
   }
 
   shouldSample: Sampler['shouldSample'] = (context, traceId, spanName, spanKind, attributes, links) => {
-     return this.filteredSpanNames.has(spanName)
+    return this.filteredSpanNames.has(spanName)
       ? { decision: SamplingDecision.NOT_RECORD }
       : this.parentBased.shouldSample(context, traceId, spanName, spanKind, attributes, links)
   }
