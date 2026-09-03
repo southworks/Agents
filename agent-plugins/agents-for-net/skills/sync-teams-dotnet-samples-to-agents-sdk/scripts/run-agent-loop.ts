@@ -462,7 +462,7 @@ export function sampleRootFromAgentInput(repoRoot: string, expectedSample: strin
     throw new SyncError("Agent input does not match the selected sample");
   }
   const destinationRoot = path.resolve(repoRoot, repository.destinationRoot);
-  const sampleRoot = path.resolve(destinationRoot, sample.destination);
+  const sampleRoot = path.resolve(repoRoot, sample.destination);
   const relative = path.relative(destinationRoot, sampleRoot);
   if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) {
     throw new SyncError("Selected sample destination escapes the configured destination root");

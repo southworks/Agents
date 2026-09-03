@@ -140,7 +140,7 @@ test("does not retry a failed write-boundary check", async () => {
 test("repair prompt keeps proposed decisions out of the repair authority", () => {
   const prompt = buildAgentPrompt("sample-a", 2, 5);
 
-  assert.match(prompt, /VERIFICATION_FILE=\.sync\/verify-latest\.json/);
+  assert.match(prompt, /VERIFICATION_FILE=\.sync\/context\/verify-latest\.json/);
   assert.match(prompt, /repair attempt 2 of 5/);
   assert.match(prompt, /proposed decision is not approval/i);
 });
@@ -153,7 +153,7 @@ test("derives the restore path from trusted agent input", () => {
     JSON.stringify({
       sampleName: "sample-a",
       repository: { destinationRoot: "samples/dotnet/teams" },
-      sample: { destination: "folder-a" },
+      sample: { destination: "samples/dotnet/teams/folder-a" },
     }),
     "utf8",
   );
