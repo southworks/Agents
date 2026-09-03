@@ -19,16 +19,9 @@ interface VerificationReportArgs {
 interface UnresolvedReportArgs {
   sample: string;
   setupOutcome: string;
-  firstAgentOutcome: string;
-  firstGuardOutcome: string;
-  restoreOutcome: string;
-  firstVerificationOutcome: string;
-  firstSuccess: string;
-  repairContextOutcome: string;
-  repairAgentOutcome: string;
-  repairGuardOutcome: string;
-  repairRestoreOutcome: string;
-  repairVerificationOutcome: string;
+  migrationLoopOutcome: string;
+  migrationLoopSuccess: string;
+  migrationLoopResult: string;
   proposalModeOutcome: string;
   proposalModeValue: string;
   checkpointOutcome: string;
@@ -43,8 +36,6 @@ interface UnresolvedReportArgs {
   finalizeOutcome: string;
   patchOutcome: string;
   uploadOutcome: string;
-  firstVerification: string;
-  repairVerification: string;
   candidateVerification: string;
   secondVerification: string;
   artifact: string;
@@ -117,39 +108,15 @@ export function unresolvedReason(args: UnresolvedReportArgs): string {
   if (args.setupOutcome !== "success") {
     return `Trusted synchronization setup did not succeed (outcome: ${args.setupOutcome})`;
   }
-  if (args.firstAgentOutcome !== "success") {
-    return `Migration agent did not succeed (outcome: ${args.firstAgentOutcome})`;
-  }
-  if (args.firstGuardOutcome !== "success") {
-    return `Initial agent write-boundary check did not succeed (outcome: ${args.firstGuardOutcome})`;
-  }
-  if (args.restoreOutcome !== "success") {
-    return `Sample restore did not succeed (outcome: ${args.restoreOutcome})`;
-  }
-  if (args.firstSuccess !== "true") {
-    if (args.firstVerificationOutcome !== "failure") {
-      return `Initial verification did not run successfully (outcome: ${args.firstVerificationOutcome})`;
+  if (args.migrationLoopSuccess !== "true") {
+    if (existsSync(args.migrationLoopResult)) {
+      const loop = readVerification(args.migrationLoopResult);
+      const attempts = String(loop.attemptsUsed ?? "unknown");
+      const limit = String(loop.maxAttempts ?? "unknown");
+      const reason = String(loop.message ?? "No failure detail was recorded");
+      return `Migration loop failed after ${attempts}/${limit} attempts: ${reason}`;
     }
-    if (args.repairContextOutcome !== "success") {
-      return `Repair context preparation failed; the initial verification report is missing or unavailable (outcome: ${args.repairContextOutcome})`;
-    }
-    if (args.repairAgentOutcome !== "success") {
-      return `Bounded repair agent did not succeed (outcome: ${args.repairAgentOutcome})`;
-    }
-    if (args.repairGuardOutcome !== "success") {
-      return `Repair write-boundary check did not succeed (outcome: ${args.repairGuardOutcome})`;
-    }
-    if (args.repairRestoreOutcome !== "success") {
-      return `Repaired sample restore did not succeed (outcome: ${args.repairRestoreOutcome})`;
-    }
-    if (args.repairVerificationOutcome !== "failure") {
-      return `Repaired verification did not run successfully (outcome: ${args.repairVerificationOutcome})`;
-    }
-    const verification = existingVerification([args.repairVerification]);
-    const errors = verification
-      ? verificationErrors(verification).join("; ")
-      : "The verification command failed before it produced a report";
-    return `Verification remained unresolved after the bounded repair: ${errors}`;
+    return `Migration loop did not succeed (outcome: ${args.migrationLoopOutcome})`;
   }
   if (args.proposalModeOutcome !== "success") {
     return `Decision detection did not succeed (outcome: ${args.proposalModeOutcome})`;
@@ -208,16 +175,8 @@ export function reportUnresolved(args: UnresolvedReportArgs): string[] {
     "",
     `- Reason: ${markdownText(reason)}`,
     `- Trusted setup: ${markdownText(args.setupOutcome)}`,
-    `- Migration agent: ${markdownText(args.firstAgentOutcome)}`,
-    `- Initial write boundary: ${markdownText(args.firstGuardOutcome)}`,
-    `- Restore: ${markdownText(args.restoreOutcome)}`,
-    `- Initial verification: ${markdownText(args.firstVerificationOutcome)}`,
-    `- Initial or repaired verification: ${markdownText(args.firstSuccess)}`,
-    `- Repair context: ${markdownText(args.repairContextOutcome)}`,
-    `- Repair agent: ${markdownText(args.repairAgentOutcome)}`,
-    `- Repair write boundary: ${markdownText(args.repairGuardOutcome)}`,
-    `- Repair restore: ${markdownText(args.repairRestoreOutcome)}`,
-    `- Repair verification: ${markdownText(args.repairVerificationOutcome)}`,
+    `- Migration loop: ${markdownText(args.migrationLoopOutcome)}`,
+    `- Migration verified: ${markdownText(args.migrationLoopSuccess)}`,
     `- Decision detection: ${markdownText(args.proposalModeOutcome)}`,
     `- Safe checkpoint: ${markdownText(args.checkpointOutcome)}`,
     `- Tentative agent: ${markdownText(args.tentativeOutcome)}`,
@@ -277,16 +236,9 @@ export function main(argv = process.argv.slice(2)): number {
       output = reportUnresolved({
         sample: required(parsed, "sample"),
         setupOutcome: required(parsed, "setup-outcome"),
-        firstAgentOutcome: required(parsed, "first-agent-outcome"),
-        firstGuardOutcome: required(parsed, "first-guard-outcome"),
-        restoreOutcome: required(parsed, "restore-outcome"),
-        firstVerificationOutcome: required(parsed, "first-verification-outcome"),
-        firstSuccess: required(parsed, "first-success"),
-        repairContextOutcome: required(parsed, "repair-context-outcome"),
-        repairAgentOutcome: required(parsed, "repair-agent-outcome"),
-        repairGuardOutcome: required(parsed, "repair-guard-outcome"),
-        repairRestoreOutcome: required(parsed, "repair-restore-outcome"),
-        repairVerificationOutcome: required(parsed, "repair-verification-outcome"),
+        migrationLoopOutcome: required(parsed, "migration-loop-outcome"),
+        migrationLoopSuccess: required(parsed, "migration-loop-success"),
+        migrationLoopResult: path.resolve(required(parsed, "migration-loop-result")),
         proposalModeOutcome: required(parsed, "proposal-mode-outcome"),
         proposalModeValue: required(parsed, "proposal-mode-value"),
         checkpointOutcome: required(parsed, "checkpoint-outcome"),
@@ -301,8 +253,6 @@ export function main(argv = process.argv.slice(2)): number {
         finalizeOutcome: required(parsed, "finalize-outcome"),
         patchOutcome: required(parsed, "patch-outcome"),
         uploadOutcome: required(parsed, "upload-outcome"),
-        firstVerification: path.resolve(required(parsed, "first-verification")),
-        repairVerification: path.resolve(required(parsed, "repair-verification")),
         candidateVerification: path.resolve(required(parsed, "candidate-verification")),
         secondVerification: path.resolve(required(parsed, "second-verification")),
         artifact: required(parsed, "artifact"),

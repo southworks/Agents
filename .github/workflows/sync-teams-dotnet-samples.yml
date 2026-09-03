@@ -13,6 +13,11 @@ on:
         required: true
         default: false
         type: boolean
+      maxAgentAttempts:
+        description: Maximum migration and validation attempts per sample
+        required: true
+        default: 5
+        type: number
   # Enable only after the manual acceptance suite passes repeatedly.
   # schedule:
   #   - cron: "17 6 * * 1"
@@ -176,17 +181,19 @@ jobs:
           npm run build --prefix "$trusted_tool"
           echo "SYNC_TOOL=$trusted_tool/dist" >> "$GITHUB_ENV"
           cp .sync/plan.json "$RUNNER_TEMP/teams-sample-sync-plan.json"
+          mkdir -p .sync/context
           node "$trusted_tool/dist/sync.js" \
             --repo-root . \
             agent-input \
             --plan .sync/plan.json \
             --sample "$SYNC_SAMPLE" \
-            --output .sync/agent-input.json
+            --output .sync/context/agent-input.json
           node "$trusted_tool/dist/sync.js" \
             --repo-root . \
             prepare-manifest \
             --sample "$SYNC_SAMPLE" \
             --output "$RUNNER_TEMP/teams-sample-sync-manifest-package.json"
+          chmod -R a-w .sync/upstream
           rm .sync/plan.json
           git rev-parse HEAD > "$RUNNER_TEMP/teams-sample-sync-base-sha.txt"
           mkdir -p "$RUNNER_TEMP/teams-sample-sync-verification"
@@ -196,176 +203,27 @@ jobs:
           echo "MANIFEST_BASELINE=$RUNNER_TEMP/teams-sample-sync-manifest-package.json" >> "$GITHUB_ENV"
           echo "SYNC_GUARD_BASE=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
-      - name: Run migration agent
-        id: copilot_first
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          COPILOT_HOME: ${{ runner.temp }}/teams-sample-sync-copilot-first
-          COPILOT_PROMPT: |
-            Read and follow:
-            - agent-plugins/agents-for-net/skills/sync-teams-dotnet-samples-to-agents-sdk/SKILL.md
-            - agent-plugins/agents-for-net/skills/teams-sdk-to-agents-sdk-dotnet-migration/SKILL.md
-            - agent-plugins/agents-sdk-common/skills/teams-app-manifest/SKILL.md
-            - .github/teams-sample-sync/agent-prompt.md
-
-            SYNC_SAMPLE=${{ matrix.sample }}
-            PLAN_FILE=.sync/agent-input.json
-            UPSTREAM_ROOT=.sync/upstream
-
-            Process only this selected sample. Do not commit, push, create a pull request, or change protected tests.
-        run: |
-          mkdir -p .sync
-          copilot --prompt "$COPILOT_PROMPT" \
-            --silent \
-            --available-tools='apply_patch,create,edit,view,grep,glob' \
-            --allow-tool='write' \
-            --deny-tool='shell,url' \
-            --disable-builtin-mcps \
-            --disallow-temp-dir \
-            --no-ask-user \
-            --no-auto-update \
-            --no-color \
-            --no-remote \
-            --no-remote-export \
-            | tee .sync/agent-result-first.txt
-
-      - name: Enforce initial agent write boundary
-        id: guard_first
-        env:
-          SYNC_SAMPLE: ${{ matrix.sample }}
-        run: node "$SYNC_TOOL/guard-agent-output.js" --repo-root . --sample "$SYNC_SAMPLE" --mode initial --base-ref "$SYNC_GUARD_BASE" --manifest-baseline "$MANIFEST_BASELINE"
-
-      - name: Restore selected destination sample
-        id: restore_first
-        env:
-          SYNC_SAMPLE: ${{ matrix.sample }}
-        run: dotnet restore "samples/dotnet/teams/$SYNC_SAMPLE"
-
-      - name: Verify first result
-        id: verify_first
+      - name: Run bounded migration and validation loop
+        id: first_result
         continue-on-error: true
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           SYNC_SAMPLE: ${{ matrix.sample }}
+          MAX_AGENT_ATTEMPTS: ${{ inputs.maxAgentAttempts || 5 }}
         run: |
           mkdir -p ".sync/output/$SYNC_SAMPLE"
-          node "$SYNC_TOOL/sync.js" \
+          node "$SYNC_TOOL/run-agent-loop.js" \
             --repo-root . \
-            verify \
+            --tool-root "$SYNC_TOOL" \
             --sample "$SYNC_SAMPLE" \
-            --run-build \
-            --no-restore \
-            --validate-schema \
-            --allow-proposed \
-            --output "$VERIFY_ROOT/$SYNC_SAMPLE-first.json"
-
-      - name: Report initial verification failure
-        if: steps.verify_first.outcome == 'failure'
-        continue-on-error: true
-        env:
-          SYNC_SAMPLE: ${{ matrix.sample }}
-        run: |
-          node "$SYNC_TOOL/report-sync.js" verification \
-            --verification "$VERIFY_ROOT/$SYNC_SAMPLE-first.json" \
-            --phase initial \
-            --level warning
-
-      - name: Prepare bounded repair context
-        id: repair_context
-        if: steps.verify_first.outcome == 'failure'
-        env:
-          SYNC_SAMPLE: ${{ matrix.sample }}
-        run: cp "$VERIFY_ROOT/$SYNC_SAMPLE-first.json" .sync/verify-first.json
-
-      - name: Run bounded repair agent
-        id: copilot_repair
-        if: steps.verify_first.outcome == 'failure'
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          COPILOT_HOME: ${{ runner.temp }}/teams-sample-sync-copilot-repair
-          COPILOT_PROMPT: |
-            Read and follow:
-            - agent-plugins/agents-for-net/skills/sync-teams-dotnet-samples-to-agents-sdk/SKILL.md
-            - agent-plugins/agents-for-net/skills/teams-sdk-to-agents-sdk-dotnet-migration/SKILL.md
-            - agent-plugins/agents-sdk-common/skills/teams-app-manifest/SKILL.md
-            - .github/teams-sample-sync/agent-prompt.md
-
-            SYNC_SAMPLE=${{ matrix.sample }}
-            PLAN_FILE=.sync/agent-input.json
-            VERIFICATION_FILE=.sync/verify-first.json
-            UPSTREAM_ROOT=.sync/upstream
-
-            This is the single bounded repair pass. Read the exact verifier errors and fix every in-scope error with file edits. Do not perform workflow commands, ask questions, or report a plan instead of applying the repair. Do not commit, push, create a pull request, or change protected tests.
-        run: |
-          copilot --prompt "$COPILOT_PROMPT" \
-            --silent \
-            --available-tools='apply_patch,create,edit,view,grep,glob' \
-            --allow-tool='write' \
-            --deny-tool='shell,url' \
-            --disable-builtin-mcps \
-            --disallow-temp-dir \
-            --no-ask-user \
-            --no-auto-update \
-            --no-color \
-            --no-remote \
-            --no-remote-export \
-            | tee .sync/agent-result-repair.txt
-
-      - name: Enforce repair agent write boundary
-        id: guard_repair
-        if: steps.copilot_repair.outcome == 'success'
-        env:
-          SYNC_SAMPLE: ${{ matrix.sample }}
-        run: node "$SYNC_TOOL/guard-agent-output.js" --repo-root . --sample "$SYNC_SAMPLE" --mode initial --base-ref "$SYNC_GUARD_BASE" --manifest-baseline "$MANIFEST_BASELINE"
-
-      - name: Restore repaired destination sample
-        id: restore_repair
-        if: steps.guard_repair.outcome == 'success'
-        env:
-          SYNC_SAMPLE: ${{ matrix.sample }}
-        run: dotnet restore "samples/dotnet/teams/$SYNC_SAMPLE"
-
-      - name: Verify repaired result
-        id: verify_repair
-        if: steps.restore_repair.outcome == 'success'
-        continue-on-error: true
-        env:
-          SYNC_SAMPLE: ${{ matrix.sample }}
-        run: |
-          node "$SYNC_TOOL/sync.js" \
-            --repo-root . \
-            verify \
-            --sample "$SYNC_SAMPLE" \
-            --run-build \
-            --no-restore \
-            --validate-schema \
-            --allow-proposed \
-            --output "$VERIFY_ROOT/$SYNC_SAMPLE-repair.json"
-
-      - name: Report repaired verification failure
-        if: steps.verify_repair.outcome == 'failure'
-        continue-on-error: true
-        env:
-          SYNC_SAMPLE: ${{ matrix.sample }}
-        run: |
-          node "$SYNC_TOOL/report-sync.js" verification \
-            --verification "$VERIFY_ROOT/$SYNC_SAMPLE-repair.json" \
-            --phase repair \
-            --level error
-
-      - name: Select first successful verification
-        id: first_result
-        if: always()
-        env:
-          SYNC_SAMPLE: ${{ matrix.sample }}
-        run: |
-          if [ "${{ steps.verify_first.outcome }}" = "success" ]; then
-            echo "success=true" >> "$GITHUB_OUTPUT"
-          elif [ "${{ steps.verify_repair.outcome }}" = "success" ]; then
-            cp "$VERIFY_ROOT/$SYNC_SAMPLE-repair.json" "$VERIFY_ROOT/$SYNC_SAMPLE-first.json"
-            echo "success=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "success=false" >> "$GITHUB_OUTPUT"
-          fi
+            --max-attempts "$MAX_AGENT_ATTEMPTS" \
+            --base-ref "$SYNC_GUARD_BASE" \
+            --manifest-baseline "$MANIFEST_BASELINE" \
+            --verification-root "$VERIFY_ROOT" \
+            --output-directory ".sync/output/$SYNC_SAMPLE" \
+            --repair-context .sync/context/verify-latest.json \
+            --result ".sync/output/$SYNC_SAMPLE/agent-loop.json" \
+            --runner-temp "$RUNNER_TEMP"
 
       - name: Detect proposed decision
         id: proposal_mode
@@ -603,29 +461,21 @@ jobs:
           {
             echo "sample=$SYNC_SAMPLE"
             echo "setup=${{ steps.setup.outcome }}"
-            echo "migration-agent=${{ steps.copilot_first.outcome }}"
-            echo "initial-guard=${{ steps.guard_first.outcome }}"
-            echo "initial-restore=${{ steps.restore_first.outcome }}"
-            echo "initial-verification=${{ steps.verify_first.outcome }}"
-            echo "repair-agent=${{ steps.copilot_repair.outcome }}"
-            echo "repair-verification=${{ steps.verify_repair.outcome }}"
+            echo "migration-loop=${{ steps.first_result.outcome }}"
+            echo "migration-success=${{ steps.first_result.outputs.success }}"
+            echo "migration-attempts=${{ steps.first_result.outputs.attempts }}"
+            echo "migration-terminal-reason=${{ steps.first_result.outputs.terminal_reason }}"
             echo "reconciliation=${{ steps.reconcile.outcome }}"
             echo "repeated-verification=${{ steps.verify_second.outcome }}"
             echo "finalization=${{ steps.finalize.outcome }}"
           } > ".sync/output/$SYNC_SAMPLE/workflow-outcomes.txt"
-          if [ -f .sync/agent-result-first.txt ]; then
-            cp .sync/agent-result-first.txt ".sync/output/$SYNC_SAMPLE/agent-result-first.txt"
-          fi
           if [ -f .sync/agent-result-second.txt ]; then
             cp .sync/agent-result-second.txt ".sync/output/$SYNC_SAMPLE/agent-result-second.txt"
           fi
           if [ -f .sync/agent-result-tentative.txt ]; then
             cp .sync/agent-result-tentative.txt ".sync/output/$SYNC_SAMPLE/agent-result-tentative.txt"
           fi
-          if [ -f .sync/agent-result-repair.txt ]; then
-            cp .sync/agent-result-repair.txt ".sync/output/$SYNC_SAMPLE/agent-result-repair.txt"
-          fi
-          for phase in first repair candidate second; do
+          for phase in first candidate second; do
             if [ -f "$VERIFY_ROOT/$SYNC_SAMPLE-$phase.json" ]; then
               cp "$VERIFY_ROOT/$SYNC_SAMPLE-$phase.json" ".sync/output/$SYNC_SAMPLE/verify-$phase.json"
             fi
@@ -662,16 +512,9 @@ jobs:
           node "$SYNC_TOOL/report-sync.js" unresolved \
             --sample "$SYNC_SAMPLE" \
             --setup-outcome "${{ steps.setup.outcome }}" \
-            --first-agent-outcome "${{ steps.copilot_first.outcome }}" \
-            --first-guard-outcome "${{ steps.guard_first.outcome }}" \
-            --restore-outcome "${{ steps.restore_first.outcome }}" \
-            --first-verification-outcome "${{ steps.verify_first.outcome }}" \
-            --first-success "${{ steps.first_result.outputs.success }}" \
-            --repair-context-outcome "${{ steps.repair_context.outcome }}" \
-            --repair-agent-outcome "${{ steps.copilot_repair.outcome }}" \
-            --repair-guard-outcome "${{ steps.guard_repair.outcome }}" \
-            --repair-restore-outcome "${{ steps.restore_repair.outcome }}" \
-            --repair-verification-outcome "${{ steps.verify_repair.outcome }}" \
+            --migration-loop-outcome "${{ steps.first_result.outcome }}" \
+            --migration-loop-success "${{ steps.first_result.outputs.success }}" \
+            --migration-loop-result ".sync/output/$SYNC_SAMPLE/agent-loop.json" \
             --proposal-mode-outcome "${{ steps.proposal_mode.outcome }}" \
             --proposal-mode-value "${{ steps.proposal_mode.outputs.value }}" \
             --checkpoint-outcome "${{ steps.checkpoint.outcome }}" \
@@ -686,8 +529,6 @@ jobs:
             --finalize-outcome "${{ steps.finalize.outcome }}" \
             --patch-outcome "${{ steps.patch.outcome }}" \
             --upload-outcome "${{ steps.upload_result.outcome }}" \
-            --first-verification "$VERIFY_ROOT/$SYNC_SAMPLE-first.json" \
-            --repair-verification "$VERIFY_ROOT/$SYNC_SAMPLE-repair.json" \
             --candidate-verification "$VERIFY_ROOT/$SYNC_SAMPLE-candidate.json" \
             --second-verification "$VERIFY_ROOT/$SYNC_SAMPLE-second.json" \
             --artifact "teams-sample-sync-$SYNC_SAMPLE"

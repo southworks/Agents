@@ -19,7 +19,7 @@ Install and compile the pinned tool with `npm ci` and `npm run build` in `script
 6. After code migration is stable, explicitly use `teams-app-manifest`. Supply the migrated source root, original manifest, configured scopes if present, distribution target, placeholder convention, and package directory. Do not modify that skill.
 7. Run `sync verify`, repository builds, protected contract tests, HTTP smoke tests, and manifest package validation. Use `--allow-proposed` only for proposal candidates.
 8. When one proposal exists, checkpoint the safe result. In a separate pass, implement only its recommendation as tentative code. Verify it, reconcile it independently, and run `sync capture-proposal`. Do not finalize state.
-9. Permit one bounded repair attempt. Stop on another failure.
+9. Use the trusted orchestrator's bounded agent-validation loop for repairable failures. The attempt limit is configurable and defaults to five total agent attempts. Give each repair pass the exact latest verifier output. Stop at the limit, when output and errors make no progress, or immediately after a safety or infrastructure failure.
 10. Repeat the same synchronization. Run `sync verify` again and use `sync finalize` only when both output digests match and no proposal exists.
 11. Follow [ci-policy.md](references/ci-policy.md) when preparing automation output or a pull request.
 
