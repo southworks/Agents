@@ -5,8 +5,9 @@ import { buildAgentPrompt, copilotArguments } from "../src/agent-runner.js";
 import { fixture } from "./helpers.js";
 
 test("Copilot can fetch only approved manifest documentation", () => {
-  const args = copilotArguments("migrate sample");
+  const args = copilotArguments("migrate sample", { model: "gpt-5.4", reasoningEffort: "high" });
 
+  assert.deepEqual(args.slice(0, 6), ["--prompt", "migrate sample", "--model", "gpt-5.4", "--reasoning-effort", "high"]);
   assert.ok(args.includes("--available-tools=apply_patch,create,edit,view,grep,glob,web_fetch"));
   assert.deepEqual(args.filter((arg) => arg.startsWith("--allow-url=")), [
     "--allow-url=https://learn.microsoft.com/en-us/microsoftteams/platform/*",

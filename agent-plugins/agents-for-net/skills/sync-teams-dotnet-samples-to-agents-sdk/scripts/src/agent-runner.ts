@@ -5,7 +5,7 @@ import { SyncError, record, text } from "./config.js";
 import { digestDirectory } from "./git.js";
 import { assertAgentChanges, assertContext, assertUpstream } from "./guard.js";
 import { updateContextErrors, type ContextFiles } from "./context.js";
-import type { AgentResult, AgentStatus, PolicyRequest, ValidationResult } from "./types.js";
+import type { AgentResult, AgentStatus, CopilotConfiguration, PolicyRequest, ValidationResult } from "./types.js";
 
 export const MAX_ATTEMPTS = 5;
 
@@ -88,9 +88,11 @@ function parseStdout(stdout: string): unknown {
   }
 }
 
-export function copilotArguments(prompt: string): string[] {
+export function copilotArguments(prompt: string, configuration: CopilotConfiguration): string[] {
   return [
     "--prompt", prompt,
+    "--model", configuration.model,
+    "--reasoning-effort", configuration.reasoningEffort,
     "--silent",
     "--available-tools=apply_patch,create,edit,view,grep,glob,web_fetch",
     "--allow-tool=write",
@@ -113,12 +115,13 @@ export class CopilotAgentRunner implements AgentRunner {
     private readonly repo: string,
     private readonly runnerRoot: string,
     private readonly logFile: string,
+    private readonly configuration: CopilotConfiguration,
   ) {}
 
   async run(input: { contextFile: string; prompt: string; attempt: number }): Promise<unknown> {
     const copilotHome = path.join(this.runnerRoot, `copilot-attempt-${input.attempt}`);
     mkdirSync(copilotHome, { recursive: true });
-    const args = copilotArguments(input.prompt);
+    const args = copilotArguments(input.prompt, this.configuration);
     const outcome = await new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
       const child = spawn("copilot", args, {
         cwd: this.repo,

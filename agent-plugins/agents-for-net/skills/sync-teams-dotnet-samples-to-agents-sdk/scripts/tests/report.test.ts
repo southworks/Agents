@@ -14,6 +14,7 @@ function result(overrides: Partial<SyncResult> = {}): SyncResult {
     upstreamCommit: "teams-after",
     upstreamChanges: [{ status: "modified", oldPath: "Program.cs", newPath: "Program.cs", binary: false }],
     changedComponents: ["sourceTree", "policies"],
+    copilot: { model: "gpt-5.4", reasoningEffort: "high" },
     migrationPolicies: [{
       key: "agent-targeted-messages.routing",
       sample: "agent-targeted-messages",
@@ -81,6 +82,8 @@ test("PR body explains the trigger, sample changes, policies, and validation to 
   assert.match(body, /HTTP smoke test.*Starts the built sample and requires `GET \/` to return HTTP 200/);
   assert.match(body, /Protected behavior contracts.*sample-specific contract tests when configured/);
   assert.match(body, /Teams repository commit: `teams-after`/);
+  assert.match(body, /Copilot model: `gpt-5\.4`/);
+  assert.match(body, /Copilot reasoning effort: `high`/);
   assert.doesNotMatch(body, /\bupstream\b/i);
 });
 

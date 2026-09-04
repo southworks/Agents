@@ -36,6 +36,7 @@ export function createPlan(repo: string, upstream: string, chosen?: string): Pla
       migrationSkill: digestDirectory(path.join(repo, configured.migrationSkill)),
       manifestSkill: digestDirectory(path.join(repo, configured.manifestSkill)),
       canonicalSample: digestDirectory(path.join(repo, configured.canonicalSample), owner.outputDigestExcludes),
+      copilot: hash(stable(configured.copilot)),
       packagePolicy: hash(stable(configured.packagePolicy)),
       validator: hash(configured.validatorVersion),
     };

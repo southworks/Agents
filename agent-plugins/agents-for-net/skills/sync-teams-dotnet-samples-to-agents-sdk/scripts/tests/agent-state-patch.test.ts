@@ -48,6 +48,21 @@ test("agent prompt identifies the complete allowed policy key list", () => {
   assert.match(prompt, /complete final migration, including changes made before any repair pass/);
 });
 
+test("migrate rejects Copilot configuration drift from its plan", async () => {
+  const item = fixture();
+  const plan = createPlan(item.repo, item.upstream, "sample-a");
+  const planFile = path.join(item.repo, ".sync/plan.json");
+  write(planFile, `${JSON.stringify(plan, null, 2)}\n`);
+  const targetsFile = path.join(item.repo, ".github/teams-sample-sync/targets.yml");
+  write(targetsFile, readFileSync(targetsFile, "utf8").replace("model: gpt-5.4", "model: changed-model"));
+
+  const exit = await main([
+    "migrate", "--repo-root", item.repo, "--upstream-root", item.upstream,
+    "--plan", planFile, "--sample", "sample-a", "--output-directory", path.join(item.repo, ".sync/output"),
+  ]);
+  assert.equal(exit, 2);
+});
+
 test("repair loop receives only exact verifier errors and stops after success", async () => {
   const item = fixture();
   const plan = createPlan(item.repo, item.upstream, "sample-a");
@@ -177,7 +192,7 @@ test("verify-patch accepts only the applied validated sample and state", async (
     version: 2, sample: "sample-a", status: "updated", publishable: true, baseSha,
     previousUpstreamCommit: null, upstreamCommit: entry.upstreamCommit!, upstreamChanges: [],
     changedComponents: entry.changedComponents, destinationChanges: changedPaths(item.repo, baseSha),
-    migrationPolicies: [],
+    copilot: { model: "gpt-5.4", reasoningEffort: "high" }, migrationPolicies: [],
     sourceTree: entry.sourceTree!, inputDigest: entry.inputDigest!,
     componentDigests: entry.componentDigests!, outputDigest, state, agent: agent(), validation: checked,
   };
@@ -185,6 +200,9 @@ test("verify-patch accepts only the applied validated sample and state", async (
   write(resultFile, `${JSON.stringify(result, null, 2)}\n`);
   const exit = await main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]);
   assert.equal(exit, 0);
+  write(resultFile, `${JSON.stringify({ ...result, copilot: { ...result.copilot, model: "changed-model" } }, null, 2)}\n`);
+  assert.equal(await main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]), 2);
+  write(resultFile, `${JSON.stringify(result, null, 2)}\n`);
   write(path.join(item.repo, "outside.txt"), "not allowed\n");
   assert.equal(await main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]), 2);
   rmSync(path.join(item.repo, "outside.txt"));

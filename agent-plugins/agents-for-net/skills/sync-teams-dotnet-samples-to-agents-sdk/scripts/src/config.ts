@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
-import type { ManifestTarget, Protection, Target, Targets } from "./types.js";
+import { REASONING_EFFORTS, type ManifestTarget, type Protection, type ReasoningEffort, type Target, type Targets } from "./types.js";
 
 export const CONFIG_DIRECTORY = ".github/teams-sample-sync";
 
@@ -69,6 +69,7 @@ export function targets(repo: string): Targets {
   const value = yaml(path.join(repo, CONFIG_DIRECTORY, "targets.yml"));
   if (value.version !== 1) throw new SyncError("targets.yml must use version 1");
   const upstream = record(value.upstream, "targets.yml upstream");
+  const copilot = record(value.copilot, "targets.yml copilot");
   const packagePolicy = record(value.packagePolicy, "targets.yml packagePolicy");
   const rawSamples = record(value.samples, "targets.yml samples");
   if (Object.keys(rawSamples).length === 0) throw new SyncError("targets.yml must select at least one sample");
@@ -84,6 +85,10 @@ export function targets(repo: string): Targets {
     destinations.add(destination);
     samples[name] = { source, destination, manifest: manifest(item.manifest, `${name}.manifest`) };
   }
+  const reasoningEffort = text(copilot.reasoningEffort, "copilot.reasoningEffort");
+  if (!(REASONING_EFFORTS as readonly string[]).includes(reasoningEffort)) {
+    throw new SyncError(`copilot.reasoningEffort must be one of: ${REASONING_EFFORTS.join(", ")}`);
+  }
   const result: Targets = {
     version: 1,
     upstream: {
@@ -95,6 +100,10 @@ export function targets(repo: string): Targets {
     canonicalSample: text(value.canonicalSample, "canonicalSample"),
     migrationSkill: text(value.migrationSkill, "migrationSkill"),
     manifestSkill: text(value.manifestSkill, "manifestSkill"),
+    copilot: {
+      model: text(copilot.model, "copilot.model"),
+      reasoningEffort: reasoningEffort as ReasoningEffort,
+    },
     packagePolicy: {
       targetFramework: text(packagePolicy.targetFramework, "packagePolicy.targetFramework"),
       agentsSdkVersion: text(packagePolicy.agentsSdkVersion, "packagePolicy.agentsSdkVersion"),

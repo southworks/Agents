@@ -55,6 +55,9 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
   if (plan.version !== 2 || !target || !entry?.upstreamCommit || !entry.sourceTree || !entry.inputDigest || !entry.componentDigests || entry.status !== "pending") {
     throw new SyncError("Plan does not contain a pending selected sample");
   }
+  if (entry.componentDigests.copilot !== hash(stable(configured.copilot))) {
+    throw new SyncError("Copilot configuration differs from the selected plan");
+  }
   const baseSha = git(repo, ["rev-parse", "HEAD"]) as string;
   const sampleRelative = `${configured.destinationRoot}/${target.destination}`.replaceAll("\\", "/");
   const sampleRoot = path.join(repo, sampleRelative);
@@ -63,7 +66,7 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
   prepareManifest(sampleRoot, path.join(repo, configured.canonicalSample), target.manifest);
   const agentLog = path.join(output, "agent-log.txt");
   writeFileSync(agentLog, "", "utf8");
-  const runner = new CopilotAgentRunner(repo, path.join(repo, ".sync", "runner", sample), agentLog);
+  const runner = new CopilotAgentRunner(repo, path.join(repo, ".sync", "runner", sample), agentLog, configured.copilot);
 
   let syncResult: SyncResult;
   try {
@@ -91,7 +94,7 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
         version: 2, sample, status: loop.agent.status, publishable: false, baseSha,
         previousUpstreamCommit: contextValue.upstream.previousCommit,
         upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
-        changedComponents: entry.changedComponents, migrationPolicies: contextValue.policies,
+        changedComponents: entry.changedComponents, copilot: configured.copilot, migrationPolicies: contextValue.policies,
         sourceTree: entry.sourceTree, inputDigest: entry.inputDigest,
         componentDigests: entry.componentDigests, outputDigest: loop.validation.outputDigest,
         agent: loop.agent, validation: loop.validation,
@@ -101,7 +104,7 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
         version: 2, sample, status: "failed", publishable: false, baseSha,
         previousUpstreamCommit: contextValue.upstream.previousCommit,
         upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
-        changedComponents: entry.changedComponents, migrationPolicies: contextValue.policies,
+        changedComponents: entry.changedComponents, copilot: configured.copilot, migrationPolicies: contextValue.policies,
         sourceTree: entry.sourceTree, inputDigest: entry.inputDigest,
         componentDigests: entry.componentDigests, outputDigest: loop.validation.outputDigest,
         agent: loop.agent, validation: loop.validation, error: loop.validation.errors.join("\n"),
@@ -121,7 +124,8 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
         version: 2, sample, status: "updated", publishable: true, baseSha,
         previousUpstreamCommit: contextValue.upstream.previousCommit,
         upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
-        changedComponents: entry.changedComponents, migrationPolicies: contextValue.policies, destinationChanges,
+        changedComponents: entry.changedComponents, copilot: configured.copilot,
+        migrationPolicies: contextValue.policies, destinationChanges,
         sourceTree: entry.sourceTree, inputDigest: entry.inputDigest,
         componentDigests: entry.componentDigests, outputDigest: loop.validation.outputDigest,
         state, agent: loop.agent, validation: loop.validation,
@@ -132,7 +136,7 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
       version: 2, sample, status: "failed", publishable: false, baseSha,
       previousUpstreamCommit: contextValue.upstream.previousCommit,
       upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
-      changedComponents: entry.changedComponents, migrationPolicies: contextValue.policies,
+      changedComponents: entry.changedComponents, copilot: configured.copilot, migrationPolicies: contextValue.policies,
       sourceTree: entry.sourceTree, inputDigest: entry.inputDigest,
       componentDigests: entry.componentDigests,
       error: error instanceof Error ? error.message : String(error),
@@ -151,13 +155,17 @@ function verifyPatch(repo: string, values: Record<string, string>): void {
   if (result.version !== 2 || result.sample !== sample || result.status !== "updated" || !result.publishable ||
       !result.state || !result.outputDigest || !result.validation?.passed ||
       result.validation.outputDigest !== result.outputDigest ||
-      !result.agent || !["updated", "unchanged"].includes(result.agent.status)) {
+      !result.agent || !result.copilot || !["updated", "unchanged"].includes(result.agent.status)) {
     throw new SyncError("Only a complete updated result is publishable");
   }
   const head = git(repo, ["rev-parse", "HEAD"]) as string;
   if (head !== result.baseSha) throw new SyncError("Publish checkout differs from validated base SHA");
   const configured = targets(repo); const owner = protection(repo); const target = configured.samples[sample];
   if (!target) throw new SyncError("Sample is not selected");
+  if (stable(result.copilot) !== stable(configured.copilot) ||
+      result.componentDigests.copilot !== hash(stable(result.copilot))) {
+    throw new SyncError("Copilot configuration differs from the validated result");
+  }
   const sampleRelative = `${configured.destinationRoot}/${target.destination}`.replaceAll("\\", "/");
   const stateRelative = path.relative(repo, statePath(repo, sample)).replaceAll("\\", "/");
   const changed = changedPaths(repo, head);

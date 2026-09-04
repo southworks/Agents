@@ -8,6 +8,7 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   migrationSkill: "The Teams-to-Agents migration instructions changed.",
   manifestSkill: "The Teams manifest instructions changed.",
   canonicalSample: "The canonical Agents sample or reusable manifest assets changed.",
+  copilot: "The configured Copilot model or reasoning effort changed.",
   packagePolicy: "The target framework or Agents SDK package policy changed.",
   validator: "The deterministic validation contract changed.",
 };
@@ -174,6 +175,8 @@ export function prBody(result: SyncResult): string {
     `- Teams repository commit: ${inlineCode(result.upstreamCommit)}`,
     `- Teams sample tree digest: ${inlineCode(result.sourceTree)}`,
     `- Validated Agents output digest: ${inlineCode(result.outputDigest ?? "not produced")}`,
+    `- Copilot model: ${inlineCode(result.copilot.model)}`,
+    `- Copilot reasoning effort: ${inlineCode(result.copilot.reasoningEffort)}`,
     "",
     "</details>",
     "",

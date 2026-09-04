@@ -10,6 +10,14 @@ export interface Target {
   manifest: ManifestTarget;
 }
 
+export const REASONING_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+export type ReasoningEffort = typeof REASONING_EFFORTS[number];
+
+export interface CopilotConfiguration {
+  model: string;
+  reasoningEffort: ReasoningEffort;
+}
+
 export interface Targets {
   version: 1;
   upstream: { repository: string; ref: string; root: string };
@@ -17,6 +25,7 @@ export interface Targets {
   canonicalSample: string;
   migrationSkill: string;
   manifestSkill: string;
+  copilot: CopilotConfiguration;
   packagePolicy: { targetFramework: string; agentsSdkVersion: string };
   validatorVersion: string;
   samples: Record<string, Target>;
@@ -157,6 +166,7 @@ export interface SyncResult {
   upstreamCommit: string;
   upstreamChanges: UpstreamChange[];
   changedComponents: string[];
+  copilot: CopilotConfiguration;
   migrationPolicies: MigrationPolicy[];
   destinationChanges?: string[];
   sourceTree: string;

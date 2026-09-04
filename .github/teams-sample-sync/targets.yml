@@ -10,6 +10,12 @@ canonicalSample: samples/dotnet/quickstart
 migrationSkill: agent-plugins/agents-for-net/skills/teams-sdk-to-agents-sdk-dotnet-migration
 manifestSkill: agent-plugins/agents-sdk-common/skills/teams-app-manifest
 
+# Run `copilot`, then `/model`, to see models and effort levels available to your account.
+# Run `copilot --help` to see the accepted command-line options.
+copilot:
+  model: gpt-5.6-terra
+  reasoningEffort: medium
+
 packagePolicy:
   targetFramework: net8.0
   agentsSdkVersion: "1.7.*"

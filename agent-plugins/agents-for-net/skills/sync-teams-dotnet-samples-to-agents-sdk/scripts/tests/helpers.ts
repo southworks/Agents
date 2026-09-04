@@ -45,6 +45,9 @@ destinationRoot: samples/dotnet/teams
 canonicalSample: samples/dotnet/quickstart
 migrationSkill: skills/migration
 manifestSkill: skills/manifest
+copilot:
+  model: gpt-5.4
+  reasoningEffort: high
 packagePolicy:
   targetFramework: net8.0
   agentsSdkVersion: "1.7.*"
@@ -76,5 +79,5 @@ samples:
 export const componentDigests = {
   sourceTree: "tree", target: "target", policies: "policies", protection: "protection",
   migrationSkill: "migration", manifestSkill: "manifest", canonicalSample: "canonical",
-  packagePolicy: "package", validator: "validator",
+  copilot: "copilot", packagePolicy: "package", validator: "validator",
 };

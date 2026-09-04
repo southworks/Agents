@@ -4,6 +4,18 @@ import { SyncError } from "./config.js";
 import type { PlanSample, State, ValidationResult } from "./types.js";
 export const statePath = (repo: string, sample: string): string => path.join(repo, ".github/teams-sample-sync/state", `${sample}.lock.json`);
 
+const PRIOR_COMPONENT_DIGESTS = ["sourceTree", "target", "policies", "protection", "migrationSkill", "manifestSkill", "canonicalSample", "packagePolicy", "validator"];
+const REQUIRED_COMPONENT_DIGESTS = [...PRIOR_COMPONENT_DIGESTS, "copilot"];
+
+function validateStateEnvelope(value: State, sample: string): void {
+  if (value.version !== 2 || value.sample !== sample || value.status !== "verified" ||
+      typeof value.upstreamCommit !== "string" || typeof value.sourceTree !== "string" ||
+      typeof value.inputDigest !== "string" || typeof value.outputDigest !== "string" ||
+      !value.componentDigests || typeof value.componentDigests !== "object") {
+    throw new SyncError("Invalid version-2 state");
+  }
+}
+
 export function readState(repo: string, sample: string): State | undefined {
   const file = statePath(repo, sample);
   if (!existsSync(file)) return undefined;
@@ -11,8 +23,14 @@ export function readState(repo: string, sample: string): State | undefined {
   try { value = JSON.parse(readFileSync(file, "utf8")); }
   catch { throw new SyncError(`Invalid state JSON: ${file}`); }
   if (!value || typeof value !== "object" || (value as { version?: unknown }).version !== 2) return undefined;
-  validateState(value as State, sample);
-  return value as State;
+  const candidate = value as State;
+  validateStateEnvelope(candidate, sample);
+  if (!("copilot" in candidate.componentDigests) &&
+      PRIOR_COMPONENT_DIGESTS.every((key) => typeof candidate.componentDigests[key] === "string")) {
+    return candidate;
+  }
+  validateState(candidate, sample);
+  return candidate;
 }
 
 export function readPriorState(repo: string, sample: string): Pick<State, "upstreamCommit" | "sourceTree"> | undefined {
@@ -29,14 +47,8 @@ export function readPriorState(repo: string, sample: string): Pick<State, "upstr
 }
 
 export function validateState(value: State, sample: string): void {
-  if (value.version !== 2 || value.sample !== sample || value.status !== "verified" ||
-      typeof value.upstreamCommit !== "string" || typeof value.sourceTree !== "string" ||
-      typeof value.inputDigest !== "string" || typeof value.outputDigest !== "string" ||
-      !value.componentDigests || typeof value.componentDigests !== "object") {
-    throw new SyncError("Invalid version-2 state");
-  }
-  const required = ["sourceTree", "target", "policies", "protection", "migrationSkill", "manifestSkill", "canonicalSample", "packagePolicy", "validator"];
-  if (required.some((key) => typeof value.componentDigests[key] !== "string")) {
+  validateStateEnvelope(value, sample);
+  if (REQUIRED_COMPONENT_DIGESTS.some((key) => typeof value.componentDigests[key] !== "string")) {
     throw new SyncError("Version-2 state has incomplete component digests");
   }
 }
