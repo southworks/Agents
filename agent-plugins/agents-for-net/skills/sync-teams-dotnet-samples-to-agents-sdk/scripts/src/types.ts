@@ -156,6 +156,9 @@ export interface SyncResult {
   previousUpstreamCommit: string | null;
   upstreamCommit: string;
   upstreamChanges: UpstreamChange[];
+  changedComponents: string[];
+  migrationPolicies: MigrationPolicy[];
+  destinationChanges?: string[];
   sourceTree: string;
   inputDigest: string;
   outputDigest?: string;

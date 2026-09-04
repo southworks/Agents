@@ -91,6 +91,7 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
         version: 2, sample, status: loop.agent.status, publishable: false, baseSha,
         previousUpstreamCommit: contextValue.upstream.previousCommit,
         upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
+        changedComponents: entry.changedComponents, migrationPolicies: contextValue.policies,
         sourceTree: entry.sourceTree, inputDigest: entry.inputDigest,
         componentDigests: entry.componentDigests, outputDigest: loop.validation.outputDigest,
         agent: loop.agent, validation: loop.validation,
@@ -100,6 +101,7 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
         version: 2, sample, status: "failed", publishable: false, baseSha,
         previousUpstreamCommit: contextValue.upstream.previousCommit,
         upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
+        changedComponents: entry.changedComponents, migrationPolicies: contextValue.policies,
         sourceTree: entry.sourceTree, inputDigest: entry.inputDigest,
         componentDigests: entry.componentDigests, outputDigest: loop.validation.outputDigest,
         agent: loop.agent, validation: loop.validation, error: loop.validation.errors.join("\n"),
@@ -113,10 +115,13 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
       if (patch.length === 0) throw new SyncError("Validated migration produced no sample or state patch");
       writeFileSync(path.join(output, "change.patch"), patch);
       writeJson(path.join(output, "final-state.json"), state);
+      const destinationChanges = changedPaths(repo, baseSha).filter((item) =>
+        item === path.relative(repo, lock).replaceAll("\\", "/") || item.startsWith(`${sampleRelative}/`));
       syncResult = {
         version: 2, sample, status: "updated", publishable: true, baseSha,
         previousUpstreamCommit: contextValue.upstream.previousCommit,
         upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
+        changedComponents: entry.changedComponents, migrationPolicies: contextValue.policies, destinationChanges,
         sourceTree: entry.sourceTree, inputDigest: entry.inputDigest,
         componentDigests: entry.componentDigests, outputDigest: loop.validation.outputDigest,
         state, agent: loop.agent, validation: loop.validation,
@@ -127,6 +132,7 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
       version: 2, sample, status: "failed", publishable: false, baseSha,
       previousUpstreamCommit: contextValue.upstream.previousCommit,
       upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
+      changedComponents: entry.changedComponents, migrationPolicies: contextValue.policies,
       sourceTree: entry.sourceTree, inputDigest: entry.inputDigest,
       componentDigests: entry.componentDigests,
       error: error instanceof Error ? error.message : String(error),
@@ -156,6 +162,14 @@ function verifyPatch(repo: string, values: Record<string, string>): void {
   const stateRelative = path.relative(repo, statePath(repo, sample)).replaceAll("\\", "/");
   const changed = changedPaths(repo, head);
   if (changed.length === 0) throw new SyncError("Applied patch has no changes");
+  if (!result.destinationChanges || stable(result.destinationChanges) !== stable(changed)) {
+    throw new SyncError("Applied paths differ from validated result");
+  }
+  const reportedPolicyKeys = result.migrationPolicies.map((policy) => policy.key).sort();
+  const appliedPolicyKeys = [...result.agent.appliedPolicies].sort();
+  if (stable(reportedPolicyKeys) !== stable(appliedPolicyKeys)) {
+    throw new SyncError("Reported policies differ from the validated agent result");
+  }
   for (const item of changed) {
     if (item === "manifest-evidence.md" || item.endsWith("/manifest-evidence.md") || matches(item, owner.protectedPaths)) {
       throw new SyncError(`Patch changes prohibited path: ${item}`);

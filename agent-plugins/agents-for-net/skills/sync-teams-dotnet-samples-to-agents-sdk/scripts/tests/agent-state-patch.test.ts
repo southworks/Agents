@@ -5,7 +5,7 @@ import test from "node:test";
 import { attempts, buildAgentPrompt, parseAgentResult, runAgentLoop, type AgentRunner } from "../src/agent-runner.js";
 import { main } from "../src/cli.js";
 import { createContext } from "../src/context.js";
-import { digestDirectory } from "../src/git.js";
+import { changedPaths, digestDirectory } from "../src/git.js";
 import { createPlan } from "../src/plan.js";
 import { createState, statePath, validateState } from "../src/state.js";
 import type { AgentResult, SyncContext, SyncResult, ValidationResult } from "../src/types.js";
@@ -45,6 +45,7 @@ test("agent prompt identifies the complete allowed policy key list", () => {
   const item = fixture();
   const prompt = buildAgentPrompt(item.repo, path.join(item.repo, ".sync/context.json"), false, []);
   assert.match(prompt, /Allowed migration policy keys: \[\]/);
+  assert.match(prompt, /complete final migration, including changes made before any repair pass/);
 });
 
 test("repair loop receives only exact verifier errors and stops after success", async () => {
@@ -175,6 +176,8 @@ test("verify-patch accepts only the applied validated sample and state", async (
   const result: SyncResult = {
     version: 2, sample: "sample-a", status: "updated", publishable: true, baseSha,
     previousUpstreamCommit: null, upstreamCommit: entry.upstreamCommit!, upstreamChanges: [],
+    changedComponents: entry.changedComponents, destinationChanges: changedPaths(item.repo, baseSha),
+    migrationPolicies: [],
     sourceTree: entry.sourceTree!, inputDigest: entry.inputDigest!,
     componentDigests: entry.componentDigests!, outputDigest, state, agent: agent(), validation: checked,
   };

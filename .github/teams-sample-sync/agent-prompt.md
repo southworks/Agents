@@ -10,6 +10,8 @@ Edit only the selected destination sample. Do not edit policy, state, configurat
 
 If product intent is missing, return `needs-policy`, leave the blocked behavior unchanged, and include `policyRequest` with key, question, recommendation, evidence, impact, suggested instruction, and rationale.
 
+Report the complete final migration from the Teams samples repository to the Agents repository. On a repair pass, include all final semantic and manifest changes, not only the last repair. Use "Teams repository" instead of "upstream" in human-readable report values.
+
 Return JSON only. Use this shape:
 
 ```json
