@@ -1,33 +1,8 @@
 version: 1
 
-precedence:
-  - human-owned
-  - agents-owned
-  - generated
-  - template-owned
-  - upstream-owned
-
-classes:
-  human-owned:
-    - manifest-evidence.md
-    - '**/manifest-evidence.md'
-
-  agents-owned:
-    - Program.cs
-    - '*Agent.cs'
-    - '*.csproj'
-
-  generated:
-    - appManifest/manifest.json
-    - appPackage/manifest.json
-
-  template-owned:
-    - AspNetExtensions.cs
-    - Properties/launchSettings.json
-    - appsettings.json
-
-  upstream-owned:
-    - '**'
+protectedPaths:
+  - manifest-evidence.md
+  - '**/manifest-evidence.md'
 
 outputDigestExcludes:
   - bin/**

@@ -33,6 +33,8 @@ handler methods on an `AgentApplication` subclass using `ITurnContext`.
   use the repository's current shared version convention, currently `1.7.*` but use the latest non-beta version.
 - If the project defines the `AgentApplication` during DI (typically in `Program.cs`), ask the customer
   whether to keep it inline or move it to an `AgentApplication` subclass with Teams route attributes.
+  In the automated Teams sample sync, do not ask a user. Apply an applicable migration policy or return
+  `needs-policy` with evidence and a recommended policy.
 - If creating a subclass, always use `[TeamsExtension]`, mark it `partial`, use Teams route attributes,
   and take `ITeamsTurnContext` in route handlers.
 - After restoring packages, verify route attributes, handler delegate signatures, payload models, and
@@ -246,9 +248,11 @@ Teams scopes, distribution target, and repository placeholder convention.
 
 - Preserve an existing manifest unless a verified migrated capability requires a change.
 - If the source sample has no manifest, generate one only when all required product decisions are known.
-- Write `manifest-evidence.md` beside a generated or changed manifest.
+- Return manifest evidence in the transient structured `manifestReport`. Do not create
+  `manifest-evidence.md` in the automated Teams sample sync.
 - Report portal, bot registration, Entra, permission, and event-subscription work separately.
-- Stop on `needs-input`; do not guess scopes, domains, identity values, or permissions.
+- Stop on `needs-input`; do not guess scopes, domains, identity values, or permissions. In the automated
+  Teams sample sync, report this as `needs-policy` and leave the blocked behavior unchanged.
 
 ### Step 7 — Verify
 

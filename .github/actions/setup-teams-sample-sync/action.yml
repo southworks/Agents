@@ -1,0 +1,14 @@
+name: Setup Teams sample sync
+description: Install and build the trusted Teams sample synchronization tool.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        node-version: "24"
+        cache: npm
+        cache-dependency-path: agent-plugins/agents-for-net/skills/sync-teams-dotnet-samples-to-agents-sdk/scripts/package-lock.json
+    - shell: bash
+      run: |
+        npm ci --prefix agent-plugins/agents-for-net/skills/sync-teams-dotnet-samples-to-agents-sdk/scripts
+        npm run build --prefix agent-plugins/agents-for-net/skills/sync-teams-dotnet-samples-to-agents-sdk/scripts
