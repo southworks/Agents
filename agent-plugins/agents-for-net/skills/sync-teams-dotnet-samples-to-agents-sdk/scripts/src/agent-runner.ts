@@ -134,9 +134,10 @@ export class CopilotAgentRunner implements AgentRunner {
   }
 }
 
-export function buildAgentPrompt(repo: string, contextFile: string, repair: boolean): string {
+export function buildAgentPrompt(repo: string, contextFile: string, repair: boolean, policyKeys: string[]): string {
   const contract = readFileSync(path.join(repo, ".github/teams-sample-sync/agent-prompt.md"), "utf8");
   return `${contract}\n\nCONTEXT_FILE=${path.relative(repo, contextFile).replaceAll("\\", "/")}\n` +
+    `Allowed migration policy keys: ${JSON.stringify(policyKeys)}. The appliedPolicies field must contain each listed key exactly once and no other value. Skill names, skill steps, changes, and explanations are not policies. If this list is empty, return appliedPolicies as [].\n` +
     `Use the migration skill first: agent-plugins/agents-for-net/skills/teams-sdk-to-agents-sdk-dotnet-migration/SKILL.md\n` +
     `Use the manifest skill only after code is stable: agent-plugins/agents-sdk-common/skills/teams-app-manifest/SKILL.md\n` +
     (repair ? "This is a repair pass. Fix only validationErrors in CONTEXT_FILE.\n" : "This is the initial semantic migration pass.\n") +
@@ -173,7 +174,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
     const raw = await options.runner.run({
       contextFile: context.file,
-      prompt: buildAgentPrompt(options.repo, context.file, attempt > 1),
+      prompt: buildAgentPrompt(options.repo, context.file, attempt > 1, options.policyKeys),
       attempt,
     });
     const agent = parseAgentResult(raw, options.sample);
@@ -182,7 +183,16 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     const missingPolicies = options.policyKeys.filter((key) => !agent.appliedPolicies.includes(key));
     if (unknownPolicies.length > 0 ||
         (["updated", "unchanged"].includes(agent.status) && missingPolicies.length > 0)) {
-      throw new SyncError(`Agent policy report mismatch; unknown=${unknownPolicies.join(",")}; missing=${missingPolicies.join(",")}`);
+      const error = `Agent policy report mismatch; unknown=${unknownPolicies.join(",")}; missing=${missingPolicies.join(",")}`;
+      assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
+      assertContext(context.root, context.digest);
+      assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
+      if (attempt >= options.maxAttempts) throw new SyncError(error);
+      const progress = `policy-report\n${error}`;
+      if (progress === lastProgress) throw new SyncError(`Repair made no progress:\n${error}`);
+      lastProgress = progress;
+      context = updateContextErrors(context, [error]);
+      continue;
     }
     assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
     assertContext(context.root, context.digest);

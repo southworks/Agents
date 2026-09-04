@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { attempts, parseAgentResult, runAgentLoop, type AgentRunner } from "../src/agent-runner.js";
+import { attempts, buildAgentPrompt, parseAgentResult, runAgentLoop, type AgentRunner } from "../src/agent-runner.js";
 import { main } from "../src/cli.js";
 import { createContext } from "../src/context.js";
 import { digestDirectory } from "../src/git.js";
@@ -41,6 +41,12 @@ test("agent result schema and attempt cap are enforced", () => {
   assert.throws(() => parseAgentResult({ ...agent(), status: "needs-policy" }, "sample-a"), /policyRequest/);
 });
 
+test("agent prompt identifies the complete allowed policy key list", () => {
+  const item = fixture();
+  const prompt = buildAgentPrompt(item.repo, path.join(item.repo, ".sync/context.json"), false, []);
+  assert.match(prompt, /Allowed migration policy keys: \[\]/);
+});
+
 test("repair loop receives only exact verifier errors and stops after success", async () => {
   const item = fixture();
   const plan = createPlan(item.repo, item.upstream, "sample-a");
@@ -73,6 +79,38 @@ test("repair loop receives only exact verifier errors and stops after success", 
   });
   assert.equal(result.attempts, 2);
   assert.equal(result.validation.passed, true);
+});
+
+test("agent loop repairs an invalid policy report before validation", async () => {
+  const item = fixture();
+  const plan = createPlan(item.repo, item.upstream, "sample-a");
+  const entry = plan.samples["sample-a"]!;
+  const context = createContext(item.repo, item.upstream, plan, "sample-a");
+  let runs = 0;
+  let validations = 0;
+  const result = await runAgentLoop({
+    repo: item.repo, upstream: item.upstream, baseSha: git(item.repo, "rev-parse", "HEAD"), sample: "sample-a",
+    sampleRoot: "samples/dotnet/teams/sample-a", sourcePath: "samples/TeamsSDK/sample-a/dotnet/sample-a",
+    upstreamCommit: entry.upstreamCommit!, sourceTree: entry.sourceTree!, protectedPaths: [], outputDigestExcludes: [], policyKeys: [],
+    context, maxAttempts: 5,
+    runner: {
+      run: ({ contextFile }) => {
+        runs += 1;
+        if (runs === 2) {
+          const value = JSON.parse(readFileSync(contextFile, "utf8")) as SyncContext;
+          assert.deepEqual(value.validationErrors, ["Agent policy report mismatch; unknown=migration skill step; missing="]);
+        }
+        return Promise.resolve({ ...agent(), appliedPolicies: runs === 1 ? ["migration skill step"] : [] });
+      },
+    },
+    validate: () => {
+      validations += 1;
+      const sampleRoot = path.join(item.repo, "samples/dotnet/teams/sample-a");
+      return Promise.resolve(validation(true, digestDirectory(sampleRoot)));
+    },
+  });
+  assert.equal(result.attempts, 2);
+  assert.equal(validations, 1);
 });
 
 test("agent loop does not retry infrastructure failures", async () => {
