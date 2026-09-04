@@ -1,0 +1,116 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.29/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.29",
+  "version": "1.0.0",
+  "id": "${{AAD_APP_CLIENT_ID}}",
+  "developer": {
+    "name": "Microsoft, Inc.",
+    "websiteUrl": "https://example.azurewebsites.net",
+    "privacyUrl": "https://example.azurewebsites.net/privacy",
+    "termsOfUseUrl": "https://example.azurewebsites.net/termsofuse"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "Agent Targeted Messages",
+    "full": "Agent Targeted Messages"
+  },
+  "description": {
+    "short": "Demonstrates targeted messages in Teams with a reminder agent.",
+    "full": "A sample agent demonstrating targeted messaging in Microsoft Teams. Targeted messages are private messages in a shared channel or group chat that are visible only to a specific user. This sample implements a reminder agent with targeted delivery for confirmations, active-reminder lists, and snooze confirmations."
+  },
+  "accentColor": "#FFFFFF",
+  "copilotAgents": {
+    "customEngineAgents": [
+      {
+        "id": "${{AAD_APP_CLIENT_ID}}",
+        "type": "bot"
+      }
+    ]
+  },
+  "bots": [
+    {
+      "botId": "${{AAD_APP_CLIENT_ID}}",
+      "scopes": [
+        "personal",
+        "team",
+        "groupChat"
+      ],
+      "supportsFiles": false,
+      "isNotificationOnly": false,
+      "supportsTargetedMessages": true,
+      "commandLists": [
+        {
+          "scopes": [
+            "personal",
+            "team",
+            "groupChat"
+          ],
+          "triggers": [
+            "slash"
+          ],
+          "commands": [
+            {
+              "title": "my-reminders",
+              "description": "Show your active reminders"
+            },
+            {
+              "title": "cancel-reminder",
+              "description": "Cancel a reminder by ID"
+            },
+            {
+              "title": "add-reaction",
+              "description": "Add a reaction to messages"
+            },
+            {
+              "title": "remove-reaction",
+              "description": "Remove a reaction from messages"
+            }
+          ]
+        },
+        {
+          "scopes": [
+            "personal",
+            "team",
+            "groupChat"
+          ],
+          "triggers": [
+            "mention"
+          ],
+          "commands": [
+            {
+              "title": "remind",
+              "description": "Remind someone at a specific time"
+            }
+          ]
+        },
+        {
+          "scopes": [
+            "personal",
+            "team",
+            "groupChat"
+          ],
+          "triggers": [
+            "slash",
+            "mention"
+          ],
+          "commands": [
+            {
+              "title": "reminder-help",
+              "description": "Show help for reminder commands"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "<<BOT_DOMAIN>>"
+  ]
+}
