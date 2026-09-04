@@ -388,7 +388,7 @@ public partial class AgentTargetedMessagesAgent(
         await turnContext.Client.Conversations.Reactions.AddAsync(
             turnContext.Activity.Conversation.Id,
             turnContext.Activity.Id,
-            new ReactionType("1f44b_wavinghand"),
+            new ReactionType(reactionType),
             cancellationToken);
         await turnContext.SendActivityAsync(
             $"Added a **{reactionType}** reaction to your message!",
