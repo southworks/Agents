@@ -40,6 +40,10 @@ Return:
   ]
 }
 Use approved only with zero findings. Use changes-required for migration defects.
+`findings` contains blocking defects only. Omit optional cleanup and style suggestions.
+Before returning, check that approved has `findings: []`; never remove a genuine defect
+just to approve. If asked to repair an invalid report, correct the report without changing
+candidate code or claiming additional tests ran.
 Use blocked for explicit policy conflicts, missing security-sensitive/external configuration,
 or unsupported required behavior, with concrete findings; not routine design choices.
 State-only updates can be approved when every source change is already present or does

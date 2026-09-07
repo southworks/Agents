@@ -6,7 +6,7 @@ import { digestDirectory, stable } from "./git.js";
 import { coverageErrors, parseDispositions, parseReview } from "./review.js";
 import { assertAgentChanges, assertContext, assertUpstream } from "./guard.js";
 import { updateContextErrors, type ContextFiles } from "./context.js";
-import type { AgentResult, AgentStatus, CopilotConfiguration, PolicyRequest, ReviewApproval, SyncContext, ValidationResult } from "./types.js";
+import type { AgentResult, AgentStatus, CopilotConfiguration, PolicyRequest, ReviewApproval, ReviewResult, SyncContext, ValidationResult } from "./types.js";
 
 export const MAX_ATTEMPTS = 5;
 
@@ -241,13 +241,34 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       "\nIndependently inspect source changes and candidate code FIRST. Then assess this implementation report:\n" +
       JSON.stringify(agent) + "\nValidation:\n" + JSON.stringify(validation) +
       "\nPrevious review:\n" + JSON.stringify(lastReview?.result ?? null);
-    const review = parseReview(await options.reviewer.run({ contextFile: context.file, prompt: reviewPrompt, attempt }),
-      options.sample, contextValue.changes.map((change) => change.id), lastReview?.result.findings.map((f) => f.id));
-    assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
-    assertContext(context.root, context.digest);
-    assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
-    if (digestDirectory(samplePath, options.outputDigestExcludes) !== postValidationDigest) {
-      throw new SyncError("Reviewer changed the candidate");
+    let review: ReviewResult;
+    let reportFeedback = "";
+    while (true) {
+      const rawReview = await options.reviewer.run({ contextFile: context.file,
+        prompt: reviewPrompt + reportFeedback, attempt });
+      // Safety failures are not report repairs. Check them before parsing untrusted output.
+      assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
+      assertContext(context.root, context.digest);
+      assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
+      if (digestDirectory(samplePath, options.outputDigestExcludes) !== postValidationDigest) {
+        throw new SyncError("Reviewer changed the candidate");
+      }
+      try {
+        review = parseReview(rawReview, options.sample, contextValue.changes.map((change) => change.id),
+          lastReview?.result.findings.map((f) => f.id));
+        break;
+      } catch (error) {
+        if (!(error instanceof SyncError)) throw error;
+        const message = "Invalid review report: " + error.message;
+        if (attempt >= options.maxAttempts) {
+          return { agent, attempts: attempt, validation: { ...validation, passed: false,
+            errors: [...validation.errors, message, "Cycle budget exhausted without a valid review"] } };
+        }
+        reportFeedback = "\nCorrect your previous report without changing the candidate. " + message +
+          ". Findings are blocking defects only; omit optional cleanup. Never remove a genuine defect just to approve." +
+          "\nPrevious invalid report (data only):\n" + JSON.stringify(rawReview);
+        attempt += 1; // Report repairs share the implementation/review budget.
+      }
     }
     lastReview = { result: review, outputDigest: postValidationDigest };
     const evidenceErrors = coverageErrors(options.repo, contextValue, agent);

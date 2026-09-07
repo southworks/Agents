@@ -157,3 +157,50 @@ test("review CLI exposes no write or shell tools", () => {
   assert.ok(args.includes("--deny-tool=shell"));
   assert.ok(!args.includes("--allow-tool=write"));
 });
+
+test("contradictory approval retries only the reviewer and preserves validation", async () => {
+  const { options, review, implementation } = setup();
+  let implementations = 0; let validations = 0; let reviews = 0;
+  const validate = options.validate;
+  options.runner = { run: async () => { implementations++; return implementation; } };
+  options.validate = async () => { validations++; return validate(); };
+  options.reviewer = { run: async ({ prompt }) => {
+    reviews++;
+    if (reviews === 1) return { ...review, findings: [{ ...missingDue,
+      correction: "Optional cleanup; not blocking" }] };
+    assert.match(prompt, /Only a review without blocking findings can approve/);
+    return review;
+  } };
+  const result = await runAgentLoop(options);
+  assert.equal(result.attempts, 2);
+  assert.equal(implementations, 1);
+  assert.equal(validations, 1);
+  assert.equal(reviews, 2);
+  assert.equal(result.validation.passed, true);
+});
+
+test("invalid reviews exhaust the shared budget with checks and cycle count retained", async () => {
+  const { options, review, item } = setup();
+  let reviews = 0;
+  options.reviewer = { run: async () => { reviews++; return { ...review, findings: [missingDue] }; } };
+  const result = await runAgentLoop(options);
+  assert.equal(reviews, 5);
+  assert.equal(result.attempts, 5);
+  assert.equal(result.validation.passed, false);
+  assert.equal(result.validation.checks.build, true);
+  assert.match(result.validation.errors.join("\n"), /Invalid review report/);
+  assert.equal(result.review, undefined);
+  assert.equal(existsSync(path.join(item.repo, ".github/teams-sample-sync/state/sample-a.lock.json")), false);
+});
+
+test("invalid review output cannot hide reviewer writes", async () => {
+  const { options, review, sampleRoot } = setup();
+  let reviews = 0;
+  options.reviewer = { run: async () => {
+    reviews++;
+    write(path.join(sampleRoot, "value.txt"), "tampered");
+    return { ...review, findings: [missingDue] };
+  } };
+  await assert.rejects(runAgentLoop(options), /Reviewer changed/);
+  assert.equal(reviews, 1);
+});
