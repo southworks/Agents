@@ -273,7 +273,7 @@ export async function validateSample(
   if (["bot-ai-messages", "bot-cards"].includes(sample)) {
     const contracts = checks.build ? runtime.runCommand("dotnet", ["test", path.join(repo, "tests/dotnet/teams-sample-sync/TeamsSampleSync.ContractTests.csproj"), "--nologo", "--warnaserror"], repo) : ["Contract tests require a successful sample build"];
     errors.push(...contracts); checks.contracts = contracts.length === 0;
-  } else checks.contracts = true;
+  } else checks.contracts = null;
   return {
     version: 1,
     sample,

@@ -100,7 +100,7 @@ export function targets(repo: string): Targets {
   const result: Targets = {
     version: 1,
     upstream: {
-      repository: text(upstream.repository, "upstream.repository"),
+      repository: text(process.env.TEAMS_SAMPLES_REPOSITORY ?? upstream.repository, "upstream.repository"),
       ref: text(upstream.ref, "upstream.ref"),
       root: text(upstream.root, "upstream.root"),
     },

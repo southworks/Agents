@@ -85,6 +85,10 @@ export interface UpstreamChange {
 
 export interface SyncContext {
   version: 1;
+  mode: "initial" | "incremental";
+  changes: SourceEvidence[];
+  skills: { migration: string; manifest: string };
+  feedback?: { implementation: AgentResult; review?: ReviewResult };
   sample: string;
   upstream: {
     repository: string;
@@ -108,6 +112,38 @@ export interface SyncContext {
   validationErrors?: string[];
 }
 
+export interface SourceEvidence {
+  id: string;
+  path: string;
+  diff: string;
+}
+
+export interface ChangeDisposition {
+  changeId: string;
+  decision: "adapted" | "already-present" | "not-applicable" | "blocked";
+  explanation: string;
+  destinationPath: string;
+  symbol: string;
+  verification: string;
+}
+
+export interface ReviewResult {
+  version: 1;
+  sample: string;
+  verdict: "approved" | "changes-required" | "blocked";
+  summary: string;
+  reviewedChangeIds: string[];
+  manifestAssessment: string;
+  testAssessment: string;
+  resolvedFindingIds: string[];
+  findings: Array<{ id: string; source: string; destination: string; expectedBehavior: string; correction: string }>;
+}
+
+export interface ReviewApproval {
+  result: ReviewResult;
+  outputDigest: string;
+}
+
 export type AgentStatus = "updated" | "unchanged" | "needs-policy" | "unsupported";
 
 export interface PolicyRequest {
@@ -124,6 +160,7 @@ export interface AgentResult {
   sample: string;
   status: AgentStatus;
   summary: string;
+  dispositions?: ChangeDisposition[];
   upstreamChanges: unknown[];
   preservedDifferences: unknown[];
   appliedPolicies: string[];
@@ -142,7 +179,7 @@ export interface ValidationChecks {
   build: boolean;
   manifest: boolean;
   httpSmoke: boolean;
-  contracts: boolean;
+  contracts: boolean | null;
 }
 
 export interface ValidationResult {
@@ -177,4 +214,7 @@ export interface SyncResult {
   agent?: AgentResult;
   validation?: ValidationResult;
   error?: string;
+  sourceRepository?: string;
+  review?: ReviewApproval;
+  cycles?: number;
 }

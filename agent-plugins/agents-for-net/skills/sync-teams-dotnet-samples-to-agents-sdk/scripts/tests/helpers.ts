@@ -64,6 +64,7 @@ samples:
   write(path.join(repo, ".github/teams-sample-sync/migration-policy.yml"), "version: 1\npolicies: []\n");
   write(path.join(repo, ".github/teams-sample-sync/ownership.yml"), "version: 1\nprotectedPaths:\n  - manifest-evidence.md\n  - '**/manifest-evidence.md'\noutputDigestExcludes:\n  - bin/**\n  - obj/**\n");
   write(path.join(repo, ".github/teams-sample-sync/agent-prompt.md"), "Read CONTEXT_FILE and return JSON only.\n");
+  write(path.join(repo, ".github/teams-sample-sync/review-prompt.md"), "Independently review CONTEXT_FILE and return JSON only.\n");
   write(path.join(repo, "skills/migration/SKILL.md"), "migration v1\n");
   write(path.join(repo, "skills/manifest/SKILL.md"), "manifest v1\n");
   write(path.join(repo, "samples/dotnet/quickstart/appManifest/color.png"), Buffer.from([1, 2]));

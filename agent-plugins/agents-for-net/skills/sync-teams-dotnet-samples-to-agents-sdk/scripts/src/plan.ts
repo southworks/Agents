@@ -1,6 +1,7 @@
 import path from "node:path";
 import { protection, SyncError, targets } from "./config.js";
 import { digestDirectory, git, hash, stable, tree } from "./git.js";
+import { readFileSync } from "node:fs";
 import { applicablePolicies } from "./policy.js";
 import { readState } from "./state.js";
 import type { Plan, PlanSample } from "./types.js";
@@ -38,7 +39,9 @@ export function createPlan(repo: string, upstream: string, chosen?: string): Pla
       canonicalSample: digestDirectory(path.join(repo, configured.canonicalSample), owner.outputDigestExcludes),
       copilot: hash(stable(configured.copilot)),
       packagePolicy: hash(stable(configured.packagePolicy)),
-      validator: hash(configured.validatorVersion),
+      validator: hash(stable([configured.validatorVersion,
+        readFileSync(path.join(repo, ".github/teams-sample-sync/agent-prompt.md"), "utf8"),
+        readFileSync(path.join(repo, ".github/teams-sample-sync/review-prompt.md"), "utf8")])),
     };
     const inputDigest = hash(stable(componentDigests));
     const changedComponents = Object.entries(componentDigests)

@@ -96,7 +96,8 @@ function triggerLines(result: SyncResult): string[] {
 function validationLines(result: SyncResult): string[] {
   const checks = result.validation?.checks;
   return CHECKS.map((check) => {
-    const status = checks?.[check.key] ? "Passed" : "Failed";
+    const status = checks?.[check.key] === null ? "Not configured" :
+      checks === undefined ? "Not run" : checks[check.key] ? "Passed" : "Failed";
     return `- **${status} — ${check.title}:** ${check.description}`;
   });
 }
@@ -125,7 +126,7 @@ export function prBody(result: SyncResult): string {
     "",
     "## Description",
     "",
-    `Synchronizes ${inlineCode(result.sample)} from [OfficeDev/Microsoft-Teams-Samples](https://github.com/OfficeDev/Microsoft-Teams-Samples), the Teams samples repository, to the Agents repository.`,
+    `Synchronizes ${inlineCode(result.sample)} from ${inlineCode(result.sourceRepository ?? "OfficeDev/Microsoft-Teams-Samples")}, the Teams samples repository, to the Agents repository.`,
     "",
     "### Why this PR was created",
     "",
@@ -162,6 +163,13 @@ export function prBody(result: SyncResult): string {
     "",
     ...validationLines(result),
     "",
+    "## Independent review",
+    "",
+    safeText(result.review?.result.summary ?? "No independent approval."),
+    safeText(result.review?.result.manifestAssessment ?? ""),
+    safeText(result.review?.result.testAssessment ?? ""),
+    ...bullets(result.review?.result.findings ?? [], "No blocking finding reported."),
+    "",
     "## Manual validation and setup",
     "",
     ...bullets(external, "No additional item was reported."),
@@ -170,6 +178,8 @@ export function prBody(result: SyncResult): string {
     "",
     "<details>",
     "<summary>Traceability</summary>",
+    "",
+    ...bullets(agent?.dispositions ?? [], "No detailed change dispositions are available."),
     "",
     `- Previous Teams repository commit: ${inlineCode(result.previousUpstreamCommit ?? "none; first tracked synchronization")}`,
     `- Teams repository commit: ${inlineCode(result.upstreamCommit)}`,
@@ -185,7 +195,8 @@ export function prBody(result: SyncResult): string {
 
 export function workflowSummary(result: SyncResult): string {
   const request = result.agent?.policyRequest;
-  if (!request) return `### ${result.sample}: ${result.status}\n\n${result.agent?.summary ?? result.error ?? ""}\n`;
+  if (!request) return `### ${safeText(result.sample)}: ${result.status}\n\n${safeText(result.error ?? result.agent?.summary ?? "")}\n\nReview: ${result.review?.result.verdict ?? "not completed"}; cycles: ${result.cycles ?? 0}\n\n` +
+    validationLines(result).join("\n") + "\n";
   return [
     `### ${result.sample}: needs policy`,
     "",

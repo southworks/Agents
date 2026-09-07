@@ -5,7 +5,7 @@ import test from "node:test";
 import { attempts, buildAgentPrompt, parseAgentResult, runAgentLoop, type AgentRunner } from "../src/agent-runner.js";
 import { main } from "../src/cli.js";
 import { createContext } from "../src/context.js";
-import { changedPaths, digestDirectory } from "../src/git.js";
+import { changedPaths, digestDirectory, hash } from "../src/git.js";
 import { createPlan } from "../src/plan.js";
 import { createState, statePath, validateState } from "../src/state.js";
 import type { AgentResult, SyncContext, SyncResult, ValidationResult } from "../src/types.js";
@@ -17,12 +17,21 @@ function agent(status: AgentResult["status"] = "updated"): AgentResult {
     sample: "sample-a",
     status,
     summary: "Migrated sample.",
+    dispositions: [{ changeId: hash("samples/TeamsSDK/sample-a/dotnet/sample-a/old.txt").slice(7, 23),
+      decision: "already-present", explanation: "Equivalent behavior", destinationPath: "samples/dotnet/teams/sample-a/value.txt",
+      symbol: "value", verification: "Fixture comparison" }],
     upstreamChanges: [],
     preservedDifferences: [],
     appliedPolicies: [],
-    manifestReport: { mode: "complete", changes: [], validation: [], externalSetup: [] },
+    manifestReport: { mode: "complete", changes: [], validation: ["Fixture audit"], externalSetup: [] },
   };
 }
+
+const reviewer: AgentRunner = { run: async ({ contextFile }) => ({
+  version: 1, sample: "sample-a", verdict: "approved", summary: "Independent fixture review",
+  reviewedChangeIds: (JSON.parse(readFileSync(contextFile, "utf8")) as SyncContext).changes.map((c) => c.id),
+  manifestAssessment: "Fixture checked", testAssessment: "Fixture checked", findings: [], resolvedFindingIds: [],
+}) };
 
 function validation(passed: boolean, digest: string, errors: string[] = []): ValidationResult {
   return {
@@ -45,7 +54,8 @@ test("agent prompt identifies the complete allowed policy key list", () => {
   const item = fixture();
   const prompt = buildAgentPrompt(item.repo, path.join(item.repo, ".sync/context.json"), false, []);
   assert.match(prompt, /Allowed migration policy keys: \[\]/);
-  assert.match(prompt, /complete final migration, including changes made before any repair pass/);
+  assert.match(buildAgentPrompt(item.repo, path.join(item.repo, ".sync/context.json"), true, []),
+    /complete final migration, including changes made before any repair pass/);
 });
 
 test("migrate rejects Copilot configuration drift from its plan", async () => {
@@ -87,7 +97,7 @@ test("repair loop receives only exact verifier errors and stops after success", 
     sampleRoot: "samples/dotnet/teams/sample-a",
     sourcePath: "samples/TeamsSDK/sample-a/dotnet/sample-a",
     upstreamCommit: entry.upstreamCommit!, sourceTree: entry.sourceTree!,
-    protectedPaths: ["**/manifest-evidence.md"], outputDigestExcludes: [], policyKeys: [], context, maxAttempts: 5, runner,
+    protectedPaths: ["**/manifest-evidence.md"], outputDigestExcludes: [], policyKeys: [], context, maxAttempts: 5, runner, reviewer,
     validate: () => {
       const passed = validationPasses.shift()!;
       return Promise.resolve(validation(passed, digestDirectory(path.join(item.repo, "samples/dotnet/teams/sample-a")), passed ? [] : ["exact build error"]));
@@ -108,7 +118,7 @@ test("agent loop repairs an invalid policy report before validation", async () =
     repo: item.repo, upstream: item.upstream, baseSha: git(item.repo, "rev-parse", "HEAD"), sample: "sample-a",
     sampleRoot: "samples/dotnet/teams/sample-a", sourcePath: "samples/TeamsSDK/sample-a/dotnet/sample-a",
     upstreamCommit: entry.upstreamCommit!, sourceTree: entry.sourceTree!, protectedPaths: [], outputDigestExcludes: [], policyKeys: [],
-    context, maxAttempts: 5,
+    context, maxAttempts: 5, reviewer,
     runner: {
       run: ({ contextFile }) => {
         runs += 1;
@@ -139,7 +149,7 @@ test("agent loop does not retry infrastructure failures", async () => {
     repo: item.repo, upstream: item.upstream, baseSha: git(item.repo, "rev-parse", "HEAD"), sample: "sample-a",
     sampleRoot: "samples/dotnet/teams/sample-a", sourcePath: "samples/TeamsSDK/sample-a/dotnet/sample-a",
     upstreamCommit: entry.upstreamCommit!, sourceTree: entry.sourceTree!, protectedPaths: [], outputDigestExcludes: [], policyKeys: [],
-    context, maxAttempts: 5, runner: { run: () => { runs += 1; return Promise.resolve(agent()); } },
+    context, maxAttempts: 5, reviewer, runner: { run: () => { runs += 1; return Promise.resolve(agent()); } },
     validate: () => Promise.reject(new Error("feed unavailable")),
   }), /feed unavailable/);
   assert.equal(runs, 1);
@@ -154,7 +164,7 @@ test("post-validation guard rejects candidate build-time writes", async () => {
     repo: item.repo, upstream: item.upstream, baseSha: git(item.repo, "rev-parse", "HEAD"), sample: "sample-a",
     sampleRoot: "samples/dotnet/teams/sample-a", sourcePath: "samples/TeamsSDK/sample-a/dotnet/sample-a",
     upstreamCommit: entry.upstreamCommit!, sourceTree: entry.sourceTree!, protectedPaths: [], outputDigestExcludes: [], policyKeys: [],
-    context, maxAttempts: 1, runner: { run: () => Promise.resolve(agent()) },
+    context, maxAttempts: 1, reviewer, runner: { run: () => Promise.resolve(agent()) },
     validate: () => {
       const sampleRoot = path.join(item.repo, "samples/dotnet/teams/sample-a");
       write(path.join(sampleRoot, "changed-by-build.cs"), "unsafe\n");
@@ -195,11 +205,18 @@ test("verify-patch accepts only the applied validated sample and state", async (
     copilot: { model: "gpt-5.4", reasoningEffort: "high" }, migrationPolicies: [],
     sourceTree: entry.sourceTree!, inputDigest: entry.inputDigest!,
     componentDigests: entry.componentDigests!, outputDigest, state, agent: agent(), validation: checked,
+    review: { outputDigest, result: { version: 1, sample: "sample-a", verdict: "approved", summary: "Reviewed",
+      reviewedChangeIds: agent().dispositions!.map((d) => d.changeId), manifestAssessment: "Checked",
+      testAssessment: "Checked", resolvedFindingIds: [], findings: [] } },
   };
   const resultFile = path.join(resultDirectory, "sync-result.json");
   write(resultFile, `${JSON.stringify(result, null, 2)}\n`);
   const exit = await main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]);
   assert.equal(exit, 0);
+  write(resultFile, JSON.stringify({ ...result, review: undefined }));
+  assert.equal(await main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]), 2);
+  write(resultFile, JSON.stringify({ ...result, review: { ...result.review, outputDigest: "stale" } }));
+  assert.equal(await main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]), 2);
   write(resultFile, `${JSON.stringify({ ...result, copilot: { ...result.copilot, model: "changed-model" } }, null, 2)}\n`);
   assert.equal(await main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]), 2);
   write(resultFile, `${JSON.stringify(result, null, 2)}\n`);

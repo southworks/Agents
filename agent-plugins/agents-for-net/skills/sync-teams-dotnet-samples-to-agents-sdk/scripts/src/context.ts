@@ -1,10 +1,35 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { protection, targets, SyncError } from "./config.js";
-import { digestDirectory, git, materializeTree, tree, upstreamChanges } from "./git.js";
+import { digestDirectory, git, hash, materializeTree, tree, upstreamChanges } from "./git.js";
 import { applicablePolicies } from "./policy.js";
 import { readPriorState } from "./state.js";
-import type { Plan, SyncContext } from "./types.js";
+import type { AgentResult, Plan, ReviewResult, SourceEvidence, SyncContext } from "./types.js";
+
+export function sourceEvidence(upstream: string, previous: string | null, current: string, sourcePath: string): SourceEvidence[] {
+  // Initial mode inventories the entire source instead of treating missing history as no work.
+  if (!previous) {
+    const files = (git(upstream, ["ls-tree", "-r", "--name-only", "-z", current, "--", sourcePath], true) as Buffer)
+      .toString("utf8").split("\0").filter(Boolean);
+    return files.map((file) => ({
+      id: hash(file).slice(7, 23), path: file.slice(sourcePath.length + 1),
+      diff: "Initial comparison: read this complete file in the current source snapshot and map its behavior.",
+    }));
+  }
+  const changes = upstreamChanges(upstream, previous, current, sourcePath);
+  return changes.flatMap((change) => {
+    const paths = [...new Set([change.oldPath, change.newPath].filter((p): p is string => p !== null))];
+    const diff = git(upstream, ["diff", "--no-ext-diff", "--no-textconv", "--find-renames", "--unified=8",
+      previous, current, "--", ...paths.map((p) => sourcePath + "/" + p)]) as string;
+    const sections = diff.split(/(?=^@@ )/m);
+    const header = sections.shift()!;
+    const chunks = sections.length ? sections.map((section) => header + section) : [diff];
+    return chunks.map((chunk, index) => ({
+      id: hash(JSON.stringify([paths, index, chunk])).slice(7, 23),
+      path: change.newPath ?? change.oldPath!, diff: chunk,
+    }));
+  });
+}
 
 export interface ContextFiles { root: string; file: string; digest: string }
 
@@ -54,6 +79,9 @@ export function createContext(repo: string, upstream: string, plan: Plan, sample
 
   const context: SyncContext = {
     version: 1,
+    mode: previousCommit ? "incremental" : "initial",
+    changes: sourceEvidence(upstream, previousCommit, entry.upstreamCommit, sourcePath),
+    skills: { migration: configured.migrationSkill, manifest: configured.manifestSkill },
     sample,
     upstream: {
       repository: configured.upstream.repository,
@@ -80,15 +108,19 @@ export function createContext(repo: string, upstream: string, plan: Plan, sample
     protectedPaths: protection(repo).protectedPaths,
   };
   const file = path.join(root, "sync-context.json");
+  if (Buffer.byteLength(JSON.stringify(context)) > 2_000_000) {
+    throw new SyncError("Source evidence exceeds 2 MB; split this migration. No evidence was truncated.");
+  }
   writeFileSync(file, `${JSON.stringify(context, null, 2)}\n`, "utf8");
   lockTree(root);
   return { root, file, digest: digestDirectory(root) };
 }
 
-export function updateContextErrors(context: ContextFiles, errors: string[]): ContextFiles {
+export function updateContextErrors(context: ContextFiles, errors: string[], implementation?: AgentResult, review?: ReviewResult): ContextFiles {
   unlockTree(context.root);
   const value = JSON.parse(readFileSync(context.file, "utf8")) as SyncContext;
   value.validationErrors = [...errors];
+  if (implementation) value.feedback = { implementation, ...(review ? { review } : {}) };
   writeFileSync(context.file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
   lockTree(context.root);
   return { ...context, digest: digestDirectory(context.root) };

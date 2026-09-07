@@ -12,13 +12,13 @@ on:
         type: boolean
         default: false
       maxAgentAttempts:
-        description: Maximum Copilot attempts (1-5)
+        description: Maximum implementation/review cycles (1-5)
         default: "5"
 
 env:
   SYNC_TOOL: agent-plugins/agents-for-net/skills/sync-teams-dotnet-samples-to-agents-sdk/scripts
   # For fork testing only, change this repository and run with createPr disabled.
-  TEAMS_SAMPLES_REPOSITORY: sw-joelmut/Microsoft-Teams-Samples
+  TEAMS_SAMPLES_REPOSITORY: OfficeDev/Microsoft-Teams-Samples
 
 jobs:
   plan:
@@ -52,7 +52,7 @@ jobs:
           [ "$SYNC_SAMPLE" = all ] || sample_arg=(--sample "$SYNC_SAMPLE")
           node "$SYNC_TOOL/dist/cli.js" plan --repo-root . --upstream-root .sync/upstream "${sample_arg[@]}" --output .sync/plan.json
           echo "matrix=$(jq -c .matrix .sync/plan.json)" >> "$GITHUB_OUTPUT"
-          jq . .sync/plan.json >> "$GITHUB_STEP_SUMMARY"
+          jq -r '.samples | to_entries[] | "- \(.key): \(.value.status) (\(.value.changedComponents | join(", ")))"' .sync/plan.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         with: { name: teams-sample-sync-plan, path: .sync/plan.json }
 

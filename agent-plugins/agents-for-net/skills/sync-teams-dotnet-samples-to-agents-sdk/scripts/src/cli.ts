@@ -10,6 +10,7 @@ import { createPlan } from "./plan.js";
 import { prBody, workflowSummary } from "./report.js";
 import { createState, statePath, validateState } from "./state.js";
 import { prepareManifest, validateSample } from "./validate.js";
+import { parseReview } from "./review.js";
 import type { Plan, State, SyncContext, SyncResult } from "./types.js";
 
 function parseArgs(items: string[]): Record<string, string> {
@@ -67,8 +68,18 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
   const agentLog = path.join(output, "agent-log.txt");
   writeFileSync(agentLog, "", "utf8");
   const runner = new CopilotAgentRunner(repo, path.join(repo, ".sync", "runner", sample), agentLog, configured.copilot);
+  const reviewer = new CopilotAgentRunner(repo, path.join(repo, ".sync", "runner", sample), agentLog, configured.copilot, "review");
+  writeJson(path.join(output, "source-context.json"), contextValue);
 
-  let syncResult: SyncResult;
+  const syncResult: SyncResult = {
+    version: 2, sample, status: "failed", publishable: false, baseSha,
+    sourceRepository: contextValue.upstream.repository,
+    previousUpstreamCommit: contextValue.upstream.previousCommit,
+    upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
+    changedComponents: entry.changedComponents, copilot: configured.copilot,
+    migrationPolicies: contextValue.policies, sourceTree: entry.sourceTree,
+    inputDigest: entry.inputDigest, componentDigests: entry.componentDigests,
+  };
   try {
     const loop = await runAgentLoop({
       repo,
@@ -85,31 +96,23 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
       context,
       maxAttempts: attempts(values["max-attempts"] ? Number(values["max-attempts"]) : undefined),
       runner,
+      reviewer,
       validate: () => validateSample(repo, sample, sampleRoot, configured, target.manifest, owner.outputDigestExcludes),
     });
-    writeJson(path.join(output, "agent-result.json"), loop.agent);
-    writeJson(path.join(output, "validation.json"), loop.validation);
+    syncResult.agent = loop.agent;
+    syncResult.validation = loop.validation;
+    syncResult.outputDigest = loop.validation.outputDigest;
+    syncResult.cycles = loop.attempts;
+    if (loop.review) syncResult.review = loop.review;
     if (loop.agent.status === "needs-policy" || loop.agent.status === "unsupported") {
-      syncResult = {
-        version: 2, sample, status: loop.agent.status, publishable: false, baseSha,
-        previousUpstreamCommit: contextValue.upstream.previousCommit,
-        upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
-        changedComponents: entry.changedComponents, copilot: configured.copilot, migrationPolicies: contextValue.policies,
-        sourceTree: entry.sourceTree, inputDigest: entry.inputDigest,
-        componentDigests: entry.componentDigests, outputDigest: loop.validation.outputDigest,
-        agent: loop.agent, validation: loop.validation,
-      };
-    } else if (!loop.validation.passed) {
-      syncResult = {
-        version: 2, sample, status: "failed", publishable: false, baseSha,
-        previousUpstreamCommit: contextValue.upstream.previousCommit,
-        upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
-        changedComponents: entry.changedComponents, copilot: configured.copilot, migrationPolicies: contextValue.policies,
-        sourceTree: entry.sourceTree, inputDigest: entry.inputDigest,
-        componentDigests: entry.componentDigests, outputDigest: loop.validation.outputDigest,
-        agent: loop.agent, validation: loop.validation, error: loop.validation.errors.join("\n"),
-      };
+      syncResult.status = loop.agent.status;
+    } else if (!loop.validation.passed || loop.review?.result.verdict !== "approved") {
+      syncResult.error = loop.validation.errors.join("\n");
     } else {
+      if (loop.review.outputDigest !== loop.validation.outputDigest ||
+          digestDirectory(sampleRoot, owner.outputDigestExcludes) !== loop.review.outputDigest) {
+        throw new SyncError("Candidate differs from independently reviewed output");
+      }
       const state = createState(sample, entry, loop.validation);
       const lock = statePath(repo, sample);
       writeJson(lock, state);
@@ -117,33 +120,20 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
       const patch = git(repo, ["diff", "--binary", baseSha, "--", sampleRelative, path.relative(repo, lock).replaceAll("\\", "/")], true) as Buffer;
       if (patch.length === 0) throw new SyncError("Validated migration produced no sample or state patch");
       writeFileSync(path.join(output, "change.patch"), patch);
-      writeJson(path.join(output, "final-state.json"), state);
       const destinationChanges = changedPaths(repo, baseSha).filter((item) =>
         item === path.relative(repo, lock).replaceAll("\\", "/") || item.startsWith(`${sampleRelative}/`));
-      syncResult = {
-        version: 2, sample, status: "updated", publishable: true, baseSha,
-        previousUpstreamCommit: contextValue.upstream.previousCommit,
-        upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
-        changedComponents: entry.changedComponents, copilot: configured.copilot,
-        migrationPolicies: contextValue.policies, destinationChanges,
-        sourceTree: entry.sourceTree, inputDigest: entry.inputDigest,
-        componentDigests: entry.componentDigests, outputDigest: loop.validation.outputDigest,
-        state, agent: loop.agent, validation: loop.validation,
-      };
+      syncResult.status = "updated";
+      syncResult.publishable = true;
+      syncResult.destinationChanges = destinationChanges;
+      syncResult.state = state;
     }
   } catch (error) {
-    syncResult = {
-      version: 2, sample, status: "failed", publishable: false, baseSha,
-      previousUpstreamCommit: contextValue.upstream.previousCommit,
-      upstreamCommit: entry.upstreamCommit, upstreamChanges: contextValue.upstream.changes,
-      changedComponents: entry.changedComponents, copilot: configured.copilot, migrationPolicies: contextValue.policies,
-      sourceTree: entry.sourceTree, inputDigest: entry.inputDigest,
-      componentDigests: entry.componentDigests,
-      error: error instanceof Error ? error.message : String(error),
-    };
+    syncResult.status = "failed";
+    syncResult.publishable = false;
+    syncResult.error = error instanceof Error ? error.message : String(error);
   }
   writeJson(path.join(output, "sync-result.json"), syncResult);
-  writeFileSync(path.join(output, "pr-body.md"), prBody(syncResult), "utf8");
+  if (syncResult.publishable) writeFileSync(path.join(output, "pr-body.md"), prBody(syncResult), "utf8");
   writeFileSync(path.join(output, "workflow-summary.md"), workflowSummary(syncResult), "utf8");
   return syncResult.status === "failed" ? 1 : 0;
 }
@@ -158,6 +148,10 @@ function verifyPatch(repo: string, values: Record<string, string>): void {
       !result.agent || !result.copilot || !["updated", "unchanged"].includes(result.agent.status)) {
     throw new SyncError("Only a complete updated result is publishable");
   }
+  if (!result.review || result.review.outputDigest !== result.outputDigest ||
+      result.review.result.verdict !== "approved") throw new SyncError("Independent approval is missing or stale");
+  parseReview(result.review.result, sample, result.agent.dispositions?.map((d) => d.changeId) ?? [],
+    result.review.result.resolvedFindingIds);
   const head = git(repo, ["rev-parse", "HEAD"]) as string;
   if (head !== result.baseSha) throw new SyncError("Publish checkout differs from validated base SHA");
   const configured = targets(repo); const owner = protection(repo); const target = configured.samples[sample];

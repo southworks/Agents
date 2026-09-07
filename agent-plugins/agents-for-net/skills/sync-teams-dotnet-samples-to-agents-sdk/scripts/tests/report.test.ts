@@ -95,6 +95,29 @@ test("PR body identifies a first tracked synchronization without claiming a Team
   assert.doesNotMatch(body, /Teams repository changes detected/);
 });
 
+test("PR keeps human changes visible and detailed evidence in traceability", () => {
+  const item = result();
+  item.agent!.dispositions = [{ changeId: "change-1", decision: "adapted",
+    explanation: "Mapped the response", destinationPath: "samples/example/Handler.cs",
+    symbol: "Handle", verification: "Manual response check required" }];
+  item.agent!.upstreamChanges.push({ kind: "related-addition", reason: "Clarifies the response",
+    evidence: "Source handler", validation: "Manual check required" });
+  const body = prBody(item);
+  const details = body.indexOf("<details>");
+  assert.ok(body.indexOf("Added targeted message routing") < details);
+  assert.ok(body.indexOf("Clarifies the response") < details);
+  assert.ok(body.indexOf("change-1") > details);
+  assert.equal(body.split("change-1").length - 1, 1);
+});
+
+test("validation distinguishes missing contract coverage from passing checks", () => {
+  const item = result();
+  item.validation!.checks.contracts = null;
+  assert.match(prBody(item), /Not configured — Protected behavior contracts/);
+  delete item.validation;
+  assert.match(prBody(item), /Not run — Build/);
+});
+
 test("PR body neutralizes active Markdown from report values and handles backticks in paths", () => {
   const body = prBody(result({
     destinationChanges: ["samples/`unsafe`.md"],

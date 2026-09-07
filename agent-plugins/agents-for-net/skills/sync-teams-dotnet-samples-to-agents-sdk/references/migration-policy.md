@@ -12,4 +12,6 @@ policies:
     source: PR-123
 ```
 
-Policy has no draft or approval status. A merged repository pull request is the authority. If no policy resolves missing or conflicting product intent, return `needs-policy` with evidence and suggested YAML. Do not implement the suggestion, write state, or open a sync pull request. A later manual sync consumes the reviewed policy.
+Policy has no draft or approval status. A merged repository pull request is the authority. No policy is needed for routine SDK mappings, implementation choices, or evidence-backed related additions within the selected sample. Explain additions and their benefit, evidence and validation in the draft PR; the human reviewer decides whether to keep them. Do not invent unrelated features or override explicit policy.
+
+Return `needs-policy` only for an explicit policy conflict or missing security-sensitive/external configuration that source and documentation cannot establish. Include evidence and suggested YAML. Do not implement that blocked choice, write state, or open a sync pull request. A later manual sync consumes the reviewed policy.
