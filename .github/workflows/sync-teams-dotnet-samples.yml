@@ -18,7 +18,7 @@ on:
 env:
   SYNC_TOOL: agent-plugins/agents-for-net/skills/sync-teams-dotnet-samples-to-agents-sdk/scripts
   # For fork testing only, change this repository and run with createPr disabled.
-  TEAMS_SAMPLES_REPOSITORY: sw-joelmut/Microsoft-Teams-Samples
+  TEAMS_SAMPLES_REPOSITORY: OfficeDev/Microsoft-Teams-Samples
 
 jobs:
   plan:
