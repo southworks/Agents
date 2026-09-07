@@ -15,7 +15,7 @@ export type ReasoningEffort = typeof REASONING_EFFORTS[number];
 
 export interface CopilotConfiguration {
   model: string;
-  reasoningEffort: ReasoningEffort;
+  reasoningEffort?: ReasoningEffort;
 }
 
 export interface Targets {

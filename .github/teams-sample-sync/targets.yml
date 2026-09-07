@@ -10,11 +10,10 @@ canonicalSample: samples/dotnet/quickstart
 migrationSkill: agent-plugins/agents-for-net/skills/teams-sdk-to-agents-sdk-dotnet-migration
 manifestSkill: agent-plugins/agents-sdk-common/skills/teams-app-manifest
 
-# Run `copilot`, then `/model`, to see models and effort levels available to your account.
-# Run `copilot --help` to see the accepted command-line options.
+# `auto` lets Copilot select the best available model for the task.
+# For an explicit model, run `copilot`, then `/model`, and optionally add `reasoningEffort`.
 copilot:
-  model: gpt-5.6-terra
-  reasoningEffort: medium
+  model: auto
 
 packagePolicy:
   targetFramework: net8.0

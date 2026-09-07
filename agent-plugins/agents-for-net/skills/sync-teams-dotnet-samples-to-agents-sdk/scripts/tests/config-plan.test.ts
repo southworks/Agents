@@ -108,6 +108,17 @@ test("Copilot model and reasoning effort are validated and tracked as sync input
   assert.throws(() => targets(item.repo), /reasoningEffort must be one of/);
 });
 
+test("Copilot auto model omits reasoning effort", () => {
+  const item = fixture();
+  const targetsFile = path.join(item.repo, ".github/teams-sample-sync/targets.yml");
+  const original = readFileSync(targetsFile, "utf8");
+  write(targetsFile, original.replace("model: gpt-5.4\n  reasoningEffort: high", "model: auto"));
+  assert.deepEqual(targets(item.repo).copilot, { model: "auto" });
+
+  write(targetsFile, original.replace("model: gpt-5.4", "model: auto"));
+  assert.throws(() => targets(item.repo), /reasoningEffort must be omitted/);
+});
+
 test("state v2 created before Copilot configuration becomes pending without losing three-way history", () => {
   const item = fixture();
   const first = createPlan(item.repo, item.upstream);

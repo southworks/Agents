@@ -89,10 +89,13 @@ function parseStdout(stdout: string): unknown {
 }
 
 export function copilotArguments(prompt: string, configuration: CopilotConfiguration): string[] {
+  const modelArguments = ["--model", configuration.model];
+  if (configuration.reasoningEffort !== undefined) {
+    modelArguments.push("--reasoning-effort", configuration.reasoningEffort);
+  }
   return [
     "--prompt", prompt,
-    "--model", configuration.model,
-    "--reasoning-effort", configuration.reasoningEffort,
+    ...modelArguments,
     "--silent",
     "--available-tools=apply_patch,create,edit,view,grep,glob,web_fetch",
     "--allow-tool=write",

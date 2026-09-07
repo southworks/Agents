@@ -57,6 +57,7 @@ jobs:
         with: { name: teams-sample-sync-plan, path: .sync/plan.json }
 
   migrate:
+    name: migrate · ${{ matrix.sample }}
     needs: plan
     if: needs.plan.outputs.matrix != '[]'
     runs-on: ubuntu-latest
@@ -120,6 +121,7 @@ jobs:
           path: .sync/output/${{ matrix.sample }}
 
   publish:
+    name: publish · ${{ matrix.sample }}
     needs: [plan, migrate]
     if: always() && inputs.createPr && needs.plan.result == 'success' && needs.plan.outputs.matrix != '[]'
     runs-on: ubuntu-latest

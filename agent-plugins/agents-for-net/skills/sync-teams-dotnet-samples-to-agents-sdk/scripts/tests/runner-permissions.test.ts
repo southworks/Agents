@@ -19,6 +19,13 @@ test("Copilot can fetch only approved manifest documentation", () => {
   assert.ok(!args.includes("--deny-tool=shell,url"));
 });
 
+test("Copilot auto model does not force a reasoning effort", () => {
+  const args = copilotArguments("migrate sample", { model: "auto" });
+
+  assert.deepEqual(args.slice(0, 4), ["--prompt", "migrate sample", "--model", "auto"]);
+  assert.ok(!args.includes("--reasoning-effort"));
+});
+
 test("agent treats fetched documentation as informational content", () => {
   const item = fixture();
   const prompt = buildAgentPrompt(item.repo, path.join(item.repo, ".sync/context.json"), false, []);

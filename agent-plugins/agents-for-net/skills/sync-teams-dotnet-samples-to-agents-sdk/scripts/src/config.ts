@@ -85,10 +85,18 @@ export function targets(repo: string): Targets {
     destinations.add(destination);
     samples[name] = { source, destination, manifest: manifest(item.manifest, `${name}.manifest`) };
   }
-  const reasoningEffort = text(copilot.reasoningEffort, "copilot.reasoningEffort");
-  if (!(REASONING_EFFORTS as readonly string[]).includes(reasoningEffort)) {
+  const model = text(copilot.model, "copilot.model");
+  const reasoningEffort = copilot.reasoningEffort === undefined
+    ? undefined
+    : text(copilot.reasoningEffort, "copilot.reasoningEffort");
+  if (reasoningEffort !== undefined && !(REASONING_EFFORTS as readonly string[]).includes(reasoningEffort)) {
     throw new SyncError(`copilot.reasoningEffort must be one of: ${REASONING_EFFORTS.join(", ")}`);
   }
+  if (model === "auto" && reasoningEffort !== undefined) {
+    throw new SyncError("copilot.reasoningEffort must be omitted when copilot.model is auto");
+  }
+  const copilotConfiguration = { model } as Targets["copilot"];
+  if (reasoningEffort !== undefined) copilotConfiguration.reasoningEffort = reasoningEffort as ReasoningEffort;
   const result: Targets = {
     version: 1,
     upstream: {
@@ -100,10 +108,7 @@ export function targets(repo: string): Targets {
     canonicalSample: text(value.canonicalSample, "canonicalSample"),
     migrationSkill: text(value.migrationSkill, "migrationSkill"),
     manifestSkill: text(value.manifestSkill, "manifestSkill"),
-    copilot: {
-      model: text(copilot.model, "copilot.model"),
-      reasoningEffort: reasoningEffort as ReasoningEffort,
-    },
+    copilot: copilotConfiguration,
     packagePolicy: {
       targetFramework: text(packagePolicy.targetFramework, "packagePolicy.targetFramework"),
       agentsSdkVersion: text(packagePolicy.agentsSdkVersion, "packagePolicy.agentsSdkVersion"),

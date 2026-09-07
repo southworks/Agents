@@ -176,7 +176,7 @@ export function prBody(result: SyncResult): string {
     `- Teams sample tree digest: ${inlineCode(result.sourceTree)}`,
     `- Validated Agents output digest: ${inlineCode(result.outputDigest ?? "not produced")}`,
     `- Copilot model: ${inlineCode(result.copilot.model)}`,
-    `- Copilot reasoning effort: ${inlineCode(result.copilot.reasoningEffort)}`,
+    `- Copilot reasoning effort: ${inlineCode(result.copilot.reasoningEffort ?? "selected automatically")}`,
     "",
     "</details>",
     "",
