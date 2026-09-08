@@ -65,6 +65,7 @@ samples:
   write(path.join(repo, "automation/teams-sample-sync/config/ownership.yml"), "version: 1\nprotectedPaths:\n  - manifest-evidence.md\n  - '**/manifest-evidence.md'\noutputDigestExcludes:\n  - bin/**\n  - obj/**\n");
   write(path.join(repo, "automation/teams-sample-sync/prompts/agent-prompt.md"), "Read CONTEXT_FILE and return JSON only.\n");
   write(path.join(repo, "automation/teams-sample-sync/prompts/review-prompt.md"), "Independently review CONTEXT_FILE and return JSON only.\n");
+  write(path.join(repo, "automation/teams-sample-sync/prompts/assessment-prompt.md"), "Assess CONTEXT_FILE before implementation and return JSON only.\n");
   write(path.join(repo, "skills/migration/SKILL.md"), "migration v1\n");
   write(path.join(repo, "skills/manifest/SKILL.md"), "manifest v1\n");
   write(path.join(repo, "samples/dotnet/quickstart/appManifest/color.png"), Buffer.from([1, 2]));

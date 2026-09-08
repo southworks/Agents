@@ -138,6 +138,22 @@ export interface ManifestCapabilityDecision {
   reference: string;
 }
 
+export interface CapabilityAssessment {
+  version: 1;
+  sample: string;
+  summary: string;
+  capabilities: ManifestCapabilityDecision[];
+}
+
+export interface ExpectedCapabilityRevision {
+  id: string;
+  decision: ManifestCapabilityDecisionKind;
+  manifestPath: string;
+  explanation: string;
+  evidence: string[];
+  reference: string;
+}
+
 export interface ReviewResult {
   version: 1;
   sample: string;
@@ -146,6 +162,7 @@ export interface ReviewResult {
   reviewedChangeIds: string[];
   manifestAssessment: string;
   manifestCapabilities: ManifestCapabilityDecision[];
+  expectedCapabilityRevisions?: ExpectedCapabilityRevision[];
   testAssessment: string;
   resolvedFindingIds: string[];
   findings: Array<{ id: string; source: string; destination: string; expectedBehavior: string; correction: string }>;
@@ -229,6 +246,7 @@ export interface SyncResult {
   error?: string;
   sourceRepository?: string;
   review?: ReviewApproval;
+  assessment?: CapabilityAssessment;
   cycles?: number;
   failureStage?: "evidence" | "review";
 }

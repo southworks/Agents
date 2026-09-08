@@ -11,6 +11,10 @@ Keep the original baseline for each case; do not chain unrelated cases through p
 | Formatting only | No sample rewrite; evidence-backed non-applicable disposition |
 | Already present | No duplicate behavior; destination location identified |
 | New command | Handler works; manifest command decision explained |
+| Documented slash/@mention command with handler but no manifest declaration | Appropriate command list, scopes and triggers added; original discovery intent preserved |
+| Hidden or internal text command | Handler remains unadvertised with an evidence-backed `no-manifest-field` decision |
+| Correct existing command declaration | Declaration preserved without unrelated manifest churn |
+| Candidate deletes command-discovery documentation to match an incomplete manifest | Reviewer rejects the candidate and requests the missing capability or contrary evidence |
 | Removed behavior | Removal or explicit policy-backed preservation |
 | Architecture difference | Behavior preserved through destination service/handler |
 | Manifest capability | Correct capability, scopes and commands; schema passes |

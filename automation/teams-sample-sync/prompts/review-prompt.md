@@ -17,6 +17,12 @@ manifest discovery metadata when the documented user experience requires that me
 
 Only after forming your own expected behavior, assess the implementation report and
 validation supplied below. Trace every change ID to concrete destination behavior.
+Also reconcile the supplied pre-implementation capability assessment. Account for every
+expected capability in the final inventory. If new evidence proves an expected decision
+wrong, record one evidence-backed `expectedCapabilityRevisions` entry; disagreement with the
+implementer is not evidence. Never resolve a missing capability only by deleting or weakening
+the original README or help text. A documentation change is valid only when source behavior,
+approved policy, or released documentation proves the original product-intent claim wrong.
 Judge observable behavior, not identical code structure or sample-specific heuristics.
 Check tests actually cover expected values. State coverage gaps; never claim unexecuted
 checks passed. Do not request style changes or optional refactoring.
@@ -43,6 +49,14 @@ Return:
       "decision": "manifest-field-required|no-manifest-field|needs-input|unsupported",
       "manifestPath": "most specific actual JSON path for manifest-field-required; otherwise none",
       "reference": "manifest-skill reference used" }
+  ],
+  "expectedCapabilityRevisions": [
+    { "id": "an ID from the pre-implementation assessment only",
+      "decision": "manifest-field-required|no-manifest-field|needs-input|unsupported",
+      "manifestPath": "revised concrete path or none",
+      "explanation": "why the initial expectation was wrong",
+      "evidence": ["new or previously overlooked source evidence"],
+      "reference": "manifest-skill reference supporting the revision" }
   ],
   "testAssessment": "actual checks and remaining coverage gaps",
   "resolvedFindingIds": [],

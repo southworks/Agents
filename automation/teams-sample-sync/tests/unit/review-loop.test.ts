@@ -7,7 +7,7 @@ import { createContext, sourceEvidence } from "../../src/context.js";
 import { digestDirectory } from "../../src/git.js";
 import { createPlan } from "../../src/plan.js";
 import { manifestReviewErrors, parseReview } from "../../src/review.js";
-import type { AgentResult, ReviewResult, SyncContext } from "../../src/types.js";
+import type { AgentResult, CapabilityAssessment, ReviewResult, SyncContext } from "../../src/types.js";
 import { commit, fixture, git, write } from "./helpers.js";
 
 function setup() {
@@ -30,18 +30,21 @@ function setup() {
     reviewedChangeIds: value.changes.map((c) => c.id), resolvedFindingIds: [], findings: [],
     manifestAssessment: "Commands checked", testAssessment: "Fixture behavior checked",
     manifestCapabilities: implementation.manifestReport.capabilities };
+  const assessment: CapabilityAssessment = { version: 1, sample: "sample-a",
+    summary: "Expected base bot", capabilities: implementation.manifestReport.capabilities };
   const options: AgentLoopOptions = {
     repo: item.repo, upstream: item.upstream, baseSha: git(item.repo, "rev-parse", "HEAD"), sample: "sample-a",
     sampleRoot: value.paths.destination, sourcePath: value.upstream.sourcePath,
     upstreamCommit: plan.upstreamCommit, sourceTree: plan.samples["sample-a"]!.sourceTree!,
     protectedPaths: [], outputDigestExcludes: [], policyKeys: [], context, maxAttempts: 5,
     runner: { run: async () => implementation }, reviewer: { run: async () => review },
+    assessor: { run: async () => assessment },
     validate: async () => ({ version: 1, sample: "sample-a", passed: true, repairable: true,
       outputDigest: digestDirectory(sampleRoot),
       checks: { project: true, restore: true, build: true, manifest: true, httpSmoke: true, contracts: null },
       errors: [], externalValidationRequired: [] }),
   };
-  return { item, options, implementation, review, sampleRoot };
+  return { item, options, implementation, review, assessment, sampleRoot };
 }
 
 const missingDue = { id: "missing-due", source: "Program.cs:CreateConfirmationCard",
@@ -234,6 +237,62 @@ test("independent reviewer must agree with the final manifest capability invento
     ...review.manifestCapabilities[0]!, decision: "no-manifest-field", manifestPath: "none",
   }] };
   assert.match(manifestReviewErrors(implementation, changedAssessment).join("\n"), /assessment differs.*base-bot/);
+});
+
+test("capability assessment runs before implementation and is supplied to both agents", async () => {
+  const { options, implementation, review, assessment } = setup();
+  const order: string[] = [];
+  options.assessor = { run: async ({ prompt }) => {
+    order.push("assessment");
+    assert.doesNotMatch(prompt, /implementation report/i);
+    return assessment;
+  } };
+  options.runner = { run: async ({ prompt }) => {
+    order.push("implementation");
+    assert.match(prompt, /pre-implementation capability assessment/);
+    return implementation;
+  } };
+  options.reviewer = { run: async ({ prompt }) => {
+    order.push("review");
+    assert.match(prompt, /Independent pre-implementation capability assessment/);
+    return review;
+  } };
+
+  const result = await runAgentLoop(options);
+  assert.deepEqual(order, ["assessment", "implementation", "review"]);
+  assert.deepEqual(result.assessment, assessment);
+});
+
+test("matching incomplete inventories cannot omit an expected manifest capability", async () => {
+  const { options, implementation, review } = setup();
+  options.maxAttempts = 1;
+  options.assessor = { run: async () => ({ version: 1, sample: "sample-a", summary: "Named command is discoverable",
+    capabilities: [{ id: "named-command", kind: "bot-command-discovery", evidence: ["README.md:Commands"],
+      decision: "manifest-field-required", manifestPath: "bots[0].commandLists",
+      reference: "references/bots.md" }] }) };
+  options.runner = { run: async () => implementation };
+  options.reviewer = { run: async () => review };
+
+  const result = await runAgentLoop(options);
+  assert.equal(result.validation.passed, false);
+  assert.match(result.validation.errors.join("\n"), /does not satisfy expected manifest capability named-command/);
+});
+
+test("reviewer may revise an initial expectation only with structured evidence", async () => {
+  const { options, implementation, review } = setup();
+  const noField = [{ ...implementation.manifestReport.capabilities[0]!, decision: "no-manifest-field" as const,
+    manifestPath: "none" }];
+  options.assessor = { run: async () => ({ version: 1, sample: "sample-a", summary: "Initial expectation",
+    capabilities: implementation.manifestReport.capabilities }) };
+  options.runner = { run: async () => ({ ...implementation, manifestReport: {
+    ...implementation.manifestReport, capabilities: noField } }) };
+  options.reviewer = { run: async () => ({ ...review, manifestCapabilities: noField,
+    expectedCapabilityRevisions: [{ id: "base-bot", decision: "no-manifest-field", manifestPath: "none",
+      explanation: "The original route is an internal test harness, not a Teams bot surface.",
+      evidence: ["SampleAgent.cs:InternalHarness"], reference: "references/bots.md" }] }) };
+
+  const result = await runAgentLoop(options);
+  assert.equal(result.validation.passed, true);
 });
 
 test("repeated review findings stop early and never create state", async () => {

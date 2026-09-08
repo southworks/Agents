@@ -24,10 +24,10 @@ The [workflow](../../.github/workflows/sync-teams-dotnet-samples.yml) accepts ma
 only. It keeps three separate jobs and their permissions:
 
 1. **Plan:** pin the Teams commit and compare sample inputs with saved state.
-2. **Migrate:** provide exact source changes, source history, destination code and policies
-   to Copilot. Use the migration skill first, then the manifest skill. Validate the output
-   and have an independent read-only agent review it. Repair within a shared five-cycle
-   limit; invalid review reports consume the same budget.
+2. **Migrate:** a read-only agent first derives expected behavior and manifest capabilities
+   from the original evidence. The implementation agent then uses the migration skill first
+   and the manifest skill second. Deterministic validation and a read-only final review check
+   the candidate against that independent baseline. Repair remains limited to five cycles.
 3. **Publish:** apply and verify the approved patch, then create one draft PR per sample.
    This job does not use Copilot or run candidate sample code.
 

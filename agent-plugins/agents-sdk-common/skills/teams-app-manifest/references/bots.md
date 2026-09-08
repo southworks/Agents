@@ -25,6 +25,8 @@ Do not infer scopes from a generic message handler. Require product documentatio
 
 A generic or dynamic runtime command handler does not make discovery metadata unnecessary. When code and user-facing documentation present a named slash or mention command as part of the intended Teams experience, evaluate and declare that command using the rules below. Conversely, a route alone remains insufficient evidence that a command should be advertised.
 
+Record command discovery as its own capability-ledger item; do not merge named commands into a generic message-routing entry. Reconcile four distinct questions: whether code handles the command, whether user-facing evidence intends it to be discoverable, where it is supported, and which Teams entry points should expose it. An existing manifest omission answers none of those questions. If code and original user-facing documentation establish discovery intent, repair the manifest rather than deleting that intent, unless stronger evidence proves the documentation wrong or the capability unsupported.
+
 ## Command-list grouping
 
 `commandLists[].scopes` and `commandLists[].triggers` apply to every command in that command-list entry; they do not apply to an individual command.

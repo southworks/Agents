@@ -19,6 +19,10 @@ id | kind | evidence | decision | manifestPath | reference
 - `manifestPath`: the most specific actual JSON path in the final manifest for `manifest-field-required`; `none` otherwise.
 - `reference`: the manifest-skill reference that supports the decision.
 
+Keep independently decidable surfaces in separate entries. In particular, a conversational
+bot/message-routing entry must not absorb user-facing command discovery: runtime dispatch and
+manifest exposure have different evidence and can reach different decisions.
+
 ## Reconciliation rules
 
 - `manifest-field-required` means evidence and intended behavior require a declaration. Write it and record the most specific actual final JSON path representing it. Do not use `bots[0]` when the capability requires a child field such as a command list or feature flag.

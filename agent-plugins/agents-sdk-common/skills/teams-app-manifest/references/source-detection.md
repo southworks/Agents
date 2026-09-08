@@ -9,6 +9,7 @@ Search the full project, including route classes, startup registration, services
 | Source signal | Candidate capability | Read next |
 |---|---|---|
 | `[TeamsMessageRoute]`, Teams members or conversation routes | Conversational bot | [bots.md](bots.md) |
+| Named commands presented in README usage, help responses, command menus, or explicit slash/@mention UX, together with handling code | User-facing command discovery | [bots.md](bots.md) |
 | Proactive continuation APIs plus stored conversation data | Proactive messaging | [bots.md](bots.md) |
 | Member-detail APIs or use of UPN, email, Microsoft Entra object ID, or other Teams member identity data | Candidate root `identity` permission | [bots.md](bots.md) |
 | Member enumeration plus direct or proactive messaging to team members who have not interacted with the bot | Candidate root `messageTeamMembers` permission | [bots.md](bots.md) |
@@ -32,6 +33,8 @@ Search the full project, including route classes, startup registration, services
 
 - A class or package reference is weak evidence; require executed code or explicit documentation.
 - A handler proves accepted input, not intended installation scope.
+- Runtime message dispatch and manifest command discovery are separate decisions. Inventory documented named commands separately from the generic conversational-bot capability.
+- A named route alone may be hidden or internal. Require user-facing product intent before advertising it; when help text or README instructions present it as slash or @mention UX, do not use text matching as evidence that discovery metadata is unnecessary.
 - An SDK type can support several manifest shapes; inspect actual values and branches.
 - A public route proves an endpoint exists, not that its domain is approved for the manifest.
 - A Graph permission string in documentation is evidence of setup intent, not proof of granted consent.

@@ -208,6 +208,8 @@ test("verify-patch accepts only the applied validated sample and state", async (
     copilot: { model: "gpt-5.4", reasoningEffort: "high" }, migrationPolicies: [],
     sourceTree: entry.sourceTree!, inputDigest: entry.inputDigest!,
     componentDigests: entry.componentDigests!, outputDigest, state, agent: agent(), validation: checked,
+    assessment: { version: 1, sample: "sample-a", summary: "Expected fixture capabilities",
+      capabilities: agent().manifestReport.capabilities },
     review: { outputDigest, result: { version: 1, sample: "sample-a", verdict: "approved", summary: "Reviewed",
       reviewedChangeIds: agent().dispositions!.map((d) => d.changeId), manifestAssessment: "Checked",
       testAssessment: "Checked", resolvedFindingIds: [], findings: [],

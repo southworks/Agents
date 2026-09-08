@@ -64,7 +64,6 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
   const sampleRoot = path.join(repo, sampleRelative);
   const context = createContext(repo, upstream, plan, sample);
   const contextValue = readJson<SyncContext>(context.file);
-  prepareManifest(sampleRoot, path.join(repo, configured.canonicalSample), target.manifest);
   const agentLog = path.join(output, "agent-log.txt");
   writeFileSync(agentLog, "", "utf8");
   const runner = new CopilotAgentRunner(repo, path.join(repo, ".sync", "runner", sample), agentLog, configured.copilot);
@@ -97,12 +96,15 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
       maxAttempts: attempts(values["max-attempts"] ? Number(values["max-attempts"]) : undefined),
       runner,
       reviewer,
+      assessor: reviewer,
+      prepareCandidate: () => prepareManifest(sampleRoot, path.join(repo, configured.canonicalSample), target.manifest),
       validate: () => validateSample(repo, sample, sampleRoot, configured, target.manifest, owner.outputDigestExcludes),
     });
     syncResult.agent = loop.agent;
     syncResult.validation = loop.validation;
     syncResult.outputDigest = loop.validation.outputDigest;
     syncResult.cycles = loop.attempts;
+    if (loop.assessment) syncResult.assessment = loop.assessment;
     if (loop.failureStage) syncResult.failureStage = loop.failureStage;
     if (loop.review) syncResult.review = loop.review;
     if (loop.agent.status === "needs-policy" || loop.agent.status === "unsupported") {
@@ -144,7 +146,7 @@ function verifyPatch(repo: string, values: Record<string, string>): void {
   const resultFile = resolveOption(required(values, "result"));
   const result = readJson<SyncResult>(resultFile);
   if (result.version !== 2 || result.sample !== sample || result.status !== "updated" || !result.publishable ||
-      !result.state || !result.outputDigest || !result.validation?.passed ||
+      !result.state || !result.outputDigest || !result.validation?.passed || !result.assessment ||
       result.validation.outputDigest !== result.outputDigest ||
       !result.agent || !result.copilot || !["updated", "unchanged"].includes(result.agent.status)) {
     throw new SyncError("Only a complete updated result is publishable");
@@ -153,7 +155,7 @@ function verifyPatch(repo: string, values: Record<string, string>): void {
       result.review.result.verdict !== "approved") throw new SyncError("Independent approval is missing or stale");
   const parsedReview = parseReview(result.review.result, sample, result.agent.dispositions?.map((d) => d.changeId) ?? [],
     result.review.result.resolvedFindingIds);
-  const manifestErrors = manifestReviewErrors(result.agent, parsedReview);
+  const manifestErrors = manifestReviewErrors(result.agent, parsedReview, result.assessment);
   if (manifestErrors.length > 0) throw new SyncError(manifestErrors.join("\n"));
   const head = git(repo, ["rev-parse", "HEAD"]) as string;
   if (head !== result.baseSha) throw new SyncError("Publish checkout differs from validated base SHA");
