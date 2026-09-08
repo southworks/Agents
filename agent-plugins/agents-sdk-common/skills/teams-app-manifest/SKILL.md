@@ -63,16 +63,16 @@ When the user explicitly invokes this skill with an application, produce the def
    Capability | Evidence | Manifest impact | Required values | Confidence | Source
    ```
 
-4. Classify each candidate as:
-   - `required`: code and intent prove the declaration.
-   - `conditional`: implementation exists, but product intent or a value is missing.
-   - `none`: feature needs no additional manifest field.
+4. Decide each candidate as:
+   - `manifest-field-required`: code and intent prove a manifest declaration is required.
+   - `needs-input`: implementation exists, but product intent or a value is missing.
+   - `no-manifest-field`: the feature needs no additional manifest field.
    - `unsupported`: released schema or platform guidance does not support it.
 5. Read only the references relevant to detected capabilities.
 6. Select the repository-approved released schema version. For new Teams agent samples in this repository, use `1.22` as the baseline unless a capability or distribution rule requires a higher released version. Outside this repository, use the maintained project's baseline or request a decision. Never select an old schema only because it is technically sufficient. Record why.
 7. Start from [base-manifest.template.json](assets/base-manifest.template.json) for a new manifest, or preserve the existing valid base metadata. Add only proven capability sections.
 8. Run the JSON, released-schema, referenced-asset, package-structure, and source-to-manifest checks in [schema-validation.md](references/schema-validation.md). Fix in-scope errors and rerun the affected checks before the final report. Ask a blocking question only when correction requires user input or authorization.
-   Before declaring completion, reconcile every ledger entry against the final manifest: every `required` item must identify an existing manifest path, and no `conditional` item may remain unresolved.
+   Before declaring completion, reconcile every ledger entry against the final manifest: every `manifest-field-required` item must identify its most specific existing manifest path, and no `needs-input` item may remain unresolved.
 9. After implementation and validation, return the final manifest report required by the execution contract. In Generate mode, report only additions. In Complete mode, report additions and changes; mention preserved behavior only when preservation is important to the user or prevents accidental breakage. Never list omitted capabilities in Generate or Complete reports.
 10. Do not create `manifest-evidence.md` by default. Persist the report only when the user explicitly requests a file or caller-provided policy requires one. Return no other findings report before the final report.
 

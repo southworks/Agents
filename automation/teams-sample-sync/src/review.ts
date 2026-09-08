@@ -32,25 +32,25 @@ export function parseManifestCapabilities(value: unknown): ManifestCapabilityDec
   if (!Array.isArray(value) || value.length === 0) throw new SyncError("manifest capability ledger must be a nonempty list");
   const result = value.map((raw) => {
     const item = record(raw, "manifest capability");
-    const classification = text(item.classification, "manifest capability.classification");
-    const status = text(item.status, "manifest capability.status");
-    if (!['required', 'conditional', 'none', 'unsupported'].includes(classification) ||
-        !['present', 'not-required', 'needs-input', 'unsupported'].includes(status)) {
-      throw new SyncError("Invalid manifest capability classification or status");
+    const decision = text(item.decision, "manifest capability.decision");
+    if (!["manifest-field-required", "no-manifest-field", "needs-input", "unsupported"].includes(decision)) {
+      throw new SyncError("Invalid manifest capability decision");
     }
     const capability: ManifestCapabilityDecision = {
       id: text(item.id, "manifest capability.id"), kind: text(item.kind, "manifest capability.kind"),
       evidence: list(item.evidence, "manifest capability.evidence"),
-      classification: classification as ManifestCapabilityDecision["classification"],
+      decision: decision as ManifestCapabilityDecision["decision"],
       manifestPath: text(item.manifestPath, "manifest capability.manifestPath"),
-      status: status as ManifestCapabilityDecision["status"],
       reference: text(item.reference, "manifest capability.reference"),
     };
     if (!/^[a-z0-9][a-z0-9:._-]*$/.test(capability.id)) throw new SyncError("manifest capability.id must be lowercase and stable");
-    const expected = { required: "present", conditional: "needs-input", none: "not-required", unsupported: "unsupported" }[classification];
-    if (status !== expected || (classification === "required" && capability.manifestPath === "none") ||
-        (classification !== "required" && capability.manifestPath !== "none")) {
-      throw new SyncError("Manifest capability classification, status, and path are inconsistent");
+    if (capability.evidence.length === 0) throw new SyncError(`Manifest capability ${capability.id} requires source evidence`);
+    if (capability.reference === "none") throw new SyncError(`Manifest capability ${capability.id} requires a manifest-skill reference`);
+    if (decision === "manifest-field-required" && capability.manifestPath === "none") {
+      throw new SyncError(`Manifest capability ${capability.id} requires a concrete manifestPath`);
+    }
+    if (decision !== "manifest-field-required" && capability.manifestPath !== "none") {
+      throw new SyncError(`Manifest capability ${capability.id} with decision ${decision} requires manifestPath none`);
     }
     return capability;
   });
@@ -101,13 +101,13 @@ export function coverageErrors(repo: string, context: SyncContext, agent: AgentR
     catch { errors.push("Cannot verify capability ledger against invalid manifest JSON"); }
     if (manifest !== undefined) {
       for (const capability of agent.manifestReport.capabilities) {
-        if (capability.classification === "required" && !jsonPathExists(manifest, capability.manifestPath)) {
+        if (capability.decision === "manifest-field-required" && !jsonPathExists(manifest, capability.manifestPath)) {
           errors.push(`Manifest capability path does not exist: ${capability.id} -> ${capability.manifestPath}`);
         }
-        if (capability.classification === "conditional") {
+        if (capability.decision === "needs-input") {
           errors.push(`Manifest capability remains unresolved: ${capability.id}`);
         }
-        if (capability.classification === "unsupported" && ["updated", "unchanged"].includes(agent.status)) {
+        if (capability.decision === "unsupported" && ["updated", "unchanged"].includes(agent.status)) {
           errors.push(`Required manifest capability is unsupported: ${capability.id}`);
         }
       }
@@ -123,7 +123,7 @@ export function manifestReviewErrors(agent: AgentResult, review: ReviewResult): 
   for (const id of new Set([...expected.keys(), ...actual.keys()])) {
     const implementation = expected.get(id); const assessment = actual.get(id);
     if (!implementation || !assessment) { errors.push(`Reviewer manifest capability inventory differs for ${id}`); continue; }
-    if (implementation.classification !== assessment.classification || implementation.status !== assessment.status ||
+    if (implementation.decision !== assessment.decision ||
         implementation.manifestPath !== assessment.manifestPath) {
       errors.push(`Reviewer manifest capability assessment differs for ${id}`);
     }

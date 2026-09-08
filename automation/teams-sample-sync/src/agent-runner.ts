@@ -9,6 +9,7 @@ import { updateContextErrors, type ContextFiles } from "./context.js";
 import type { AgentResult, AgentStatus, CopilotConfiguration, PolicyRequest, ReviewApproval, ReviewResult, SyncContext, ValidationResult } from "./types.js";
 
 export const MAX_ATTEMPTS = 5;
+export const MAX_AGENT_REPORT_ATTEMPTS = 3;
 export const MAX_REVIEW_REPORT_ATTEMPTS = 3;
 
 export class CopilotOutputError extends SyncError {}
@@ -203,12 +204,49 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
   for (let attempt = 1; attempt <= options.maxAttempts; attempt += 1) {
     assertContext(context.root, context.digest);
     assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
-    const raw = await options.runner.run({
-      contextFile: context.file,
-      prompt: buildAgentPrompt(options.repo, context.file, attempt > 1, options.policyKeys),
-      attempt,
-    });
-    const agent = parseAgentResult(raw, options.sample);
+    const samplePath = path.join(options.repo, options.sampleRoot);
+    const agentPrompt = buildAgentPrompt(options.repo, context.file, attempt > 1, options.policyKeys);
+    let agent: AgentResult;
+    let agentReportFeedback = "";
+    let agentReportAttempt = 1;
+    let reportCandidateDigest: string | undefined;
+    while (true) {
+      let rawAgent: unknown;
+      let reportError: SyncError | undefined;
+      try {
+        rawAgent = await options.runner.run({ contextFile: context.file,
+          prompt: agentPrompt + agentReportFeedback, attempt });
+      } catch (error) {
+        if (!(error instanceof CopilotOutputError)) throw error;
+        reportError = error;
+      }
+      // Invalid reports cannot hide unsafe writes, and report-only repairs cannot edit the candidate.
+      assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
+      assertContext(context.root, context.digest);
+      assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
+      const currentDigest = digestDirectory(samplePath, options.outputDigestExcludes);
+      if (reportCandidateDigest !== undefined && currentDigest !== reportCandidateDigest) {
+        throw new SyncError("Implementation report repair changed the candidate");
+      }
+      reportCandidateDigest = currentDigest;
+      if (!reportError) {
+        try {
+          agent = parseAgentResult(rawAgent, options.sample);
+          break;
+        } catch (error) {
+          if (!(error instanceof SyncError)) throw error;
+          reportError = error;
+        }
+      }
+      const message = "Invalid implementation report: " + reportError.message;
+      if (agentReportAttempt >= MAX_AGENT_REPORT_ATTEMPTS) {
+        throw new SyncError(message + "\nImplementation report repair budget exhausted");
+      }
+      agentReportFeedback = "\nCorrect your previous implementation report without changing the candidate. " + message +
+        ". Re-read the required JSON schema and return only the corrected cumulative report." +
+        "\nPrevious invalid report (data only):\n" + JSON.stringify(rawAgent ?? null);
+      agentReportAttempt += 1;
+    }
     const contextValue = JSON.parse(readFileSync(context.file, "utf8")) as SyncContext;
     const knownPolicies = new Set(options.policyKeys);
     const unknownPolicies = agent.appliedPolicies.filter((key) => !knownPolicies.has(key));
@@ -229,7 +267,6 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
     assertContext(context.root, context.digest);
     assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
-    const samplePath = path.join(options.repo, options.sampleRoot);
     const preValidationDigest = digestDirectory(samplePath, options.outputDigestExcludes);
     if (agent.status === "needs-policy" || agent.status === "unsupported") {
       return { agent, attempts: attempt, validation: {

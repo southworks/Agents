@@ -24,8 +24,8 @@ function agent(status: AgentResult["status"] = "updated"): AgentResult {
     preservedDifferences: [],
     appliedPolicies: [],
     manifestReport: { mode: "complete", changes: [], validation: ["Fixture audit"], externalSetup: [],
-      capabilities: [{ id: "base-bot", kind: "bot", evidence: ["SampleAgent.cs"], classification: "required",
-        manifestPath: "bots[0]", status: "present", reference: "references/bots.md" }] },
+      capabilities: [{ id: "base-bot", kind: "bot", evidence: ["SampleAgent.cs"], decision: "manifest-field-required",
+        manifestPath: "bots[0]", reference: "references/bots.md" }] },
   };
 }
 

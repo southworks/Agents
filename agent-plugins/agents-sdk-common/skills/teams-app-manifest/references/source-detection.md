@@ -54,4 +54,4 @@ Record meaningful absence when it limits a decision. Examples:
 - Meeting routes exist but private versus channel meeting support is unclear.
 - Graph calls exist but delegated versus application access is unclear.
 
-These cases must produce `conditional` or `needs-input`, not guessed JSON.
+These cases must produce `needs-input`, not guessed JSON.

@@ -127,16 +127,14 @@ export interface ChangeDisposition {
   verification: string;
 }
 
-export type ManifestCapabilityClassification = "required" | "conditional" | "none" | "unsupported";
-export type ManifestCapabilityStatus = "present" | "not-required" | "needs-input" | "unsupported";
+export type ManifestCapabilityDecisionKind = "manifest-field-required" | "no-manifest-field" | "needs-input" | "unsupported";
 
 export interface ManifestCapabilityDecision {
   id: string;
   kind: string;
   evidence: string[];
-  classification: ManifestCapabilityClassification;
+  decision: ManifestCapabilityDecisionKind;
   manifestPath: string;
-  status: ManifestCapabilityStatus;
   reference: string;
 }
 

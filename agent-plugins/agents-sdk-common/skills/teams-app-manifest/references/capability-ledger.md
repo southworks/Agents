@@ -9,24 +9,23 @@ Inspect source code, routes, configuration, tests, and README documentation. Rec
 Each entry contains:
 
 ```text
-id | kind | evidence | classification | manifestPath | status | reference
+id | kind | evidence | decision | manifestPath | reference
 ```
 
 - `id`: stable lowercase identifier unique within this manifest assessment.
 - `kind`: concise feature category, not a schema field guess.
 - `evidence`: one or more concrete source paths, symbols, routes, tests, or README sections.
-- `classification`: `required`, `conditional`, `none`, or `unsupported`.
-- `manifestPath`: actual JSON path in the final manifest for `required`; `none` otherwise.
-- `status`: `present`, `needs-input`, `not-required`, or `unsupported`, respectively.
+- `decision`: `manifest-field-required`, `no-manifest-field`, `needs-input`, or `unsupported`.
+- `manifestPath`: the most specific actual JSON path in the final manifest for `manifest-field-required`; `none` otherwise.
 - `reference`: the manifest-skill reference that supports the decision.
 
 ## Reconciliation rules
 
-- `required` means evidence and intended behavior require a declaration. Write it and record its actual final JSON path with status `present`.
-- `conditional` means product intent or a value cannot be resolved safely. Use path `none` and status `needs-input`. Generate other verified manifest content first when possible.
-- `none` means the capability was considered but the applicable reference says it has no manifest field. Use path `none` and status `not-required`.
-- `unsupported` means the required behavior is unavailable in the selected released platform/schema. Use path `none` and status `unsupported`.
-- Do not finish Generate or Complete with a missing required path or an unresolved conditional entry.
+- `manifest-field-required` means evidence and intended behavior require a declaration. Write it and record the most specific actual final JSON path representing it. Do not use `bots[0]` when the capability requires a child field such as a command list or feature flag.
+- `no-manifest-field` means the capability was considered but the applicable reference says it exists only in code, an activity payload, or external setup. Use path `none`.
+- `needs-input` means product intent or a value cannot be resolved safely. Use path `none`. Generate other verified manifest content first when possible.
+- `unsupported` means the required behavior is unavailable in the selected released platform/schema. Use path `none`.
+- Do not finish Generate or Complete with a missing required path or an unresolved `needs-input` entry.
 - Schema validity is necessary but does not prove this ledger matches the application's behavior.
 - External portal, identity, domain, deployment, tenant, or subscription work does not invalidate a manifest fragment supported by evidence and repository-approved placeholders. Record that work separately.
 

@@ -44,8 +44,8 @@ function result(overrides: Partial<SyncResult> = {}): SyncResult {
         changes: ["Added the bot capability and required scopes."],
         validation: ["Manifest matches the selected sample behavior."],
         externalSetup: ["Register the bot ID before testing in Teams."],
-        capabilities: [{ id: "base-bot", kind: "bot", evidence: ["Agent.cs"], classification: "required",
-          manifestPath: "bots[0]", status: "present", reference: "references/bots.md" }],
+        capabilities: [{ id: "base-bot", kind: "bot", evidence: ["Agent.cs"], decision: "manifest-field-required",
+          manifestPath: "bots[0]", reference: "references/bots.md" }],
       },
     },
     validation: {

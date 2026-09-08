@@ -40,9 +40,8 @@ Return:
   "manifestCapabilities": [
     { "id": "stable-capability-id", "kind": "feature category",
       "evidence": ["path:symbol or README section"],
-      "classification": "required|conditional|none|unsupported",
-      "manifestPath": "actual JSON path for required; otherwise none",
-      "status": "present|needs-input|not-required|unsupported",
+      "decision": "manifest-field-required|no-manifest-field|needs-input|unsupported",
+      "manifestPath": "most specific actual JSON path for manifest-field-required; otherwise none",
       "reference": "manifest-skill reference used" }
   ],
   "testAssessment": "actual checks and remaining coverage gaps",

@@ -23,8 +23,8 @@ function setup() {
       symbol: "value", verification: "Fixture check" })),
     upstreamChanges: [], preservedDifferences: [], appliedPolicies: [],
     manifestReport: { mode: "complete", changes: [], validation: ["Reviewed commands"], externalSetup: [],
-      capabilities: [{ id: "base-bot", kind: "bot", evidence: ["SampleAgent.cs"], classification: "required",
-        manifestPath: "bots[0]", status: "present", reference: "references/bots.md" }] },
+      capabilities: [{ id: "base-bot", kind: "bot", evidence: ["SampleAgent.cs"], decision: "manifest-field-required",
+        manifestPath: "bots[0]", reference: "references/bots.md" }] },
   };
   const review: ReviewResult = { version: 1, sample: "sample-a", verdict: "approved", summary: "Verified",
     reviewedChangeIds: value.changes.map((c) => c.id), resolvedFindingIds: [], findings: [],
@@ -79,6 +79,65 @@ test("complete manifest reports require an evidence-backed capability ledger", (
   const { implementation } = setup();
   assert.throws(() => parseAgentResult({ ...implementation,
     manifestReport: { ...implementation.manifestReport, capabilities: [] } }, "sample-a"), /capability ledger/);
+});
+
+test("implemented behavior with no manifest field has an unambiguous ledger decision", () => {
+  const { implementation } = setup();
+  const result = parseAgentResult({ ...implementation, manifestReport: {
+    ...implementation.manifestReport,
+    capabilities: [{ id: "suggested-actions", kind: "activity-payload", evidence: ["Agent.cs:BuildSuggestions"],
+      decision: "no-manifest-field", manifestPath: "none", reference: "references/cards-and-dialogs.md" }],
+  } }, "sample-a");
+  assert.equal(result.manifestReport.capabilities[0]?.decision, "no-manifest-field");
+});
+
+test("invalid implementer capability report gets a report-only retry", async () => {
+  const { options, implementation } = setup();
+  let implementations = 0; let validations = 0;
+  const validate = options.validate;
+  options.runner = { run: async ({ prompt }) => {
+    implementations++;
+    if (implementations === 1) return { ...implementation, manifestReport: {
+      ...implementation.manifestReport,
+      capabilities: [{ ...implementation.manifestReport.capabilities[0]!, manifestPath: "none" }],
+    } };
+    assert.match(prompt, /Correct your previous implementation report without changing the candidate/);
+    return implementation;
+  } };
+  options.validate = async () => { validations++; return validate(); };
+
+  const result = await runAgentLoop(options);
+  assert.equal(result.attempts, 1);
+  assert.equal(implementations, 2);
+  assert.equal(validations, 1);
+  assert.equal(result.validation.passed, true);
+});
+
+test("invalid implementation reports exhaust only their bounded report budget", async () => {
+  const { options, implementation } = setup();
+  let implementations = 0;
+  options.runner = { run: async () => {
+    implementations++;
+    return { ...implementation, manifestReport: { ...implementation.manifestReport, capabilities: [] } };
+  } };
+
+  await assert.rejects(runAgentLoop(options), /Invalid implementation report.*repair budget exhausted/s);
+  assert.equal(implementations, 3);
+});
+
+test("implementation report repair cannot change the candidate", async () => {
+  const { options, implementation, sampleRoot } = setup();
+  let implementations = 0;
+  options.runner = { run: async () => {
+    implementations++;
+    if (implementations === 1) return { ...implementation,
+      manifestReport: { ...implementation.manifestReport, capabilities: [] } };
+    write(path.join(sampleRoot, "value.txt"), "changed during report repair");
+    return implementation;
+  } };
+
+  await assert.rejects(runAgentLoop(options), /Implementation report repair changed the candidate/);
+  assert.equal(implementations, 2);
 });
 
 test("review rejection repairs missing behavior and preserves prior report", async () => {
@@ -149,7 +208,7 @@ test("required manifest capabilities must point to existing manifest fields", as
   options.runner = { run: async () => ({ ...implementation, manifestReport: {
     ...implementation.manifestReport,
     capabilities: [{ id: "named-command", kind: "bot-command", evidence: ["README.md: command"],
-      classification: "required", manifestPath: "bots[0].commandLists", status: "present",
+      decision: "manifest-field-required", manifestPath: "bots[0].commandLists",
       reference: "references/bots.md" }],
   } }) };
 
@@ -172,7 +231,7 @@ test("a completed migration cannot omit the selected sample manifest", async () 
 test("independent reviewer must agree with the final manifest capability inventory", () => {
   const { implementation, review } = setup();
   const changedAssessment: ReviewResult = { ...review, manifestCapabilities: [{
-    ...review.manifestCapabilities[0]!, classification: "none", manifestPath: "none", status: "not-required",
+    ...review.manifestCapabilities[0]!, decision: "no-manifest-field", manifestPath: "none",
   }] };
   assert.match(manifestReviewErrors(implementation, changedAssessment).join("\n"), /assessment differs.*base-bot/);
 });
