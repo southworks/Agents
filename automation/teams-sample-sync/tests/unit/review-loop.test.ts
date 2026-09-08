@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { CopilotOutputError, copilotArguments, parseCopilotOutput, runAgentLoop, type AgentLoopOptions } from "../../src/agent-runner.js";
+import { CopilotOutputError, copilotArguments, parseAgentResult, parseCopilotOutput, runAgentLoop, type AgentLoopOptions } from "../../src/agent-runner.js";
 import { createContext, sourceEvidence } from "../../src/context.js";
 import { digestDirectory } from "../../src/git.js";
 import { createPlan } from "../../src/plan.js";
-import { parseReview } from "../../src/review.js";
+import { manifestReviewErrors, parseReview } from "../../src/review.js";
 import type { AgentResult, ReviewResult, SyncContext } from "../../src/types.js";
 import { commit, fixture, git, write } from "./helpers.js";
 
@@ -22,11 +22,14 @@ function setup() {
       explanation: "Equivalent behavior exists", destinationPath: value.paths.destination + "/value.txt",
       symbol: "value", verification: "Fixture check" })),
     upstreamChanges: [], preservedDifferences: [], appliedPolicies: [],
-    manifestReport: { mode: "complete", changes: [], validation: ["Reviewed commands"], externalSetup: [] },
+    manifestReport: { mode: "complete", changes: [], validation: ["Reviewed commands"], externalSetup: [],
+      capabilities: [{ id: "base-bot", kind: "bot", evidence: ["SampleAgent.cs"], classification: "required",
+        manifestPath: "bots[0]", status: "present", reference: "references/bots.md" }] },
   };
   const review: ReviewResult = { version: 1, sample: "sample-a", verdict: "approved", summary: "Verified",
     reviewedChangeIds: value.changes.map((c) => c.id), resolvedFindingIds: [], findings: [],
-    manifestAssessment: "Commands checked", testAssessment: "Fixture behavior checked" };
+    manifestAssessment: "Commands checked", testAssessment: "Fixture behavior checked",
+    manifestCapabilities: implementation.manifestReport.capabilities };
   const options: AgentLoopOptions = {
     repo: item.repo, upstream: item.upstream, baseSha: git(item.repo, "rev-parse", "HEAD"), sample: "sample-a",
     sampleRoot: value.paths.destination, sourcePath: value.upstream.sourcePath,
@@ -70,6 +73,12 @@ test("Copilot output parser ignores source-code fences before the final JSON rep
   ].join("\n");
 
   assert.deepEqual(parseCopilotOutput(output), { version: 1, verdict: "approved" });
+});
+
+test("complete manifest reports require an evidence-backed capability ledger", () => {
+  const { implementation } = setup();
+  assert.throws(() => parseAgentResult({ ...implementation,
+    manifestReport: { ...implementation.manifestReport, capabilities: [] } }, "sample-a"), /capability ledger/);
 });
 
 test("review rejection repairs missing behavior and preserves prior report", async () => {
@@ -132,6 +141,40 @@ test("a reviewer cannot approve missing change accounting or skipped manifest", 
   const result = await runAgentLoop(options);
   assert.equal(result.validation.passed, false);
   assert.match(result.validation.errors.join("\n"), /each source change|manifest skill/);
+});
+
+test("required manifest capabilities must point to existing manifest fields", async () => {
+  const { options, implementation } = setup();
+  options.maxAttempts = 1;
+  options.runner = { run: async () => ({ ...implementation, manifestReport: {
+    ...implementation.manifestReport,
+    capabilities: [{ id: "named-command", kind: "bot-command", evidence: ["README.md: command"],
+      classification: "required", manifestPath: "bots[0].commandLists", status: "present",
+      reference: "references/bots.md" }],
+  } }) };
+
+  const result = await runAgentLoop(options);
+  assert.equal(result.failureStage, "evidence");
+  assert.match(result.validation.errors.join("\n"), /Manifest capability path does not exist.*commandLists/);
+});
+
+test("a completed migration cannot omit the selected sample manifest", async () => {
+  const { options, implementation, sampleRoot } = setup();
+  options.maxAttempts = 1;
+  rmSync(path.join(sampleRoot, "appManifest", "manifest.json"));
+  options.runner = { run: async () => implementation };
+
+  const result = await runAgentLoop(options);
+  assert.equal(result.failureStage, "evidence");
+  assert.match(result.validation.errors.join("\n"), /must contain appManifest\/manifest\.json/);
+});
+
+test("independent reviewer must agree with the final manifest capability inventory", () => {
+  const { implementation, review } = setup();
+  const changedAssessment: ReviewResult = { ...review, manifestCapabilities: [{
+    ...review.manifestCapabilities[0]!, classification: "none", manifestPath: "none", status: "not-required",
+  }] };
+  assert.match(manifestReviewErrors(implementation, changedAssessment).join("\n"), /assessment differs.*base-bot/);
 });
 
 test("repeated review findings stop early and never create state", async () => {

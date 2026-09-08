@@ -14,6 +14,8 @@ Keep the original baseline for each case; do not chain unrelated cases through p
 | Removed behavior | Removal or explicit policy-backed preservation |
 | Architecture difference | Behavior preserved through destination service/handler |
 | Manifest capability | Correct capability, scopes and commands; schema passes |
+| Missing manifest | Manifest generated from behavior evidence with approved sample placeholders; external setup reported separately |
+| Capability with no manifest field | Explicit `none` decision backed by the applicable manifest reference; no invented field |
 | Policy conflict | Reviewed policy followed; difference reported |
 | Useful related addition | Addition implemented with clear benefit, evidence and validation in the PR report |
 | Routine design choice without policy | Agent chooses a supported mapping without blocking |

@@ -3,7 +3,7 @@ import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { SyncError, record, text } from "./config.js";
 import { digestDirectory, stable } from "./git.js";
-import { coverageErrors, parseDispositions, parseReview } from "./review.js";
+import { coverageErrors, manifestReviewErrors, parseDispositions, parseManifestCapabilities, parseReview } from "./review.js";
 import { assertAgentChanges, assertContext, assertUpstream } from "./guard.js";
 import { updateContextErrors, type ContextFiles } from "./context.js";
 import type { AgentResult, AgentStatus, CopilotConfiguration, PolicyRequest, ReviewApproval, ReviewResult, SyncContext, ValidationResult } from "./types.js";
@@ -76,6 +76,7 @@ export function parseAgentResult(value: unknown, sample: string): AgentResult {
       changes: objects(manifest.changes, "manifestReport.changes"),
       validation: objects(manifest.validation, "manifestReport.validation"),
       externalSetup: objects(manifest.externalSetup, "manifestReport.externalSetup"),
+      capabilities: parseManifestCapabilities(manifest.capabilities),
     },
   };
   if (result.status === "needs-policy") result.policyRequest = policyRequest(item.policyRequest);
@@ -319,6 +320,10 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       reportAttempt += 1;
     }
     lastReview = { result: review, outputDigest: postValidationDigest };
+    const manifestErrors = manifestReviewErrors(agent, review);
+    if (manifestErrors.length > 0) {
+      validation = { ...validation, passed: false, errors: [...validation.errors, ...manifestErrors] };
+    }
     if (review.verdict === "blocked") {
       return { agent, validation: { ...validation, passed: false, errors: [...validation.errors, review.summary] },
         review: lastReview, attempts: attempt };

@@ -127,6 +127,19 @@ export interface ChangeDisposition {
   verification: string;
 }
 
+export type ManifestCapabilityClassification = "required" | "conditional" | "none" | "unsupported";
+export type ManifestCapabilityStatus = "present" | "not-required" | "needs-input" | "unsupported";
+
+export interface ManifestCapabilityDecision {
+  id: string;
+  kind: string;
+  evidence: string[];
+  classification: ManifestCapabilityClassification;
+  manifestPath: string;
+  status: ManifestCapabilityStatus;
+  reference: string;
+}
+
 export interface ReviewResult {
   version: 1;
   sample: string;
@@ -134,6 +147,7 @@ export interface ReviewResult {
   summary: string;
   reviewedChangeIds: string[];
   manifestAssessment: string;
+  manifestCapabilities: ManifestCapabilityDecision[];
   testAssessment: string;
   resolvedFindingIds: string[];
   findings: Array<{ id: string; source: string; destination: string; expectedBehavior: string; correction: string }>;
@@ -169,6 +183,7 @@ export interface AgentResult {
     changes: unknown[];
     validation: unknown[];
     externalSetup: unknown[];
+    capabilities: ManifestCapabilityDecision[];
   };
   policyRequest?: PolicyRequest;
 }

@@ -23,6 +23,8 @@ Do not infer scopes from a generic message handler. Require product documentatio
 
 `commandLists` are user-visible discovery metadata. Add only documented user commands. Do not convert every regex route, hidden diagnostic command, card action verb, or invoke handler into a command.
 
+A generic or dynamic runtime command handler does not make discovery metadata unnecessary. When code and user-facing documentation present a named slash or mention command as part of the intended Teams experience, evaluate and declare that command using the rules below. Conversely, a route alone remains insufficient evidence that a command should be advertised.
+
 ## Command-list grouping
 
 `commandLists[].scopes` and `commandLists[].triggers` apply to every command in that command-list entry; they do not apply to an individual command.

@@ -57,7 +57,7 @@ When the user explicitly invokes this skill with an application, produce the def
 
 1. Select the mode using the rules above. Identify the source root, existing manifest, target environment, and whether the app is for local use, organizational distribution, or Store submission. Treat a repository sample as `local` or `sample` when no distribution target is stated; do not ask about distribution before generating it.
 2. Inspect source code, routes, configuration, and README files. Do not use directory or sample names as proof of a capability.
-3. Build a capability plan with these columns:
+3. Build the internal capability ledger in [capability-ledger.md](references/capability-ledger.md). The concise planning view has these columns:
 
    ```text
    Capability | Evidence | Manifest impact | Required values | Confidence | Source
@@ -72,6 +72,7 @@ When the user explicitly invokes this skill with an application, produce the def
 6. Select the repository-approved released schema version. For new Teams agent samples in this repository, use `1.22` as the baseline unless a capability or distribution rule requires a higher released version. Outside this repository, use the maintained project's baseline or request a decision. Never select an old schema only because it is technically sufficient. Record why.
 7. Start from [base-manifest.template.json](assets/base-manifest.template.json) for a new manifest, or preserve the existing valid base metadata. Add only proven capability sections.
 8. Run the JSON, released-schema, referenced-asset, package-structure, and source-to-manifest checks in [schema-validation.md](references/schema-validation.md). Fix in-scope errors and rerun the affected checks before the final report. Ask a blocking question only when correction requires user input or authorization.
+   Before declaring completion, reconcile every ledger entry against the final manifest: every `required` item must identify an existing manifest path, and no `conditional` item may remain unresolved.
 9. After implementation and validation, return the final manifest report required by the execution contract. In Generate mode, report only additions. In Complete mode, report additions and changes; mention preserved behavior only when preservation is important to the user or prevents accidental breakage. Never list omitted capabilities in Generate or Complete reports.
 10. Do not create `manifest-evidence.md` by default. Persist the report only when the user explicitly requests a file or caller-provided policy requires one. Return no other findings report before the final report.
 
@@ -97,6 +98,7 @@ For new manifests, omit optional properties when the intended value equals the r
 ## Feature routing
 
 - For Agents SDK source signals, read [source-detection.md](references/source-detection.md), then load the feature reference it selects.
+- Use [capability-ledger.md](references/capability-ledger.md) to record and reconcile every detected candidate before completing the manifest.
 - For bot scopes, commands, proactive messages, files, targeted messages, calling, cards, or Copilot exposure, read [bots.md](references/bots.md).
 - For Adaptive Cards and dialogs/task modules, read [cards-and-dialogs.md](references/cards-and-dialogs.md).
 - For query/action commands, item selection, configuration, or link unfurling, read [message-extensions.md](references/message-extensions.md).

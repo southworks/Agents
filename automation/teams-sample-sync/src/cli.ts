@@ -10,7 +10,7 @@ import { createPlan } from "./plan.js";
 import { prBody, workflowSummary } from "./report.js";
 import { createState, statePath, validateState } from "./state.js";
 import { prepareManifest, validateSample } from "./validate.js";
-import { parseReview } from "./review.js";
+import { manifestReviewErrors, parseReview } from "./review.js";
 import type { Plan, State, SyncContext, SyncResult } from "./types.js";
 
 function parseArgs(items: string[]): Record<string, string> {
@@ -151,8 +151,10 @@ function verifyPatch(repo: string, values: Record<string, string>): void {
   }
   if (!result.review || result.review.outputDigest !== result.outputDigest ||
       result.review.result.verdict !== "approved") throw new SyncError("Independent approval is missing or stale");
-  parseReview(result.review.result, sample, result.agent.dispositions?.map((d) => d.changeId) ?? [],
+  const parsedReview = parseReview(result.review.result, sample, result.agent.dispositions?.map((d) => d.changeId) ?? [],
     result.review.result.resolvedFindingIds);
+  const manifestErrors = manifestReviewErrors(result.agent, parsedReview);
+  if (manifestErrors.length > 0) throw new SyncError(manifestErrors.join("\n"));
   const head = git(repo, ["rev-parse", "HEAD"]) as string;
   if (head !== result.baseSha) throw new SyncError("Publish checkout differs from validated base SHA");
   const configured = targets(repo); const owner = protection(repo); const target = configured.samples[sample];

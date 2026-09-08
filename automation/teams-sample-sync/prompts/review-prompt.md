@@ -8,6 +8,12 @@ Read context.skills.migration/SKILL.md and use its SDK mappings as review criter
 Read context.skills.manifest/SKILL.md and its applicable references. Audit the actual manifest
 against implemented commands, scopes, capabilities and approved product intent.
 An existing manifest passing schema validation is not evidence of completeness.
+Independently build a capability inventory from code, routes, configuration, tests, and the
+README before reading the implementer's inventory. Route each candidate through the relevant
+manifest-skill reference. Verify every required capability has a real path in the final
+manifest and that unresolved external setup is separated from manifest content that can be
+created with repository-approved placeholders. A runtime handler is not a substitute for
+manifest discovery metadata when the documented user experience requires that metadata.
 
 Only after forming your own expected behavior, assess the implementation report and
 validation supplied below. Trace every change ID to concrete destination behavior.
@@ -31,6 +37,14 @@ Return:
   "summary": "concrete assessment",
   "reviewedChangeIds": ["every exact context.changes ID once"],
   "manifestAssessment": "source-backed completeness assessment",
+  "manifestCapabilities": [
+    { "id": "stable-capability-id", "kind": "feature category",
+      "evidence": ["path:symbol or README section"],
+      "classification": "required|conditional|none|unsupported",
+      "manifestPath": "actual JSON path for required; otherwise none",
+      "status": "present|needs-input|not-required|unsupported",
+      "reference": "manifest-skill reference used" }
+  ],
   "testAssessment": "actual checks and remaining coverage gaps",
   "resolvedFindingIds": [],
   "findings": [

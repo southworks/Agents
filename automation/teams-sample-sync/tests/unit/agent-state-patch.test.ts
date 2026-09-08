@@ -23,7 +23,9 @@ function agent(status: AgentResult["status"] = "updated"): AgentResult {
     upstreamChanges: [],
     preservedDifferences: [],
     appliedPolicies: [],
-    manifestReport: { mode: "complete", changes: [], validation: ["Fixture audit"], externalSetup: [] },
+    manifestReport: { mode: "complete", changes: [], validation: ["Fixture audit"], externalSetup: [],
+      capabilities: [{ id: "base-bot", kind: "bot", evidence: ["SampleAgent.cs"], classification: "required",
+        manifestPath: "bots[0]", status: "present", reference: "references/bots.md" }] },
   };
 }
 
@@ -31,6 +33,7 @@ const reviewer: AgentRunner = { run: async ({ contextFile }) => ({
   version: 1, sample: "sample-a", verdict: "approved", summary: "Independent fixture review",
   reviewedChangeIds: (JSON.parse(readFileSync(contextFile, "utf8")) as SyncContext).changes.map((c) => c.id),
   manifestAssessment: "Fixture checked", testAssessment: "Fixture checked", findings: [], resolvedFindingIds: [],
+  manifestCapabilities: agent().manifestReport.capabilities,
 }) };
 
 function validation(passed: boolean, digest: string, errors: string[] = []): ValidationResult {
@@ -207,7 +210,8 @@ test("verify-patch accepts only the applied validated sample and state", async (
     componentDigests: entry.componentDigests!, outputDigest, state, agent: agent(), validation: checked,
     review: { outputDigest, result: { version: 1, sample: "sample-a", verdict: "approved", summary: "Reviewed",
       reviewedChangeIds: agent().dispositions!.map((d) => d.changeId), manifestAssessment: "Checked",
-      testAssessment: "Checked", resolvedFindingIds: [], findings: [] } },
+      testAssessment: "Checked", resolvedFindingIds: [], findings: [],
+      manifestCapabilities: agent().manifestReport.capabilities } },
   };
   const resultFile = path.join(resultDirectory, "sync-result.json");
   write(resultFile, `${JSON.stringify(result, null, 2)}\n`);

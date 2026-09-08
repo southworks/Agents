@@ -70,6 +70,8 @@ samples:
   write(path.join(repo, "samples/dotnet/quickstart/appManifest/color.png"), Buffer.from([1, 2]));
   write(path.join(repo, "samples/dotnet/quickstart/appManifest/outline.png"), Buffer.from([3, 4]));
   write(path.join(repo, "samples/dotnet/teams/sample-a/value.txt"), "destination\n");
+  write(path.join(repo, "samples/dotnet/teams/sample-a/appManifest/manifest.json"),
+    JSON.stringify({ bots: [{ botId: "fixture", scopes: ["personal"] }] }));
   commit(repo, "fixture");
   write(path.join(upstream, "samples/TeamsSDK/sample-a/dotnet/sample-a/old.txt"), "old upstream\n");
   write(path.join(upstream, "samples/TeamsSDK/new-candidate/readme.md"), "candidate\n");
