@@ -270,8 +270,8 @@ export async function validateSample(
     const smoke = await runtime.runHttpSmoke(sampleRoot, projectCheck.project);
     errors.push(...smoke); checks.httpSmoke = smoke.length === 0;
   }
-  if (["bot-ai-messages", "bot-cards"].includes(sample)) {
-    const contracts = checks.build ? runtime.runCommand("dotnet", ["test", path.join(repo, "automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj"), "--nologo", "--warnaserror"], repo) : ["Contract tests require a successful sample build"];
+  if (["agent-targeted-messages", "bot-ai-messages", "bot-attachments", "bot-cards", "bot-meetings", "bot-message-extensions", "bot-task-modules"].includes(sample)) {
+    const contracts = checks.build ? runtime.runCommand("dotnet", ["test", path.join(repo, "automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj"), "--nologo", "--warnaserror", "--filter", "Sample=" + sample], repo) : ["Contract tests require a successful sample build"];
     errors.push(...contracts); checks.contracts = contracts.length === 0;
   } else checks.contracts = null;
   return {

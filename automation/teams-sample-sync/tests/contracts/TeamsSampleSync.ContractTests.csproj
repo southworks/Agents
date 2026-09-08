@@ -21,6 +21,11 @@
   <ItemGroup>
     <ProjectReference Include="../../../../samples/dotnet/teams/bot-ai-messages/BotAiMessages.csproj" />
     <ProjectReference Include="../../../../samples/dotnet/teams/bot-cards/BotCards.csproj" />
+    <ProjectReference Include="../../../../samples/dotnet/teams/bot-meetings/BotMeetings.csproj" />
+    <ProjectReference Include="../../../../samples/dotnet/teams/bot-message-extensions/BotMessageExtensions.csproj" />
+    <ProjectReference Include="../../../../samples/dotnet/teams/bot-task-modules/BotTaskModules.csproj" />
+    <ProjectReference Include="../../../../samples/dotnet/teams/agent-targeted-messages/AgentTargetedMessages.csproj" />
+    <ProjectReference Include="../../../../samples/dotnet/teams/bot-attachments/BotAttachments.csproj" />
   </ItemGroup>
 
 </Project>

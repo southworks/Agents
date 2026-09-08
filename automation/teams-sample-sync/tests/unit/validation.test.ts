@@ -68,8 +68,9 @@ test("validation orchestrates restore, build, HTTP smoke, and selected contracts
     icons: { color: "color.png", outline: "outline.png" }, bots: [{ botId: "${{CLIENT_ID}}", scopes: ["personal"] }],
   }));
   const calls: string[] = [];
+  const contractArguments: string[][] = [];
   const runtime: ValidationRuntime = {
-    runCommand: (_command, args) => { calls.push(args[0]!); return []; },
+    runCommand: (_command, args) => { calls.push(args[0]!); if (args[0] === "test") contractArguments.push(args); return []; },
     runHttpSmoke: () => { calls.push("http"); return Promise.resolve([]); },
   };
   const originalFetch = globalThis.fetch;
@@ -78,6 +79,16 @@ test("validation orchestrates restore, build, HTTP smoke, and selected contracts
     const result = await validateSample(item.repo, "bot-ai-messages", root, configured, target.manifest, [], runtime);
     assert.equal(result.passed, true);
     assert.deepEqual(calls, ["restore", "build", "http", "test"]);
+    for (const sample of ["agent-targeted-messages", "bot-attachments", "bot-meetings", "bot-message-extensions", "bot-task-modules", "bot-cards"]) {
+      const checked = await validateSample(item.repo, sample, root, configured, target.manifest, [], runtime);
+      assert.equal(checked.checks.contracts, true, sample + " requires behavior contracts");
+      assert.ok(contractArguments.at(-1)!.includes("Sample=" + sample));
+    }
+    const contractFailure = await validateSample(item.repo, "bot-meetings", root, configured, target.manifest, [], {
+      ...runtime, runCommand: (_command, args) => args[0] === "test" ? ["Behavior contract failed"] : [],
+    });
+    assert.equal(contractFailure.passed, false);
+    assert.equal(contractFailure.checks.contracts, false);
     const startupFailure = await validateSample(item.repo, "sample-a", root, configured, target.manifest, [], {
       ...runtime, runHttpSmoke: () => Promise.resolve(["HTTP smoke process exited before readiness"]),
     });

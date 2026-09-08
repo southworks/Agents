@@ -69,8 +69,33 @@ contains this automation layout. Never merge fork-only checkpoints into producti
 
 Compare actual changed behavior, not only green workflow checks. See
 [acceptance scenarios](skills/sync-teams-dotnet-samples-to-agents-sdk/references/acceptance.md).
-Existing contracts cover `bot-cards` and `bot-ai-messages`; other samples report
-`Not configured`. Build, schema and HTTP startup checks do not prove complete functionality.
+All seven selected samples have a baseline contract. Migration selects tests using the
+`Sample=<sample-name>` trait; a failed contract blocks publication. The shared test project
+builds all referenced samples, but only the selected sample's tests execute in that migration.
+Build, schema and HTTP startup checks do not prove complete functionality.
+
+| Sample | Protected baseline behavior |
+|---|---|
+| `agent-targeted-messages` | Help is targeted to the requesting user, including suggested-action recipients |
+| `bot-ai-messages` | Unknown input returns help |
+| `bot-attachments` | Declined file consent returns the file-specific refusal and successful invoke acknowledgement |
+| `bot-cards` | Card-actions command returns an adaptive card |
+| `bot-meetings` | Meeting-start event returns the meeting title and join link |
+| `bot-message-extensions` | Link query returns a card preview containing the requested URL |
+| `bot-task-modules` | Custom-form fetch returns a dialog using the configured endpoint |
+
+These tests send activities through the actual SDK routes. They do not call private
+handlers, use tenant credentials, or test Graph calls, file transfer, background reminder
+delivery or full Teams UI behavior. They protect existing behavior, not every possible
+new source feature. Extend them through human-reviewed changes as required; the migration
+agent cannot edit the tests. Bump `validatorVersion` when changing validation requirements
+so already tracked samples are evaluated again.
+
+Run one sample's contracts locally:
+
+```sh
+dotnet test automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj --filter Sample=bot-meetings
+```
 
 ## Policies and human review
 

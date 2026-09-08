@@ -19,7 +19,7 @@ packagePolicy:
   targetFramework: net8.0
   agentsSdkVersion: "1.7.*"
 
-validatorVersion: "1"
+validatorVersion: "2"
 
 samples:
   agent-targeted-messages:

@@ -18,12 +18,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Teams.Samples.BotCards;
 using Xunit;
+using Microsoft.Agents.Core.Serialization;
+using Newtonsoft.Json.Linq;
 
 namespace TeamsSampleSync.ContractTests;
 
-public class TeamsSampleContracts
+public partial class TeamsSampleContracts
 {
     [Fact]
+    [Trait("Sample", "bot-cards")]
     public async Task BotCards_CardActions_ReturnsAdaptiveCardAsync()
     {
         await using AgentTestHost host = AgentTestHost.Create(builder =>
@@ -47,6 +50,7 @@ public class TeamsSampleContracts
     }
 
     [Fact]
+    [Trait("Sample", "bot-ai-messages")]
     public async Task BotAiMessages_UnknownText_ReturnsStableHelpAsync()
     {
         await using AgentTestHost host = AgentTestHost.Create(builder =>
@@ -63,6 +67,21 @@ public class TeamsSampleContracts
             .AssertReplyContains("Welcome to the AI bot")
             .AssertNoMoreReplies()
             .StartTestAsync();
+    }
+
+    private static JObject Payload(object value) => JObject.Parse(
+        System.Text.Json.JsonSerializer.Serialize(ProtocolJsonSerializer.ToJsonElements(value)));
+
+    private static AgentTestHost CreateHost(Func<IServiceProvider, IAgent> agentFactory)
+    {
+        AgentTestHost host = AgentTestHost.Create(builder =>
+        {
+            builder.Services.AddSingleton<IStorage, MemoryStorage>();
+            builder.Services.AddHttpClient();
+            builder.Services.AddTransient(agentFactory);
+        });
+        host.Adapter.Conversation.ChannelId = Channels.Msteams;
+        return host;
     }
 
     private static AgentApplicationOptions CreateOptions(IServiceProvider services)
