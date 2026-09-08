@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { copilotArguments, runAgentLoop, type AgentLoopOptions } from "../../src/agent-runner.js";
+import { CopilotOutputError, copilotArguments, parseCopilotOutput, runAgentLoop, type AgentLoopOptions } from "../../src/agent-runner.js";
 import { createContext, sourceEvidence } from "../../src/context.js";
 import { digestDirectory } from "../../src/git.js";
 import { createPlan } from "../../src/plan.js";
@@ -58,6 +58,20 @@ test("exact evidence includes the added Due field and stable hunk IDs", () => {
   assert.deepEqual(evidence, sourceEvidence(item.upstream, before, after, source));
 });
 
+test("Copilot output parser ignores source-code fences before the final JSON report", () => {
+  const output = [
+    "I checked this handler:",
+    "```csharp",
+    "static string Value() => \"not JSON\";",
+    "```",
+    "```json",
+    JSON.stringify({ version: 1, verdict: "approved" }),
+    "```",
+  ].join("\n");
+
+  assert.deepEqual(parseCopilotOutput(output), { version: 1, verdict: "approved" });
+});
+
 test("review rejection repairs missing behavior and preserves prior report", async () => {
   const { options, review, implementation, sampleRoot } = setup();
   let calls = 0;
@@ -79,6 +93,36 @@ test("review rejection repairs missing behavior and preserves prior report", asy
   assert.equal(result.attempts, 2);
   assert.equal(result.review?.result.verdict, "approved");
   assert.equal(result.review?.outputDigest, result.validation.outputDigest);
+});
+
+test("invalid disposition coverage is repaired before another review", async () => {
+  const { options, review, implementation } = setup();
+  let implementations = 0; let reviews = 0;
+  options.runner = { run: async ({ contextFile }) => {
+    implementations++;
+    if (implementations === 2) {
+      return { ...implementation, dispositions: [...implementation.dispositions!, {
+        ...implementation.dispositions![0]!, changeId: "synthetic-repair-id",
+      }] };
+    }
+    if (implementations === 3) {
+      const value = JSON.parse(readFileSync(contextFile, "utf8")) as SyncContext;
+      assert.match(value.validationErrors?.join("\n") ?? "", /each source change ID exactly once/);
+    }
+    return implementation;
+  } };
+  options.reviewer = { run: async ({ prompt }) => {
+    reviews++;
+    if (reviews === 1) return { ...review, verdict: "changes-required", findings: [missingDue] };
+    assert.match(prompt, /Open finding IDs[^\n]*\["missing-due"\]/);
+    return { ...review, resolvedFindingIds: ["missing-due"] };
+  } };
+
+  const result = await runAgentLoop(options);
+  assert.equal(result.attempts, 3);
+  assert.equal(implementations, 3);
+  assert.equal(reviews, 2);
+  assert.equal(result.validation.passed, true);
 });
 
 test("a reviewer cannot approve missing change accounting or skipped manifest", async () => {
@@ -172,23 +216,39 @@ test("contradictory approval retries only the reviewer and preserves validation"
     return review;
   } };
   const result = await runAgentLoop(options);
-  assert.equal(result.attempts, 2);
+  assert.equal(result.attempts, 1);
   assert.equal(implementations, 1);
   assert.equal(validations, 1);
   assert.equal(reviews, 2);
   assert.equal(result.validation.passed, true);
 });
 
-test("invalid reviews exhaust the shared budget with checks and cycle count retained", async () => {
+test("malformed reviewer output gets a bounded report-only retry", async () => {
+  const { options, review } = setup();
+  let reviews = 0;
+  options.reviewer = { run: async () => {
+    reviews++;
+    if (reviews === 1) throw new CopilotOutputError("Copilot fenced output is not valid JSON");
+    return review;
+  } };
+
+  const result = await runAgentLoop(options);
+  assert.equal(result.attempts, 1);
+  assert.equal(reviews, 2);
+  assert.equal(result.validation.passed, true);
+});
+
+test("invalid reviews exhaust the report repair budget without consuming migration cycles", async () => {
   const { options, review, item } = setup();
   let reviews = 0;
   options.reviewer = { run: async () => { reviews++; return { ...review, findings: [missingDue] }; } };
   const result = await runAgentLoop(options);
-  assert.equal(reviews, 5);
-  assert.equal(result.attempts, 5);
+  assert.equal(reviews, 3);
+  assert.equal(result.attempts, 1);
   assert.equal(result.validation.passed, false);
+  assert.equal(result.failureStage, "review");
   assert.equal(result.validation.checks.build, true);
-  assert.match(result.validation.errors.join("\n"), /Invalid review report/);
+  assert.match(result.validation.errors.join("\n"), /Invalid review report|Review report repair budget exhausted/);
   assert.equal(result.review, undefined);
   assert.equal(existsSync(path.join(item.repo, "automation/teams-sample-sync/state/sample-a.lock.json")), false);
 });

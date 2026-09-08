@@ -217,4 +217,5 @@ export interface SyncResult {
   sourceRepository?: string;
   review?: ReviewApproval;
   cycles?: number;
+  failureStage?: "evidence" | "review";
 }

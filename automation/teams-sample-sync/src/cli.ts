@@ -103,6 +103,7 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
     syncResult.validation = loop.validation;
     syncResult.outputDigest = loop.validation.outputDigest;
     syncResult.cycles = loop.attempts;
+    if (loop.failureStage) syncResult.failureStage = loop.failureStage;
     if (loop.review) syncResult.review = loop.review;
     if (loop.agent.status === "needs-policy" || loop.agent.status === "unsupported") {
       syncResult.status = loop.agent.status;

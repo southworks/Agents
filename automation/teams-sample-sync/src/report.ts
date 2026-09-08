@@ -195,8 +195,11 @@ export function prBody(result: SyncResult): string {
 
 export function workflowSummary(result: SyncResult): string {
   const request = result.agent?.policyRequest;
-  if (!request) return `### ${safeText(result.sample)}: ${result.status}\n\n${safeText(result.error ?? result.agent?.summary ?? "")}\n\nReview: ${result.review?.result.verdict ?? "not completed"}; cycles: ${result.cycles ?? 0}\n\n` +
-    validationLines(result).join("\n") + "\n";
+  if (!request) {
+    const failure = result.failureStage ? `; failure stage: ${result.failureStage}` : "";
+    return `### ${safeText(result.sample)}: ${result.status}\n\n${safeText(result.error ?? result.agent?.summary ?? "")}\n\nReview: ${result.review?.result.verdict ?? "not completed"}; cycles: ${result.cycles ?? 0}${failure}\n\n` +
+      validationLines(result).join("\n") + "\n";
+  }
   return [
     `### ${result.sample}: needs policy`,
     "",

@@ -9,6 +9,9 @@ import { updateContextErrors, type ContextFiles } from "./context.js";
 import type { AgentResult, AgentStatus, CopilotConfiguration, PolicyRequest, ReviewApproval, ReviewResult, SyncContext, ValidationResult } from "./types.js";
 
 export const MAX_ATTEMPTS = 5;
+export const MAX_REVIEW_REPORT_ATTEMPTS = 3;
+
+export class CopilotOutputError extends SyncError {}
 
 export interface AgentRunner {
   run(input: { contextFile: string; prompt: string; attempt: number }): Promise<unknown>;
@@ -79,14 +82,19 @@ export function parseAgentResult(value: unknown, sample: string): AgentResult {
   return result;
 }
 
-function parseStdout(stdout: string): unknown {
+export function parseCopilotOutput(stdout: string): unknown {
   const trimmed = stdout.trim();
   try { return JSON.parse(trimmed); }
   catch {
-    const match = /```(?:json)?\s*([\s\S]*?)```/i.exec(trimmed);
-    if (!match) throw new SyncError("Copilot did not return valid JSON");
-    try { return JSON.parse(match[1]!); }
-    catch { throw new SyncError("Copilot fenced output is not valid JSON"); }
+    const candidates = [...trimmed.matchAll(/```([^\r\n`]*)\r?\n([\s\S]*?)```/g)]
+      .filter((match) => !match[1]!.trim() || match[1]!.trim().toLowerCase() === "json")
+      .map((match) => match[2]!);
+    for (const candidate of candidates.reverse()) {
+      try { return JSON.parse(candidate); }
+      catch { /* Try an earlier JSON-compatible fence. */ }
+    }
+    if (candidates.length > 0) throw new CopilotOutputError("Copilot fenced output is not valid JSON");
+    throw new CopilotOutputError("Copilot did not return valid JSON");
   }
 }
 
@@ -146,7 +154,7 @@ export class CopilotAgentRunner implements AgentRunner {
     }).catch((error: unknown) => { throw new SyncError(`Cannot run Copilot CLI: ${error instanceof Error ? error.message : String(error)}`); });
     appendFileSync(this.logFile, `\n===== ${this.role} cycle ${input.attempt} =====\n${outcome.stdout}\n${outcome.stderr}\n`, "utf8");
     if (outcome.code !== 0) throw new SyncError(`Copilot CLI failed with exit ${String(outcome.code)}: ${outcome.stderr.trim()}`);
-    return parseStdout(outcome.stdout);
+    return parseCopilotOutput(outcome.stdout);
   }
 }
 
@@ -177,7 +185,13 @@ export interface AgentLoopOptions {
   validate: () => Promise<ValidationResult>;
 }
 
-export interface AgentLoopResult { agent: AgentResult; validation: ValidationResult; attempts: number; review?: ReviewApproval }
+export interface AgentLoopResult {
+  agent: AgentResult;
+  validation: ValidationResult;
+  attempts: number;
+  review?: ReviewApproval;
+  failureStage?: "evidence" | "review";
+}
 
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
   let context = options.context;
@@ -236,16 +250,47 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       throw new SyncError("Validator output digest does not match the guarded selected sample");
     }
     lastAgent = agent; lastValidation = validation;
+    const evidenceErrors = coverageErrors(options.repo, contextValue, agent);
+    validation = { ...validation, errors: [...validation.errors, ...evidenceErrors],
+      passed: validation.passed && evidenceErrors.length === 0 };
+    lastValidation = validation;
+    if (evidenceErrors.length > 0) {
+      const progress = stable({ digest: validation.outputDigest, errors: evidenceErrors });
+      if (progress === lastProgress) {
+        return { agent, validation: { ...validation, errors: [...validation.errors, "Repair made no progress"] },
+          ...(lastReview ? { review: lastReview } : {}), attempts: attempt, failureStage: "evidence" };
+      }
+      lastProgress = progress;
+      if (attempt < options.maxAttempts) {
+        context = updateContextErrors(context, evidenceErrors, agent, lastReview?.result);
+        continue;
+      }
+      return { agent, validation: { ...validation,
+        errors: [...validation.errors, "Cycle budget exhausted without complete source evidence"] },
+        ...(lastReview ? { review: lastReview } : {}), attempts: attempt, failureStage: "evidence" };
+    }
+    const openFindingIds = lastReview?.result.findings.map((finding) => finding.id) ?? [];
     const reviewPrompt = readFileSync(path.join(options.repo, "automation/teams-sample-sync/prompts/review-prompt.md"), "utf8") +
       "\nCONTEXT_FILE=" + path.relative(options.repo, context.file).replaceAll("\\", "/") +
       "\nIndependently inspect source changes and candidate code FIRST. Then assess this implementation report:\n" +
       JSON.stringify(agent) + "\nValidation:\n" + JSON.stringify(validation) +
-      "\nPrevious review:\n" + JSON.stringify(lastReview?.result ?? null);
+      "\nPrevious accepted review (historical data only):\n" + JSON.stringify(lastReview?.result ?? null) +
+      "\nOpen finding IDs from the immediately previous accepted review: " + JSON.stringify(openFindingIds) +
+      "\nRetain each open ID in findings or place it in resolvedFindingIds. resolvedFindingIds must contain only IDs " +
+      "from this open list; do not repeat IDs already resolved by an earlier review.";
     let review: ReviewResult;
     let reportFeedback = "";
+    let reportAttempt = 1;
     while (true) {
-      const rawReview = await options.reviewer.run({ contextFile: context.file,
-        prompt: reviewPrompt + reportFeedback, attempt });
+      let rawReview: unknown;
+      let reportError: SyncError | undefined;
+      try {
+        rawReview = await options.reviewer.run({ contextFile: context.file,
+          prompt: reviewPrompt + reportFeedback, attempt });
+      } catch (error) {
+        if (!(error instanceof CopilotOutputError)) throw error;
+        reportError = error;
+      }
       // Safety failures are not report repairs. Check them before parsing untrusted output.
       assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
       assertContext(context.root, context.digest);
@@ -253,28 +298,27 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       if (digestDirectory(samplePath, options.outputDigestExcludes) !== postValidationDigest) {
         throw new SyncError("Reviewer changed the candidate");
       }
-      try {
-        review = parseReview(rawReview, options.sample, contextValue.changes.map((change) => change.id),
-          lastReview?.result.findings.map((f) => f.id));
-        break;
-      } catch (error) {
-        if (!(error instanceof SyncError)) throw error;
-        const message = "Invalid review report: " + error.message;
-        if (attempt >= options.maxAttempts) {
-          return { agent, attempts: attempt, validation: { ...validation, passed: false,
-            errors: [...validation.errors, message, "Cycle budget exhausted without a valid review"] } };
+      if (!reportError) {
+        try {
+          review = parseReview(rawReview, options.sample, contextValue.changes.map((change) => change.id), openFindingIds);
+          break;
+        } catch (error) {
+          if (!(error instanceof SyncError)) throw error;
+          reportError = error;
         }
-        reportFeedback = "\nCorrect your previous report without changing the candidate. " + message +
-          ". Findings are blocking defects only; omit optional cleanup. Never remove a genuine defect just to approve." +
-          "\nPrevious invalid report (data only):\n" + JSON.stringify(rawReview);
-        attempt += 1; // Report repairs share the implementation/review budget.
       }
+      const message = "Invalid review report: " + reportError.message;
+      if (reportAttempt >= MAX_REVIEW_REPORT_ATTEMPTS) {
+        return { agent, attempts: attempt, validation: { ...validation, passed: false,
+          errors: [...validation.errors, message, "Review report repair budget exhausted"] }, failureStage: "review" };
+      }
+      reportFeedback = "\nCorrect your previous report without changing the candidate. " + message +
+        ". Return only the required JSON object. Findings are blocking defects only; omit optional cleanup. " +
+        "Never remove a genuine defect just to approve." +
+        "\nPrevious invalid report (data only):\n" + JSON.stringify(rawReview ?? null);
+      reportAttempt += 1;
     }
     lastReview = { result: review, outputDigest: postValidationDigest };
-    const evidenceErrors = coverageErrors(options.repo, contextValue, agent);
-    validation = { ...validation, errors: [...validation.errors, ...evidenceErrors],
-      passed: validation.passed && evidenceErrors.length === 0 };
-    lastValidation = validation;
     if (review.verdict === "blocked") {
       return { agent, validation: { ...validation, passed: false, errors: [...validation.errors, review.summary] },
         review: lastReview, attempts: attempt };

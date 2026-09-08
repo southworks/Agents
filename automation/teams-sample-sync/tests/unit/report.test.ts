@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { prBody } from "../../src/report.js";
+import { prBody, workflowSummary } from "../../src/report.js";
 import type { SyncResult } from "../../src/types.js";
 
 function result(overrides: Partial<SyncResult> = {}): SyncResult {
@@ -116,6 +116,12 @@ test("validation distinguishes missing contract coverage from passing checks", (
   assert.match(prBody(item), /Not configured — Protected behavior contracts/);
   delete item.validation;
   assert.match(prBody(item), /Not run — Build/);
+});
+
+test("workflow summary identifies a structured failure stage without adding success noise", () => {
+  assert.match(workflowSummary(result({ status: "failed", publishable: false, failureStage: "review" })),
+    /failure stage: review/);
+  assert.doesNotMatch(workflowSummary(result()), /failure stage/);
 });
 
 test("PR body neutralizes active Markdown from report values and handles backticks in paths", () => {
