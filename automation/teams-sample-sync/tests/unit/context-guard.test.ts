@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { chmodSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { createContext } from "../src/context.js";
-import { assertAgentChanges, assertContext, assertUpstream } from "../src/guard.js";
-import { createPlan } from "../src/plan.js";
-import { statePath } from "../src/state.js";
-import type { SyncContext } from "../src/types.js";
+import { createContext } from "../../src/context.js";
+import { assertAgentChanges, assertContext, assertUpstream } from "../../src/guard.js";
+import { createPlan } from "../../src/plan.js";
+import { statePath } from "../../src/state.js";
+import type { SyncContext } from "../../src/types.js";
 import { commit, componentDigests, fixture, git, write } from "./helpers.js";
 
 test("three-way context materializes prior bytes and records rename and binary changes", () => {

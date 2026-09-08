@@ -19,8 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../../samples/dotnet/teams/bot-ai-messages/BotAiMessages.csproj" />
-    <ProjectReference Include="../../../samples/dotnet/teams/bot-cards/BotCards.csproj" />
+    <ProjectReference Include="../../../../samples/dotnet/teams/bot-ai-messages/BotAiMessages.csproj" />
+    <ProjectReference Include="../../../../samples/dotnet/teams/bot-cards/BotCards.csproj" />
   </ItemGroup>
 
 </Project>

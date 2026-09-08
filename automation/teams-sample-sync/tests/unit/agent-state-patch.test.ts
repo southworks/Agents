@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { attempts, buildAgentPrompt, parseAgentResult, runAgentLoop, type AgentRunner } from "../src/agent-runner.js";
-import { main } from "../src/cli.js";
-import { createContext } from "../src/context.js";
-import { changedPaths, digestDirectory, hash } from "../src/git.js";
-import { createPlan } from "../src/plan.js";
-import { createState, statePath, validateState } from "../src/state.js";
-import type { AgentResult, SyncContext, SyncResult, ValidationResult } from "../src/types.js";
+import { attempts, buildAgentPrompt, parseAgentResult, runAgentLoop, type AgentRunner } from "../../src/agent-runner.js";
+import { main } from "../../src/cli.js";
+import { createContext } from "../../src/context.js";
+import { changedPaths, digestDirectory, hash } from "../../src/git.js";
+import { createPlan } from "../../src/plan.js";
+import { createState, statePath, validateState } from "../../src/state.js";
+import type { AgentResult, SyncContext, SyncResult, ValidationResult } from "../../src/types.js";
 import { fixture, git, gitBuffer, write } from "./helpers.js";
 
 function agent(status: AgentResult["status"] = "updated"): AgentResult {
@@ -63,7 +63,7 @@ test("migrate rejects Copilot configuration drift from its plan", async () => {
   const plan = createPlan(item.repo, item.upstream, "sample-a");
   const planFile = path.join(item.repo, ".sync/plan.json");
   write(planFile, `${JSON.stringify(plan, null, 2)}\n`);
-  const targetsFile = path.join(item.repo, ".github/teams-sample-sync/targets.yml");
+  const targetsFile = path.join(item.repo, "automation/teams-sample-sync/config/targets.yml");
   write(targetsFile, readFileSync(targetsFile, "utf8").replace("model: gpt-5.4", "model: changed-model"));
 
   const exit = await main([
@@ -194,9 +194,9 @@ test("verify-patch accepts only the applied validated sample and state", async (
   const checked = validation(true, outputDigest);
   const state = createState("sample-a", entry, checked);
   write(statePath(item.repo, "sample-a"), `${JSON.stringify(state, null, 2)}\n`);
-  git(item.repo, "add", "-N", "--", "samples/dotnet/teams/sample-a", ".github/teams-sample-sync/state/sample-a.lock.json");
+  git(item.repo, "add", "-N", "--", "samples/dotnet/teams/sample-a", "automation/teams-sample-sync/state/sample-a.lock.json");
   const resultDirectory = path.join(item.repo, ".sync/result");
-  const patch = gitBuffer(item.repo, "diff", "--binary", baseSha, "--", "samples/dotnet/teams/sample-a", ".github/teams-sample-sync/state/sample-a.lock.json");
+  const patch = gitBuffer(item.repo, "diff", "--binary", baseSha, "--", "samples/dotnet/teams/sample-a", "automation/teams-sample-sync/state/sample-a.lock.json");
   write(path.join(resultDirectory, "change.patch"), patch);
   const result: SyncResult = {
     version: 2, sample: "sample-a", status: "updated", publishable: true, baseSha,
@@ -226,9 +226,9 @@ test("verify-patch accepts only the applied validated sample and state", async (
   write(path.join(sampleRoot, "manifest-evidence.md"), "not allowed\n");
   assert.equal(await main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]), 2);
   rmSync(path.join(sampleRoot, "manifest-evidence.md"));
-  write(path.join(item.repo, ".github/teams-sample-sync/migration-policy.yml"), "version: 1\npolicies:\n  - changed\n");
+  write(path.join(item.repo, "automation/teams-sample-sync/config/migration-policy.yml"), "version: 1\npolicies:\n  - changed\n");
   assert.equal(await main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]), 2);
-  write(path.join(item.repo, ".github/teams-sample-sync/migration-policy.yml"), "version: 1\npolicies: []\n");
+  write(path.join(item.repo, "automation/teams-sample-sync/config/migration-policy.yml"), "version: 1\npolicies: []\n");
   const badResult = { ...result, outputDigest: "sha256:bad", validation: { ...checked, outputDigest: "sha256:bad" } };
   write(resultFile, `${JSON.stringify(badResult, null, 2)}\n`);
   assert.equal(await main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]), 2);

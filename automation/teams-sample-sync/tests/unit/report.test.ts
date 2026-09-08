@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { prBody } from "../src/report.js";
-import type { SyncResult } from "../src/types.js";
+import { prBody } from "../../src/report.js";
+import type { SyncResult } from "../../src/types.js";
 
 function result(overrides: Partial<SyncResult> = {}): SyncResult {
   return {
@@ -25,7 +25,7 @@ function result(overrides: Partial<SyncResult> = {}): SyncResult {
     destinationChanges: [
       "samples/dotnet/teams/agent-targeted-messages/Program.cs",
       "samples/dotnet/teams/agent-targeted-messages/appManifest/manifest.json",
-      ".github/teams-sample-sync/state/agent-targeted-messages.lock.json",
+      "automation/teams-sample-sync/state/agent-targeted-messages.lock.json",
     ],
     sourceTree: "source-tree",
     inputDigest: "input-digest",

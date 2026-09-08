@@ -3,7 +3,7 @@ import path from "node:path";
 import { parse } from "yaml";
 import { REASONING_EFFORTS, type ManifestTarget, type Protection, type ReasoningEffort, type Target, type Targets } from "./types.js";
 
-export const CONFIG_DIRECTORY = ".github/teams-sample-sync";
+export const CONFIG_DIRECTORY = "automation/teams-sample-sync/config";
 
 export class SyncError extends Error {
   constructor(message: string) {

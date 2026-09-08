@@ -1,0 +1,14 @@
+name: Setup Teams sample sync
+description: Install and build the trusted Teams sample synchronization tool.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        node-version: "24"
+        cache: npm
+        cache-dependency-path: automation/teams-sample-sync/package-lock.json
+    - shell: bash
+      run: |
+        npm ci --prefix automation/teams-sample-sync
+        npm run build --prefix automation/teams-sample-sync

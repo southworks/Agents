@@ -5,11 +5,11 @@ description: Synchronize selected .NET samples from OfficeDev/Microsoft-Teams-Sa
 
 # Synchronize Teams .NET Samples to Agents SDK
 
-Synchronize only samples selected in `.github/teams-sample-sync/targets.yml`. Preserve approved Agents SDK intent through three-way comparison, protected paths, and durable migration policy.
+Synchronize only samples selected in `automation/teams-sample-sync/config/targets.yml`. Preserve approved Agents SDK intent through three-way comparison, protected paths, and durable migration policy.
 
 ## Required sequence
 
-Install and compile the pinned tool with `npm ci` and `npm run build` in `scripts/` once per checkout. The public CLI has exactly three commands: `plan`, `migrate`, and `verify-patch`.
+From the repository root, install with `npm ci --prefix automation/teams-sample-sync` and compile with `npm run build --prefix automation/teams-sample-sync` once per checkout. The CLI has exactly three commands: `plan`, `migrate`, and `verify-patch`. See the [automation README](../../README.md) for setup and fork testing.
 
 1. Run `plan` against one exact upstream checkout. It detects selected sample changes and reports removals and new candidates without migrating them.
 2. Stop samples reported as `unchanged` or `upstream-removed`. Never add a `new-sample-candidate` automatically.

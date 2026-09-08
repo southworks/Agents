@@ -1,0 +1,50 @@
+name: Teams sample sync publish
+description: Run the publish phase of internal Teams sample synchronization.
+inputs:
+  sample:
+    description: Selected sample
+    required: true
+runs:
+  using: composite
+  steps:
+    - id: download
+      uses: actions/download-artifact@v7
+      continue-on-error: true
+      with:
+        name: teams-sample-sync-${{ inputs.sample }}
+        path: .sync/result
+    - id: ready
+      name: Select publishable result
+      shell: bash
+      run: |
+        ready=false
+        if [ "${{ steps.download.outcome }}" = success ] && [ -f .sync/result/sync-result.json ]; then
+          if [ "$(jq -r .status .sync/result/sync-result.json)" = updated ] && [ "$(jq -r .publishable .sync/result/sync-result.json)" = true ]; then
+            ready=true
+          fi
+        fi
+        echo "ready=$ready" >> "$GITHUB_OUTPUT"
+    - name: Apply and verify validated patch
+      if: steps.ready.outputs.ready == 'true'
+      shell: bash
+      env:
+        SYNC_SAMPLE: ${{ inputs.sample }}
+      run: |
+        branch="automation/teams-sample-sync/$SYNC_SAMPLE"
+        test "$(gh pr list --head "$branch" --state open --json number --jq length)" = 0
+        git apply --index --binary .sync/result/change.patch
+        node "$SYNC_TOOL/dist/cli.js" verify-patch --repo-root . --sample "$SYNC_SAMPLE" --result .sync/result/sync-result.json
+    - name: Push draft PR
+      if: steps.ready.outputs.ready == 'true'
+      shell: bash
+      env:
+        SYNC_SAMPLE: ${{ inputs.sample }}
+      run: |
+        branch="automation/teams-sample-sync/$SYNC_SAMPLE"
+        git config user.name github-actions[bot]
+        git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+        git fetch origin "$branch:refs/remotes/origin/$branch" || true
+        git checkout -B "$branch"
+        git commit -m "Sync Teams SDK sample: $SYNC_SAMPLE"
+        git push --force-with-lease origin "$branch"
+        gh pr create --draft --head "$branch" --title "Sync Teams SDK sample: $SYNC_SAMPLE" --body-file .sync/result/pr-body.md

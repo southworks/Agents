@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { SyncError } from "./config.js";
 import type { PlanSample, State, ValidationResult } from "./types.js";
-export const statePath = (repo: string, sample: string): string => path.join(repo, ".github/teams-sample-sync/state", `${sample}.lock.json`);
+export const statePath = (repo: string, sample: string): string => path.join(repo, "automation/teams-sample-sync/state", `${sample}.lock.json`);
 
 const PRIOR_COMPONENT_DIGESTS = ["sourceTree", "target", "policies", "protection", "migrationSkill", "manifestSkill", "canonicalSample", "packagePolicy", "validator"];
 const REQUIRED_COMPONENT_DIGESTS = [...PRIOR_COMPONENT_DIGESTS, "copilot"];

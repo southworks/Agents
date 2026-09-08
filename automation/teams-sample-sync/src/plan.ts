@@ -40,8 +40,8 @@ export function createPlan(repo: string, upstream: string, chosen?: string): Pla
       copilot: hash(stable(configured.copilot)),
       packagePolicy: hash(stable(configured.packagePolicy)),
       validator: hash(stable([configured.validatorVersion,
-        readFileSync(path.join(repo, ".github/teams-sample-sync/agent-prompt.md"), "utf8"),
-        readFileSync(path.join(repo, ".github/teams-sample-sync/review-prompt.md"), "utf8")])),
+        readFileSync(path.join(repo, "automation/teams-sample-sync/prompts/agent-prompt.md"), "utf8"),
+        readFileSync(path.join(repo, "automation/teams-sample-sync/prompts/review-prompt.md"), "utf8")])),
     };
     const inputDigest = hash(stable(componentDigests));
     const changedComponents = Object.entries(componentDigests)

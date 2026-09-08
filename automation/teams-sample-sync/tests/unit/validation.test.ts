@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { targets } from "../src/config.js";
-import { checkManifest, checkProject, prepareManifest, validateSample, type ValidationRuntime } from "../src/validate.js";
+import { targets } from "../../src/config.js";
+import { checkManifest, checkProject, prepareManifest, validateSample, type ValidationRuntime } from "../../src/validate.js";
 import { fixture, write } from "./helpers.js";
 
 function validProject(root: string): void {

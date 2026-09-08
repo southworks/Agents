@@ -2,15 +2,15 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { targets } from "../src/config.js";
-import { createPlan } from "../src/plan.js";
-import { policies } from "../src/policy.js";
-import { statePath } from "../src/state.js";
+import { targets } from "../../src/config.js";
+import { createPlan } from "../../src/plan.js";
+import { policies } from "../../src/policy.js";
+import { statePath } from "../../src/state.js";
 import { fixture, write } from "./helpers.js";
 
 test("policy is validated, selected, and sorted", () => {
   const item = fixture();
-  write(path.join(item.repo, ".github/teams-sample-sync/migration-policy.yml"), `version: 1
+  write(path.join(item.repo, "automation/teams-sample-sync/config/migration-policy.yml"), `version: 1
 policies:
   - key: sample-a.z
     sample: sample-a
@@ -24,7 +24,7 @@ policies:
     source: PR-1
 `);
   assert.deepEqual(policies(item.repo, targets(item.repo)).map((policy) => policy.key), ["sample-a.a", "sample-a.z"]);
-  write(path.join(item.repo, ".github/teams-sample-sync/migration-policy.yml"), `version: 1
+  write(path.join(item.repo, "automation/teams-sample-sync/config/migration-policy.yml"), `version: 1
 policies:
   - key: Bad Key
     sample: sample-a
@@ -37,7 +37,7 @@ policies:
 
 test("policy rejects duplicate keys, unknown samples, and empty fields", () => {
   const item = fixture();
-  const file = path.join(item.repo, ".github/teams-sample-sync/migration-policy.yml");
+  const file = path.join(item.repo, "automation/teams-sample-sync/config/migration-policy.yml");
   write(file, `version: 1
 policies:
   - { key: sample-a.same, sample: sample-a, instruction: x, rationale: x, source: x }
@@ -64,7 +64,7 @@ test("plan pins the commit, detects candidates, and version-2 state makes inputs
   const second = createPlan(item.repo, item.upstream);
   assert.equal(second.samples["sample-a"]!.status, "unchanged");
   assert.deepEqual(second.matrix, []);
-  const policyFile = path.join(item.repo, ".github/teams-sample-sync/migration-policy.yml");
+  const policyFile = path.join(item.repo, "automation/teams-sample-sync/config/migration-policy.yml");
   assert.match(readFileSync(policyFile, "utf8"), /policies/);
   write(policyFile, `version: 1
 policies:
@@ -83,7 +83,7 @@ test("legacy state is stale and unsafe target paths fail", () => {
   const item = fixture();
   write(statePath(item.repo, "sample-a"), "{\"version\":1}\n");
   assert.equal(createPlan(item.repo, item.upstream).samples["sample-a"]!.status, "pending");
-  const targetsFile = path.join(item.repo, ".github/teams-sample-sync/targets.yml");
+  const targetsFile = path.join(item.repo, "automation/teams-sample-sync/config/targets.yml");
   write(targetsFile, readFileSync(targetsFile, "utf8").replace("destination: sample-a", "destination: ../../escape"));
   assert.throws(() => targets(item.repo), /unsafe path/);
 });
@@ -99,7 +99,7 @@ test("Copilot model and reasoning effort are validated and tracked as sync input
     version: 2, sample: "sample-a", upstreamCommit: entry.upstreamCommit, sourceTree: entry.sourceTree,
     inputDigest: entry.inputDigest, outputDigest: "output", componentDigests: entry.componentDigests, status: "verified",
   }, null, 2)}\n`);
-  const targetsFile = path.join(item.repo, ".github/teams-sample-sync/targets.yml");
+  const targetsFile = path.join(item.repo, "automation/teams-sample-sync/config/targets.yml");
   const original = readFileSync(targetsFile, "utf8");
   write(targetsFile, original.replace("reasoningEffort: high", "reasoningEffort: medium"));
   assert.deepEqual(createPlan(item.repo, item.upstream).samples["sample-a"]!.changedComponents, ["copilot"]);
@@ -110,7 +110,7 @@ test("Copilot model and reasoning effort are validated and tracked as sync input
 
 test("Copilot auto model omits reasoning effort", () => {
   const item = fixture();
-  const targetsFile = path.join(item.repo, ".github/teams-sample-sync/targets.yml");
+  const targetsFile = path.join(item.repo, "automation/teams-sample-sync/config/targets.yml");
   const original = readFileSync(targetsFile, "utf8");
   write(targetsFile, original.replace("model: gpt-5.4\n  reasoningEffort: high", "model: auto"));
   assert.deepEqual(targets(item.repo).copilot, { model: "auto" });

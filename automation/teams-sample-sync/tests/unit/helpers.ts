@@ -36,7 +36,7 @@ export function fixture(): Fixture {
   const repo = path.join(root, "agents");
   const upstream = path.join(root, "upstream");
   init(repo); init(upstream);
-  write(path.join(repo, ".github/teams-sample-sync/targets.yml"), `version: 1
+  write(path.join(repo, "automation/teams-sample-sync/config/targets.yml"), `version: 1
 upstream:
   repository: OfficeDev/Microsoft-Teams-Samples
   ref: main
@@ -61,10 +61,10 @@ samples:
       packageDirectory: appManifest
       placeholderConvention: double-braces
 `);
-  write(path.join(repo, ".github/teams-sample-sync/migration-policy.yml"), "version: 1\npolicies: []\n");
-  write(path.join(repo, ".github/teams-sample-sync/ownership.yml"), "version: 1\nprotectedPaths:\n  - manifest-evidence.md\n  - '**/manifest-evidence.md'\noutputDigestExcludes:\n  - bin/**\n  - obj/**\n");
-  write(path.join(repo, ".github/teams-sample-sync/agent-prompt.md"), "Read CONTEXT_FILE and return JSON only.\n");
-  write(path.join(repo, ".github/teams-sample-sync/review-prompt.md"), "Independently review CONTEXT_FILE and return JSON only.\n");
+  write(path.join(repo, "automation/teams-sample-sync/config/migration-policy.yml"), "version: 1\npolicies: []\n");
+  write(path.join(repo, "automation/teams-sample-sync/config/ownership.yml"), "version: 1\nprotectedPaths:\n  - manifest-evidence.md\n  - '**/manifest-evidence.md'\noutputDigestExcludes:\n  - bin/**\n  - obj/**\n");
+  write(path.join(repo, "automation/teams-sample-sync/prompts/agent-prompt.md"), "Read CONTEXT_FILE and return JSON only.\n");
+  write(path.join(repo, "automation/teams-sample-sync/prompts/review-prompt.md"), "Independently review CONTEXT_FILE and return JSON only.\n");
   write(path.join(repo, "skills/migration/SKILL.md"), "migration v1\n");
   write(path.join(repo, "skills/manifest/SKILL.md"), "manifest v1\n");
   write(path.join(repo, "samples/dotnet/quickstart/appManifest/color.png"), Buffer.from([1, 2]));

@@ -271,7 +271,7 @@ export async function validateSample(
     errors.push(...smoke); checks.httpSmoke = smoke.length === 0;
   }
   if (["bot-ai-messages", "bot-cards"].includes(sample)) {
-    const contracts = checks.build ? runtime.runCommand("dotnet", ["test", path.join(repo, "tests/dotnet/teams-sample-sync/TeamsSampleSync.ContractTests.csproj"), "--nologo", "--warnaserror"], repo) : ["Contract tests require a successful sample build"];
+    const contracts = checks.build ? runtime.runCommand("dotnet", ["test", path.join(repo, "automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj"), "--nologo", "--warnaserror"], repo) : ["Contract tests require a successful sample build"];
     errors.push(...contracts); checks.contracts = contracts.length === 0;
   } else checks.contracts = null;
   return {

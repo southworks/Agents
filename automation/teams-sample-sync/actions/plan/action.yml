@@ -1,0 +1,25 @@
+name: Teams sample sync plan
+description: Run the plan phase of internal Teams sample synchronization.
+inputs:
+  sample:
+    description: Selected sample or all
+    required: true
+outputs:
+  matrix:
+    description: Pending samples
+    value: ${{ steps.plan.outputs.matrix }}
+runs:
+  using: composite
+  steps:
+    - id: plan
+      shell: bash
+      env:
+        SYNC_SAMPLE: ${{ inputs.sample }}
+      run: |
+        sample_arg=()
+        [ "$SYNC_SAMPLE" = all ] || sample_arg=(--sample "$SYNC_SAMPLE")
+        node "$SYNC_TOOL/dist/cli.js" plan --repo-root . --upstream-root .sync/upstream "${sample_arg[@]}" --output .sync/plan.json
+        echo "matrix=$(jq -c .matrix .sync/plan.json)" >> "$GITHUB_OUTPUT"
+        jq -r '.samples | to_entries[] | "- \(.key): \(.value.status) (\(.value.changedComponents | join(", ")))"' .sync/plan.json >> "$GITHUB_STEP_SUMMARY"
+    - uses: actions/upload-artifact@v7
+      with: { name: teams-sample-sync-plan, path: .sync/plan.json }

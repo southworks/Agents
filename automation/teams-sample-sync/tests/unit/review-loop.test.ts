@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { copilotArguments, runAgentLoop, type AgentLoopOptions } from "../src/agent-runner.js";
-import { createContext, sourceEvidence } from "../src/context.js";
-import { digestDirectory } from "../src/git.js";
-import { createPlan } from "../src/plan.js";
-import { parseReview } from "../src/review.js";
-import type { AgentResult, ReviewResult, SyncContext } from "../src/types.js";
+import { copilotArguments, runAgentLoop, type AgentLoopOptions } from "../../src/agent-runner.js";
+import { createContext, sourceEvidence } from "../../src/context.js";
+import { digestDirectory } from "../../src/git.js";
+import { createPlan } from "../../src/plan.js";
+import { parseReview } from "../../src/review.js";
+import type { AgentResult, ReviewResult, SyncContext } from "../../src/types.js";
 import { commit, fixture, git, write } from "./helpers.js";
 
 function setup() {
@@ -96,7 +96,7 @@ test("repeated review findings stop early and never create state", async () => {
   const result = await runAgentLoop(options);
   assert.equal(result.attempts, 2);
   assert.equal(result.validation.passed, false);
-  assert.equal(existsSync(path.join(item.repo, ".github/teams-sample-sync/state/sample-a.lock.json")), false);
+  assert.equal(existsSync(path.join(item.repo, "automation/teams-sample-sync/state/sample-a.lock.json")), false);
 });
 
 test("five different candidates without approval exhaust the budget", async () => {
@@ -190,7 +190,7 @@ test("invalid reviews exhaust the shared budget with checks and cycle count reta
   assert.equal(result.validation.checks.build, true);
   assert.match(result.validation.errors.join("\n"), /Invalid review report/);
   assert.equal(result.review, undefined);
-  assert.equal(existsSync(path.join(item.repo, ".github/teams-sample-sync/state/sample-a.lock.json")), false);
+  assert.equal(existsSync(path.join(item.repo, "automation/teams-sample-sync/state/sample-a.lock.json")), false);
 });
 
 test("invalid review output cannot hide reviewer writes", async () => {

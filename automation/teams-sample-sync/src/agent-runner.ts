@@ -151,7 +151,7 @@ export class CopilotAgentRunner implements AgentRunner {
 }
 
 export function buildAgentPrompt(repo: string, contextFile: string, repair: boolean, policyKeys: string[]): string {
-  const contract = readFileSync(path.join(repo, ".github/teams-sample-sync/agent-prompt.md"), "utf8");
+  const contract = readFileSync(path.join(repo, "automation/teams-sample-sync/prompts/agent-prompt.md"), "utf8");
   return `${contract}\n\nCONTEXT_FILE=${path.relative(repo, contextFile).replaceAll("\\", "/")}\n` +
     `Allowed migration policy keys: ${JSON.stringify(policyKeys)}. The appliedPolicies field must contain each listed key exactly once and no other value. Skill names, skill steps, changes, and explanations are not policies. If this list is empty, return appliedPolicies as [].\n` +
     (repair ? "Repair validationErrors and review findings. Preserve the complete final migration, including changes made before any repair pass.\n" : "Analyze all supplied source evidence.\n") +
@@ -236,7 +236,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       throw new SyncError("Validator output digest does not match the guarded selected sample");
     }
     lastAgent = agent; lastValidation = validation;
-    const reviewPrompt = readFileSync(path.join(options.repo, ".github/teams-sample-sync/review-prompt.md"), "utf8") +
+    const reviewPrompt = readFileSync(path.join(options.repo, "automation/teams-sample-sync/prompts/review-prompt.md"), "utf8") +
       "\nCONTEXT_FILE=" + path.relative(options.repo, context.file).replaceAll("\\", "/") +
       "\nIndependently inspect source changes and candidate code FIRST. Then assess this implementation report:\n" +
       JSON.stringify(agent) + "\nValidation:\n" + JSON.stringify(validation) +
