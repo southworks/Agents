@@ -23,7 +23,7 @@ Return:
     { "id": "stable-capability-id", "kind": "feature category",
       "evidence": ["path:symbol or README section"],
       "decision": "manifest-field-required|no-manifest-field|needs-input|unsupported",
-      "manifestPath": "most specific expected JSON path for manifest-field-required; otherwise none",
+      "manifestPath": "expected field area for manifest-field-required, such as authorization.permissions.resourceSpecific; otherwise none",
       "reference": "manifest-skill reference used" }
   ]
 }
@@ -31,3 +31,9 @@ Return:
 The inventory must be nonempty. Record implemented behavior that has no manifest field as
 `no-manifest-field`; this prevents silence from being mistaken for analysis. Use `needs-input`
 only when source and approved repository conventions cannot resolve required product intent.
+Use lowercase capability IDs. The assessment happens before candidate generation, so identify
+the stable expected field area without guessing future array indexes. Never use wildcards or
+selectors such as `[]`, `[name: ...]`, or `[names: ...]`. The implementation and final review
+must report the concrete numeric index from the completed manifest.
+Keep manifest declarations atomic: if one behavior is expected to require multiple manifest
+field areas, create one stable capability entry for each area instead of combining paths.

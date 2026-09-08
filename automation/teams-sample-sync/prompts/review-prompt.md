@@ -47,13 +47,13 @@ Return:
     { "id": "stable-capability-id", "kind": "feature category",
       "evidence": ["path:symbol or README section"],
       "decision": "manifest-field-required|no-manifest-field|needs-input|unsupported",
-      "manifestPath": "most specific actual JSON path for manifest-field-required; otherwise none",
+      "manifestPath": "concrete dotted path with numeric array indexes for manifest-field-required; otherwise none",
       "reference": "manifest-skill reference used" }
   ],
   "expectedCapabilityRevisions": [
     { "id": "an ID from the pre-implementation assessment only",
       "decision": "manifest-field-required|no-manifest-field|needs-input|unsupported",
-      "manifestPath": "revised concrete path or none",
+      "manifestPath": "revised concrete dotted path with numeric array indexes or none",
       "explanation": "why the initial expectation was wrong",
       "evidence": ["new or previously overlooked source evidence"],
       "reference": "manifest-skill reference supporting the revision" }
@@ -75,3 +75,9 @@ Use blocked for explicit policy conflicts, missing security-sensitive/external c
 or unsupported required behavior, with concrete findings; not routine design choices.
 State-only updates can be approved when every source change is already present or does
 not apply, with evidence. Agreement with the implementer alone is not approval evidence.
+Use lowercase capability IDs. Never return wildcards or selectors such as `[]`, `[name: ...]`,
+or `[names: ...]` in a manifest path; report the actual numeric index in the final manifest.
+Each capability entry represents one manifest field path. Split behavior requiring multiple
+declarations into separate stable capability IDs instead of joining paths. A capability recorded
+in `expectedCapabilityRevisions` is already part of your effective final inventory and need not
+be duplicated in `manifestCapabilities`.

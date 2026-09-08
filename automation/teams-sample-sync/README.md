@@ -27,7 +27,9 @@ only. It keeps three separate jobs and their permissions:
 2. **Migrate:** a read-only agent first derives expected behavior and manifest capabilities
    from the original evidence. The implementation agent then uses the migration skill first
    and the manifest skill second. Deterministic validation and a read-only final review check
-   the candidate against that independent baseline. Repair remains limited to five cycles.
+   the candidate against that independent baseline. Repair remains limited to five cycles;
+   one explicit recovery attempt is allowed when a repair produces no effective change before
+   the no-progress circuit breaker stops repeated identical work.
 3. **Publish:** apply and verify the approved patch, then create one draft PR per sample.
    This job does not use Copilot or run candidate sample code.
 

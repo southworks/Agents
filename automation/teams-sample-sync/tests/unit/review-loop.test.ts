@@ -94,16 +94,39 @@ test("implemented behavior with no manifest field has an unambiguous ledger deci
   assert.equal(result.manifestReport.capabilities[0]?.decision, "no-manifest-field");
 });
 
+test("capability reports normalize correlation IDs and reject unsupported manifest path selectors", () => {
+  const { implementation } = setup();
+  const normalized = parseAgentResult({ ...implementation, manifestReport: {
+    ...implementation.manifestReport,
+    capabilities: [{ ...implementation.manifestReport.capabilities[0]!, id: "root-permissions-messageTeamMembers" }],
+  } }, "sample-a");
+  assert.equal(normalized.manifestReport.capabilities[0]?.id, "root-permissions-messageteammembers");
+  assert.throws(() => parseAgentResult({ ...implementation, manifestReport: {
+    ...implementation.manifestReport,
+    capabilities: [{ ...implementation.manifestReport.capabilities[0]!,
+      manifestPath: "authorization.permissions.resourceSpecific[name: OnlineMeetingTranscript.Read.Chat]" }],
+  } }, "sample-a"), /concrete dotted path.*numeric array indexes/);
+  assert.throws(() => parseAgentResult({ ...implementation, manifestReport: {
+    ...implementation.manifestReport,
+    capabilities: [{ ...implementation.manifestReport.capabilities[0]!,
+      manifestPath: "bots[0].supportsFiles, bots[0].scopes" }],
+  } }, "sample-a"), /concrete dotted path.*numeric array indexes/);
+});
+
 test("invalid implementer capability report gets a report-only retry", async () => {
   const { options, implementation } = setup();
   let implementations = 0; let validations = 0;
   const validate = options.validate;
-  options.runner = { run: async ({ prompt }) => {
+  options.runner = { run: async ({ prompt, readOnly }) => {
     implementations++;
-    if (implementations === 1) return { ...implementation, manifestReport: {
+    if (implementations === 1) {
+      assert.equal(readOnly, undefined);
+      return { ...implementation, manifestReport: {
       ...implementation.manifestReport,
       capabilities: [{ ...implementation.manifestReport.capabilities[0]!, manifestPath: "none" }],
-    } };
+      } };
+    }
+    assert.equal(readOnly, true);
     assert.match(prompt, /Correct your previous implementation report without changing the candidate/);
     return implementation;
   } };
@@ -239,6 +262,24 @@ test("independent reviewer must agree with the final manifest capability invento
   assert.match(manifestReviewErrors(implementation, changedAssessment).join("\n"), /assessment differs.*base-bot/);
 });
 
+test("pre-implementation field areas do not guess final array indexes", () => {
+  const { implementation, review, assessment } = setup();
+  const expectedArea = { ...assessment, capabilities: [{ ...assessment.capabilities[0]!, manifestPath: "bots" }] };
+  assert.deepEqual(manifestReviewErrors(implementation, review, expectedArea), []);
+});
+
+test("an unrelated final manifest area requires an evidence-backed revision", () => {
+  const { implementation, review, assessment } = setup();
+  const expectedArea = { ...assessment, capabilities: [{ ...assessment.capabilities[0]!, manifestPath: "bots" }] };
+  const unrelated = [{ ...implementation.manifestReport.capabilities[0]!, manifestPath: "composeExtensions[0]" }];
+  const errors = manifestReviewErrors({ ...implementation, manifestReport: {
+    ...implementation.manifestReport, capabilities: unrelated,
+  } }, { ...review, manifestCapabilities: unrelated }, expectedArea);
+
+  assert.match(errors.join("\n"), /Implementation does not satisfy expected manifest capability base-bot/);
+  assert.match(errors.join("\n"), /Final review does not satisfy expected manifest capability base-bot/);
+});
+
 test("capability assessment runs before implementation and is supplied to both agents", async () => {
   const { options, implementation, review, assessment } = setup();
   const order: string[] = [];
@@ -295,11 +336,42 @@ test("reviewer may revise an initial expectation only with structured evidence",
   assert.equal(result.validation.passed, true);
 });
 
-test("repeated review findings stop early and never create state", async () => {
-  const { options, review, item } = setup();
+test("an evidence-backed revision supplies the reviewer's effective final capability", () => {
+  const { implementation, review, assessment } = setup();
+  const uncertain = { id: "compose-extension-configuration", kind: "message extension configuration",
+    evidence: ["Agent.cs:no configuration routes"], decision: "needs-input" as const,
+    manifestPath: "none", reference: "references/message-extensions.md" };
+  const notApplicable = { ...uncertain, decision: "no-manifest-field" as const };
+  const implemented: AgentResult = { ...implementation, manifestReport: {
+    ...implementation.manifestReport,
+    capabilities: [...implementation.manifestReport.capabilities, notApplicable],
+  } };
+  const revisedReview: ReviewResult = { ...review,
+    expectedCapabilityRevisions: [{ id: uncertain.id, decision: "no-manifest-field", manifestPath: "none",
+      explanation: "No configuration fetch or submit route exists.", evidence: uncertain.evidence,
+      reference: uncertain.reference }],
+  };
+  const assessed: CapabilityAssessment = { ...assessment,
+    capabilities: [...assessment.capabilities, uncertain] };
+
+  assert.deepEqual(manifestReviewErrors(implemented, revisedReview, assessed), []);
+});
+
+test("one explicit stagnation-recovery attempt precedes the no-progress stop", async () => {
+  const { options, review, implementation, item } = setup();
+  let implementations = 0;
+  options.runner = { run: async ({ prompt }) => {
+    implementations++;
+    if (implementations === 3) {
+      assert.match(prompt, /Previous repair made no effective candidate change/);
+      assert.match(prompt, /Exact required corrections/);
+    }
+    return implementation;
+  } };
   options.reviewer = { run: async () => ({ ...review, verdict: "changes-required", findings: [missingDue] }) };
   const result = await runAgentLoop(options);
-  assert.equal(result.attempts, 2);
+  assert.equal(result.attempts, 3);
+  assert.equal(implementations, 3);
   assert.equal(result.validation.passed, false);
   assert.equal(existsSync(path.join(item.repo, "automation/teams-sample-sync/state/sample-a.lock.json")), false);
 });

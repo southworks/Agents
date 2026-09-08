@@ -11,6 +11,14 @@ function list(value: unknown, name: string): string[] {
   return value as string[];
 }
 
+function concreteManifestPath(value: string): boolean {
+  return /^[A-Za-z_$][A-Za-z0-9_$-]*(?:(?:\.[A-Za-z_$][A-Za-z0-9_$-]*)|(?:\[\d+\]))*$/.test(value);
+}
+
+function withinManifestArea(value: string, area: string): boolean {
+  return value === area || value.startsWith(area + ".") || value.startsWith(area + "[");
+}
+
 export function parseDispositions(value: unknown): ChangeDisposition[] {
   if (!Array.isArray(value)) throw new SyncError("dispositions must be a list");
   return value.map((raw) => {
@@ -37,7 +45,7 @@ export function parseManifestCapabilities(value: unknown): ManifestCapabilityDec
       throw new SyncError("Invalid manifest capability decision");
     }
     const capability: ManifestCapabilityDecision = {
-      id: text(item.id, "manifest capability.id"), kind: text(item.kind, "manifest capability.kind"),
+      id: text(item.id, "manifest capability.id").toLowerCase(), kind: text(item.kind, "manifest capability.kind"),
       evidence: list(item.evidence, "manifest capability.evidence"),
       decision: decision as ManifestCapabilityDecision["decision"],
       manifestPath: text(item.manifestPath, "manifest capability.manifestPath"),
@@ -48,6 +56,9 @@ export function parseManifestCapabilities(value: unknown): ManifestCapabilityDec
     if (capability.reference === "none") throw new SyncError(`Manifest capability ${capability.id} requires a manifest-skill reference`);
     if (decision === "manifest-field-required" && capability.manifestPath === "none") {
       throw new SyncError(`Manifest capability ${capability.id} requires a concrete manifestPath`);
+    }
+    if (decision === "manifest-field-required" && !concreteManifestPath(capability.manifestPath)) {
+      throw new SyncError(`Manifest capability ${capability.id} manifestPath must be a concrete dotted path with numeric array indexes, for example authorization.permissions.resourceSpecific[0].name`);
     }
     if (decision !== "manifest-field-required" && capability.manifestPath !== "none") {
       throw new SyncError(`Manifest capability ${capability.id} with decision ${decision} requires manifestPath none`);
@@ -83,7 +94,7 @@ function parseExpectedCapabilityRevisions(value: unknown): ExpectedCapabilityRev
       throw new SyncError("Expected capability revision has inconsistent manifestPath");
     }
     return {
-      id: text(item.id, "expected capability revision.id"),
+      id: text(item.id, "expected capability revision.id").toLowerCase(),
       decision: decision as ExpectedCapabilityRevision["decision"],
       manifestPath,
       explanation: text(item.explanation, "expected capability revision.explanation"),
@@ -96,6 +107,9 @@ function parseExpectedCapabilityRevisions(value: unknown): ExpectedCapabilityRev
   }
   if (revisions.some((item) => item.evidence.length === 0 || item.reference === "none")) {
     throw new SyncError("Expected capability revisions require evidence and a manifest-skill reference");
+  }
+  if (revisions.some((item) => item.decision === "manifest-field-required" && !concreteManifestPath(item.manifestPath))) {
+    throw new SyncError("Expected capability revision manifestPath must be a concrete dotted path with numeric array indexes");
   }
   return revisions;
 }
@@ -161,17 +175,18 @@ export function coverageErrors(repo: string, context: SyncContext, agent: AgentR
 export function manifestReviewErrors(agent: AgentResult, review: ReviewResult, assessment?: CapabilityAssessment): string[] {
   const expected = new Map(agent.manifestReport.capabilities.map((item) => [item.id, item]));
   const actual = new Map(review.manifestCapabilities.map((item) => [item.id, item]));
+  const revisions = new Map((review.expectedCapabilityRevisions ?? []).map((item) => [item.id, item]));
+  const reviewed = (id: string) => actual.get(id) ?? revisions.get(id);
   const errors: string[] = [];
-  for (const id of new Set([...expected.keys(), ...actual.keys()])) {
-    const implementation = expected.get(id); const assessment = actual.get(id);
-    if (!implementation || !assessment) { errors.push(`Reviewer manifest capability inventory differs for ${id}`); continue; }
-    if (implementation.decision !== assessment.decision ||
-        implementation.manifestPath !== assessment.manifestPath) {
+  for (const id of new Set([...expected.keys(), ...actual.keys(), ...revisions.keys()])) {
+    const implementation = expected.get(id); const reviewerDecision = reviewed(id);
+    if (!implementation || !reviewerDecision) { errors.push(`Reviewer manifest capability inventory differs for ${id}`); continue; }
+    if (implementation.decision !== reviewerDecision.decision ||
+        implementation.manifestPath !== reviewerDecision.manifestPath) {
       errors.push(`Reviewer manifest capability assessment differs for ${id}`);
     }
   }
   if (assessment) {
-    const revisions = new Map((review.expectedCapabilityRevisions ?? []).map((item) => [item.id, item]));
     for (const revision of revisions.values()) {
       if (!assessment.capabilities.some((item) => item.id === revision.id)) {
         errors.push(`Reviewer revised unknown expected manifest capability ${revision.id}`);
@@ -180,13 +195,18 @@ export function manifestReviewErrors(agent: AgentResult, review: ReviewResult, a
     for (const baseline of assessment.capabilities) {
       const revision = revisions.get(baseline.id);
       const decision = revision?.decision ?? baseline.decision;
-      const manifestPath = revision?.manifestPath ?? baseline.manifestPath;
       const implementation = expected.get(baseline.id);
-      const finalReview = actual.get(baseline.id);
-      if (!implementation || implementation.decision !== decision || implementation.manifestPath !== manifestPath) {
+      const finalReview = reviewed(baseline.id);
+      if (!implementation || implementation.decision !== decision ||
+          (revision !== undefined && implementation.manifestPath !== revision.manifestPath) ||
+          (revision === undefined && decision === "manifest-field-required" &&
+            !withinManifestArea(implementation.manifestPath, baseline.manifestPath))) {
         errors.push(`Implementation does not satisfy expected manifest capability ${baseline.id}`);
       }
-      if (!finalReview || finalReview.decision !== decision || finalReview.manifestPath !== manifestPath) {
+      if (!finalReview || finalReview.decision !== decision ||
+          (revision !== undefined && finalReview.manifestPath !== revision.manifestPath) ||
+          (revision === undefined && decision === "manifest-field-required" &&
+            !withinManifestArea(finalReview.manifestPath, baseline.manifestPath))) {
         errors.push(`Final review does not satisfy expected manifest capability ${baseline.id}`);
       }
     }

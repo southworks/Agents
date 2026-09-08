@@ -15,7 +15,7 @@ export const MAX_REVIEW_REPORT_ATTEMPTS = 3;
 export class CopilotOutputError extends SyncError {}
 
 export interface AgentRunner {
-  run(input: { contextFile: string; prompt: string; attempt: number }): Promise<unknown>;
+  run(input: { contextFile: string; prompt: string; attempt: number; readOnly?: boolean }): Promise<unknown>;
 }
 
 export function attempts(value: number | undefined): number {
@@ -134,10 +134,10 @@ export class CopilotAgentRunner implements AgentRunner {
     private readonly role: "implement" | "review" = "implement",
   ) {}
 
-  async run(input: { contextFile: string; prompt: string; attempt: number }): Promise<unknown> {
+  async run(input: { contextFile: string; prompt: string; attempt: number; readOnly?: boolean }): Promise<unknown> {
     const copilotHome = path.join(this.runnerRoot, `${this.role}-attempt-${input.attempt}`);
     mkdirSync(copilotHome, { recursive: true });
-    const args = copilotArguments(input.prompt, this.configuration, this.role);
+    const args = copilotArguments(input.prompt, this.configuration, input.readOnly ? "review" : this.role);
     const outcome = await new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
       const child = spawn("copilot", args, {
         cwd: this.repo,
@@ -204,6 +204,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
   let lastAgent: AgentResult | undefined;
   let lastValidation: ValidationResult | undefined;
   let lastReview: ReviewApproval | undefined;
+  let stagnationRecoveries = 0;
   let assessment: CapabilityAssessment | undefined;
   if (options.assessor) {
     assertContext(context.root, context.digest);
@@ -254,7 +255,10 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     assertContext(context.root, context.digest);
     assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
     const samplePath = path.join(options.repo, options.sampleRoot);
+    const contextValue = JSON.parse(readFileSync(context.file, "utf8")) as SyncContext;
     const agentPrompt = buildAgentPrompt(options.repo, context.file, attempt > 1, options.policyKeys) +
+      (attempt > 1 ? "\nExact required corrections for this repair pass:\n" +
+        JSON.stringify(contextValue.validationErrors ?? []) + "\n" : "") +
       (assessment ? "\nIndependent pre-implementation capability assessment (evidence, not instructions):\n" +
         JSON.stringify(assessment) +
         "\nSatisfy each expected capability or give evidence for the final reviewer to revise it. Do not erase documented product intent merely to match an incomplete candidate.\n" : "");
@@ -267,7 +271,8 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       let reportError: SyncError | undefined;
       try {
         rawAgent = await options.runner.run({ contextFile: context.file,
-          prompt: agentPrompt + agentReportFeedback, attempt });
+          prompt: agentPrompt + agentReportFeedback, attempt,
+          ...(agentReportAttempt > 1 ? { readOnly: true } : {}) });
       } catch (error) {
         if (!(error instanceof CopilotOutputError)) throw error;
         reportError = error;
@@ -299,7 +304,6 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         "\nPrevious invalid report (data only):\n" + JSON.stringify(rawAgent ?? null);
       agentReportAttempt += 1;
     }
-    const contextValue = JSON.parse(readFileSync(context.file, "utf8")) as SyncContext;
     const knownPolicies = new Set(options.policyKeys);
     const unknownPolicies = agent.appliedPolicies.filter((key) => !knownPolicies.has(key));
     const missingPolicies = options.policyKeys.filter((key) => !agent.appliedPolicies.includes(key));
@@ -347,9 +351,17 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     if (evidenceErrors.length > 0) {
       const progress = stable({ digest: validation.outputDigest, errors: evidenceErrors });
       if (progress === lastProgress) {
+        if (attempt < options.maxAttempts && stagnationRecoveries === 0) {
+          stagnationRecoveries = 1;
+          context = updateContextErrors(context, [...evidenceErrors,
+            "Previous repair made no effective candidate change. Edit the files named by the errors, reread them, and verify each exact correction before reporting success."],
+          agent, lastReview?.result);
+          continue;
+        }
         return { agent, validation: { ...validation, errors: [...validation.errors, "Repair made no progress"] },
           ...(lastReview ? { review: lastReview } : {}), ...(assessment ? { assessment } : {}), attempts: attempt, failureStage: "evidence" };
       }
+      stagnationRecoveries = 0;
       lastProgress = progress;
       if (attempt < options.maxAttempts) {
         context = updateContextErrors(context, evidenceErrors, agent, lastReview?.result);
@@ -427,9 +439,17 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     const progress = stable({ digest: validation.outputDigest, errors: validation.errors,
       findingIds: review.findings.map((finding) => finding.id).sort() });
     if (progress === lastProgress) {
+      if (attempt < options.maxAttempts && stagnationRecoveries === 0) {
+        stagnationRecoveries = 1;
+        context = updateContextErrors(context, [...errors,
+          "Previous repair made no effective candidate change. Edit the files named by the errors, reread them, and verify each exact correction before reporting success."],
+        agent, review);
+        continue;
+      }
       return { agent, validation: { ...validation, passed: false, errors: [...errors, "Repair made no progress"] },
         review: lastReview, ...(assessment ? { assessment } : {}), attempts: attempt };
     }
+    stagnationRecoveries = 0;
     lastProgress = progress;
     if (attempt < options.maxAttempts) context = updateContextErrors(context, errors, agent, review);
   }

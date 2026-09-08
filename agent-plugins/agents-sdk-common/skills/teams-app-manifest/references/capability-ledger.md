@@ -22,6 +22,14 @@ id | kind | evidence | decision | manifestPath | reference
 Keep independently decidable surfaces in separate entries. In particular, a conversational
 bot/message-routing entry must not absorb user-facing command discovery: runtime dispatch and
 manifest exposure have different evidence and can reach different decisions.
+Each `manifest-field-required` entry maps to exactly one manifest field path. When a behavior
+requires multiple manifest declarations, create one stable capability entry per declaration;
+never combine paths with commas, prose, selectors, or array expressions.
+
+When an automation requests machine-checkable paths, use a concrete dotted path with numeric
+array indexes, such as `authorization.permissions.resourceSpecific[0].name`. Inspect the final
+manifest to obtain the index. Do not use wildcards, empty indexes, or semantic selectors such
+as `[name: ...]`; those are descriptions, not paths to an actual JSON value.
 
 ## Reconciliation rules
 

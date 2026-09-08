@@ -31,6 +31,10 @@ If the manifest is missing, use the skill's Generate mode and create it. Reposit
 placeholders and reusable assets are valid for local/sample manifests; list portal, identity,
 domain, deployment, and tenant work in externalSetup instead of treating it as a reason to
 omit the manifest.
+When a prepared manifest already exists, preserve its required package metadata, icons, and
+approved placeholders while completing semantic capabilities. Do not replace it with a partial
+manifest. On repair passes, address every exact error, edit the responsible file, then reread
+the resulting file before claiming that the error is resolved.
 
 Before editing the manifest, independently inventory observable Teams-facing behavior from
 code, routes, configuration, tests, and the README. Route every candidate through the
@@ -39,6 +43,12 @@ applicable manifest-skill reference and return the complete internal decision in
 does not replace manifest discovery metadata when the documented user experience requires it.
 Each capability entry must have:
 `id`, `kind`, nonempty `evidence`, `decision`, `manifestPath`, and `reference`.
+Use lowercase IDs. For `manifest-field-required`, `manifestPath` must be a concrete dotted
+path with numeric array indexes, for example `authorization.permissions.resourceSpecific[0].name`.
+Never use `[]`, `[name: ...]`, `[names: ...]`, wildcards, or semantic selectors.
+Each capability entry represents exactly one manifest field path. If one behavior requires
+multiple declarations, split it into independently identified capability entries; never join
+multiple paths with commas, prose, or an array expression.
 `decision` is exactly one of:
 - `manifest-field-required`: this behavior requires a declaration; use the most specific
   actual JSON path representing it in the final manifest.
