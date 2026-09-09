@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs"
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CopilotClient, RuntimeConnection, type CopilotSession, type PermissionRequest, type PermissionRequestResult, type SessionConfig, type Tool } from "@github/copilot-sdk";
-import { selectModel } from "./model-selection.js";
+import { selectModel, type ModelInfo } from "./model-selection.js";
 import { SyncError } from "./config.js";
 import type { CopilotConfiguration, ObservedModel } from "./types.js";
 import type { PersistentSession } from "./sync-session.js";
@@ -111,8 +111,20 @@ export class CopilotAgentRunner {
       }
     }
     const policy = role === "implementation" ? this.configuration.implementation : this.configuration.review;
-    const selection = selectModel(policy, await this.client.listModels());
     const log = createCopilotLog((value) => appendFileSync(this.logFile, value, "utf8"), (value) => process.stdout.write(value));
+    // Auto routing does not need the catalog. Actions tokens can authorize
+    // inference while being rejected by the models.list endpoint.
+    let models: ModelInfo[] = [];
+    if (policy.strategy === "capability") {
+      try { models = await this.client.listModels(); }
+      catch (error) {
+        if (policy.fallback !== "auto") {
+          throw new SyncError(`Copilot model discovery failed for ${role}; capability fallback is fail: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        log.write(`Model discovery unavailable for ${role}; using configured Auto fallback without forced reasoning effort.\n`);
+      }
+    }
+    const selection = selectModel(policy, models);
     const prompt = readFileSync(path.join(this.repo, "automation/teams-sample-sync/prompts", role === "implementation" ? "agent-prompt.md" : "review-prompt.md"), "utf8");
     let active: CopilotPersistentSession | undefined;
     const rejected = new Map<string, { signature: string; count: number }>();

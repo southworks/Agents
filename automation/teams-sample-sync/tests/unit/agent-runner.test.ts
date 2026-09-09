@@ -5,6 +5,61 @@ import path from "node:path";
 import { test } from "node:test";
 import type { PermissionRequest, SessionConfig } from "@github/copilot-sdk";
 import { CopilotAgentRunner, permissionFor, type SdkClient, type SdkSession } from "../../src/agent-runner.js";
+import type { ModelPolicy } from "../../src/types.js";
+
+test("Auto sessions do not require model discovery with an Actions token", async () => {
+  await checkUnavailableCatalog({ strategy: "auto" }, 0);
+});
+
+test("capability discovery failure honors explicit Auto fallback", async () => {
+  await checkUnavailableCatalog({ strategy: "capability", fallback: "auto" }, 2);
+});
+
+test("strict capability discovery failure stops before session creation", async () => {
+  await checkUnavailableCatalog({ strategy: "capability", fallback: "fail" }, 2, true);
+});
+
+async function checkUnavailableCatalog(policy: ModelPolicy, expectedCalls: number, strict = false): Promise<void> {
+  const repo = mkdtempSync(path.join(os.tmpdir(), "sync-catalog-"));
+  const configs: SessionConfig[] = [];
+  let catalogCalls = 0;
+  const session: SdkSession = {
+    on: (() => () => {}) as SdkSession["on"],
+    sendAndWait: async () => undefined,
+    abort: async () => {}, disconnect: async () => {},
+  };
+  const client: SdkClient = {
+    start: async () => {}, stop: async () => [],
+    getStatus: async () => ({ version: "1.0.83", protocolVersion: 3 }),
+    getAuthStatus: async () => ({ isAuthenticated: true }),
+    listModels: async () => {
+      catalogCalls++;
+      throw new Error("Request models.list failed: GitHub App Server-To-Server Tokens are not supported for this endpoint");
+    },
+    createSession: async (config) => { configs.push(config); return session; },
+  };
+  const runner = new CopilotAgentRunner(repo, "sample", {
+    implementation: policy, review: policy, sdkVersion: "1.0.7", runtimeVersion: "1.0.83",
+  }, path.join(repo, "log"), [], [], async () => client);
+  try {
+    const prompts = path.join(repo, "automation/teams-sample-sync/prompts");
+    mkdirSync(prompts, { recursive: true });
+    for (const file of ["agent-prompt.md", "review-prompt.md"]) writeFileSync(path.join(prompts, file), "Task");
+    for (const role of ["implementation", "review"] as const) {
+      if (strict) await assert.rejects(runner.open(role), /model discovery failed.*fallback.*fail/i);
+      else await (await runner.open(role)).close();
+    }
+    assert.equal(catalogCalls, expectedCalls);
+    assert.equal(configs.length, strict ? 0 : 2);
+    for (const config of configs) {
+      assert.equal(config.model, "auto");
+      assert.equal(Object.hasOwn(config, "reasoningEffort"), false);
+    }
+  } finally {
+    await runner.close();
+    rmSync(repo, { recursive: true, force: true });
+  }
+}
 
 const writeRequest = (fileName: string): PermissionRequest => ({ kind: "write", fileName, intention: "test", diff: "", canOfferSessionApproval: false });
 
