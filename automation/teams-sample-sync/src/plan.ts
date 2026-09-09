@@ -2,7 +2,6 @@ import path from "node:path";
 import { protection, SyncError, targets } from "./config.js";
 import { digestDirectory, git, hash, stable, tree } from "./git.js";
 import { readFileSync } from "node:fs";
-import { applicablePolicies } from "./policy.js";
 import { readState } from "./state.js";
 import type { Plan, PlanSample } from "./types.js";
 
@@ -32,7 +31,6 @@ export function createPlan(repo: string, upstream: string, chosen?: string): Pla
         canonicalSample: configured.canonicalSample,
         sample: target,
       })),
-      policies: hash(stable(applicablePolicies(repo, configured, name))),
       protection: hash(stable(owner)),
       migrationSkill: digestDirectory(path.join(repo, configured.migrationSkill)),
       manifestSkill: digestDirectory(path.join(repo, configured.manifestSkill)),
@@ -42,7 +40,6 @@ export function createPlan(repo: string, upstream: string, chosen?: string): Pla
       packagePolicy: hash(stable(configured.packagePolicy)),
       validator: hash(stable([configured.validatorVersion, configured.copilot.sdkVersion, configured.copilot.runtimeVersion,
         readFileSync(path.join(repo, "automation/teams-sample-sync/prompts/agent-prompt.md"), "utf8"),
-        readFileSync(path.join(repo, "automation/teams-sample-sync/prompts/review-prompt.md"), "utf8"),
         digestDirectory(path.join(repo, "automation/teams-sample-sync/src")),
         digestDirectory(path.join(repo, "automation/teams-sample-sync/tests/contracts"), owner.outputDigestExcludes),
         readFileSync(path.join(repo, "automation/teams-sample-sync/package.json"), "utf8"),

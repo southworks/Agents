@@ -1,264 +1,34 @@
 import type { SyncResult, UpstreamChange } from "./types.js";
 
-const TRIGGER_DESCRIPTIONS: Record<string, string> = {
-  sourceTree: "Teams samples repository content changed.",
-  target: "The sample mapping or manifest packaging configuration changed.",
-  policies: "Reviewed migration policies changed.",
-  protection: "Owned-path or output protection rules changed.",
-  migrationSkill: "The Teams-to-Agents migration instructions changed.",
-  manifestSkill: "The Teams manifest instructions changed.",
-  canonicalSample: "The canonical Agents sample or reusable manifest assets changed.",
-  copilot: "The configured Copilot role policies or pinned runtime changed.",
-  syncSkill: "The synchronization instructions changed.",
-  packagePolicy: "The target framework or Agents SDK package policy changed.",
-  validator: "The deterministic validation contract changed.",
-};
-
-const CHECKS: Array<{ key: string; title: string; description: string }> = [
-  {
-    key: "project",
-    title: "Project structure and SDK migration",
-    description: "Confirms one project, the target framework and Agents SDK packages, required Agents host patterns, and absence of legacy Teams SDK code.",
-  },
-  { key: "restore", title: "Restore", description: "Runs `dotnet restore` and resolves the project dependencies." },
-  { key: "build", title: "Build", description: "Builds the project with warnings as errors." },
-  {
-    key: "manifest",
-    title: "Manifest",
-    description: "Checks valid JSON and unique keys, required metadata and packaged icons, the released Teams schema after placeholder substitution, and selected capabilities inferred from the sample code.",
-  },
-  { key: "httpSmoke", title: "HTTP smoke test", description: "Starts the built sample and requires `GET /` to return HTTP 200." },
-  {
-    key: "contracts",
-    title: "Protected behavior contracts",
-    description: "Runs sample-specific contract tests when configured; other samples have no contract test.",
-  },
-];
-
-function normalizedText(value: string): string {
-  return value
-    .replace(/\bupstream\b/gi, "Teams repository")
-    .replace(/[\r\n]+/g, " ")
-    .replaceAll("@", "@\u200b")
-    .trim();
+function safe(value: string): string { return value.replace(/[\r\n]+/g, " ").replace(/([`*_\[\]!|])/g, "\\$1").trim(); }
+function code(value: string): string { return `\`${safe(value).replaceAll("`", "")}\``; }
+function fenced(value: string): string {
+  const longest = Math.max(0, ...(value.match(/`+/g) ?? []).map((item) => item.length));
+  const delimiter = "`".repeat(Math.max(3, longest + 1));
+  return `${delimiter}text\n${value.trim()}\n${delimiter}`;
 }
-
-function safeText(value: string): string {
-  return normalizedText(value)
-    .replaceAll("\\", "\\\\")
-    .replace(/([`*_\[\]!|])/g, "\\$1")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replace(/^([#>+\-])/, "\\$1")
-    .replace(/^(\d+)\./, "$1\\.");
-}
-
-function inlineCode(value: string): string {
-  const normalized = normalizedText(value);
-  const longest = Math.max(0, ...(normalized.match(/`+/g) ?? []).map((run) => run.length));
-  if (longest === 0) return `\`${normalized}\``;
-  const fence = "`".repeat(longest + 1);
-  return `${fence} ${normalized} ${fence}`;
-}
-
-function label(value: string): string {
-  return value.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll("_", " ").replace(/^./, (item) => item.toUpperCase());
-}
-
-function itemText(value: unknown): string {
-  if (typeof value === "string") return safeText(value);
-  if (!value || typeof value !== "object" || Array.isArray(value)) return safeText(JSON.stringify(value));
-  return Object.entries(value as Record<string, unknown>)
-    .map(([key, item]) => `${safeText(label(key))}: ${safeText(typeof item === "string" ? item : JSON.stringify(item))}`)
-    .join("; ");
-}
-
-function bullets(values: unknown[] | string[], empty: string): string[] {
-  return values.length === 0 ? [`- ${empty}`] : values.map((value) => `- ${itemText(value)}`);
-}
-
-function formattedBullets(values: string[], empty: string): string[] {
-  return values.length === 0 ? [`- ${empty}`] : values.map((value) => `- ${value}`);
-}
-
-function teamsChange(change: UpstreamChange): string {
-  if (change.status === "renamed") return `Renamed ${inlineCode(change.oldPath ?? "unknown")} to ${inlineCode(change.newPath ?? "unknown")}.`;
-  const file = change.newPath ?? change.oldPath ?? "unknown";
-  return `${label(change.status)} ${inlineCode(file)}${change.binary ? " (binary file)" : ""}.`;
-}
-
-function triggerLines(result: SyncResult): string[] {
-  if (result.previousUpstreamCommit === null) return ["- First tracked synchronization; no earlier sync state exists."];
-  const values = result.changedComponents.map((component) =>
-    TRIGGER_DESCRIPTIONS[component] ?? `Sync input ${inlineCode(component)} changed.`);
-  return values.length > 0 ? values.map((value) => `- ${value}`) : ["- The tracked sync input changed."];
-}
-
-function validationLines(result: SyncResult): string[] {
-  const checks = result.validation?.checks;
-  return CHECKS.map((check) => {
-    const state = checks?.[check.key]?.status;
-    const status = state === "skipped" ? "Not configured" : state === "passed" ? "Passed" : state === "failed" ? "Failed" : "Not run";
-    return `- **${status} — ${check.title}:** ${check.description}`;
-  });
-}
-
-function policyLines(result: SyncResult): string[] {
-  if (result.migrationPolicies.length === 0) return ["- No migration policy was applied."];
-  return result.migrationPolicies.flatMap((policy) => [
-    `- ${inlineCode(policy.key)} — ${safeText(policy.instruction)}`,
-    `  - Reason: ${safeText(policy.rationale)}`,
-    `  - Source: ${safeText(policy.source)}`,
-  ]);
-}
+function change(change: UpstreamChange): string { const path = change.newPath ?? change.oldPath ?? "unknown"; return `- ${change.status}: ${code(path)}${change.binary ? " (binary)" : ""}`; }
+function validation(result: SyncResult): string[] { return Object.entries(result.validation?.checks ?? {}).map(([name, check]) => `- ${name}: **${check.status}**${check.errors.length ? ` — ${safe(check.errors.join("; "))}` : ""}`); }
 
 export function prBody(result: SyncResult): string {
-  const agent = result.agent;
-  const notIncluded = result.publicationKind === "report" ? [
-    "## Not included / requires a decision",
-    "",
-    `This run did not apply the affected Teams behavior. Status: **${safeText(result.status)}**.`,
-    "",
-    safeText(result.error ?? agent?.summary ?? "No structured reason was supplied."),
-    "",
-    "### Affected source changes",
-    "",
-    ...bullets(agent?.dispositions ?? [], "The agent did not identify individual source changes."),
-    ...(agent?.policyRequest ? [
-      "",
-      "### Requested policy decision",
-      "",
-      `- Question: ${safeText(agent.policyRequest.question)}`,
-      `- Recommendation: ${safeText(agent.policyRequest.recommendation)}`,
-      `- Evidence: ${safeText(agent.policyRequest.evidence)}`,
-      `- Impact: ${safeText(agent.policyRequest.impact)}`,
-      `- Suggested policy ${inlineCode(agent.policyRequest.key)}: ${safeText(agent.policyRequest.suggestedPolicy.instruction)}`,
-    ] : []),
-    "",
-  ] : [];
-  const external = [
-    ...(agent?.manifestReport.externalSetup ?? []),
-    ...(result.validation?.externalValidationRequired ?? []),
-    ...(result.review?.result.coverageLimitations ?? []),
-  ];
-  const teamsRepositorySection = result.previousUpstreamCommit === null
-    ? ["### Teams repository baseline", "", "- Recorded the current sample snapshot for the first tracked synchronization."]
-    : ["### Teams repository changes detected", "", ...formattedBullets(result.upstreamChanges.map(teamsChange), "No Teams repository file change was reported.")];
   return [
-    "> [!IMPORTANT]",
-    "> Automated draft for one sample. Review sample behavior, manifest permissions, and external setup before merge.",
-    "",
-    ...notIncluded,
-    "## Description",
-    "",
-    `Synchronizes ${inlineCode(result.sample)} from ${inlineCode(result.sourceRepository ?? "OfficeDev/Microsoft-Teams-Samples")}, the Teams samples repository, to the Agents repository.`,
-    "",
-    "### Why this PR was created",
-    "",
-    ...triggerLines(result),
-    "",
-    "## What changed",
-    "",
-    safeText(agent?.summary ?? "No agent summary is available."),
-    "",
-    ...teamsRepositorySection,
-    "",
-    "### Migration adaptations",
-    "",
-    ...bullets(agent?.upstreamChanges ?? [], "No semantic adaptation was reported."),
-    "",
-    "### Preserved Agents behavior",
-    "",
-    ...bullets(agent?.preservedDifferences ?? [], "No intentional Agents-specific difference was reported."),
-    "",
-    "### Manifest adaptation",
-    "",
-    ...bullets(agent?.manifestReport.changes ?? [], "No manifest change was reported."),
-    ...bullets(agent?.manifestReport.validation ?? [], "No manifest analysis was reported."),
-    "",
-    "### Manifest capability decisions",
-    "",
-    ...bullets(agent?.manifestReport.capabilities ?? [], "No expected manifest capability was reported."),
-    "",
-    "### Files changed in the Agents repository",
-    "",
-    ...formattedBullets((result.destinationChanges ?? []).map(inlineCode), "No file list is available."),
-    "",
-    "## Applied migration policies",
-    "",
-    ...policyLines(result),
-    "",
-    "## Validation",
-    "",
-    ...validationLines(result),
-    "",
-    "## Independent review",
-    "",
-    safeText(result.review?.result.summary ?? "No independent approval."),
-    safeText(result.review?.result.testAssessment ?? ""),
-    ...bullets(result.review?.result.findings ?? [], "No blocking finding reported."),
-    "",
-    "## Manual validation and setup",
-    "",
-    ...bullets(external, "No additional item was reported."),
-    "",
-    "Credentialed Teams, Entra, Graph, Azure Bot, and portal behavior is not tested by this workflow.",
-    "",
-    "<details>",
-    "<summary>Traceability</summary>",
-    "",
-    ...bullets(agent?.dispositions ?? [], "No detailed change dispositions are available."),
-    "",
-    `- Previous Teams repository commit: ${inlineCode(result.previousUpstreamCommit ?? "none; first tracked synchronization")}`,
-    `- Teams repository commit: ${inlineCode(result.upstreamCommit)}`,
-    `- Teams sample tree digest: ${inlineCode(result.sourceTree)}`,
-    `- Validated Agents output digest: ${inlineCode(result.outputDigest ?? "not produced")}`,
-    `- Source context digest: ${inlineCode(result.sourceContextDigest)}`,
-    `- Evidence digest: ${inlineCode(result.evidenceDigest ?? "not produced")}`,
-    `- Validation run: ${inlineCode(result.validation?.id ?? "not run")}`,
-    `- SDK/runtime: ${inlineCode(`${result.copilot.sdkVersion}/${result.copilot.runtimeVersion}`)}`,
-    `- Configured model policies: ${inlineCode(JSON.stringify({ implementation: result.copilot.implementation, review: result.copilot.review }))}`,
-    ...bullets(result.observedModels, "Actual model and reasoning effort: unknown."),
-    "",
-    "</details>",
-    "",
-  ].join("\n");
-}
-
-/** A report-only PR needs a real, reviewable diff while keeping the explanation in its body. */
-export function blockingRecord(result: SyncResult): string {
-  return [
-    `# Teams sample synchronization report: ${result.sample}`,
-    "",
-    `Status: ${result.status}`,
-    "",
-    safeText(result.error ?? result.agent?.summary ?? "No structured reason was supplied."),
-    "",
-    "## Affected source changes",
-    "",
-    ...(result.agent?.dispositions ?? []).map((item) => `- ${safeText(item.changeId)}: ${safeText(item.decision)}; ${safeText(item.explanation)}`),
-    "",
-    "This record is generated for the accompanying draft PR. Resolve the stated policy or support gap, then rerun synchronization.",
-    "",
+    "## Teams SDK sample synchronization", "",
+    `Sample: ${code(result.sample)}`,
+    `Teams commit: ${code(result.upstreamCommit)}`,
+    `Frozen migration plan: ${code(result.planHash ?? "not recorded")}`, "",
+    "### Source changes", "", ...(result.upstreamChanges.length ? result.upstreamChanges.map(change) : ["- Initial tracked synchronization."]), "",
+    "### Validation", "", ...validation(result), "",
+    "### Implementer self-audit", "", result.selfAudit?.trim() ? fenced(result.selfAudit) : "No self-audit was captured.", "",
+    "### External validation", "", ...(result.validation?.externalValidationRequired ?? ["Credentialed Teams, Entra, Graph, Azure Bot, and portal behavior."]).map((item) => `- ${safe(item)}`), "",
+    "This draft was produced by the sample synchronization workflow. Review the sample behavior and external setup before merge.", "",
   ].join("\n");
 }
 
 export function workflowSummary(result: SyncResult): string {
-  const failure = result.failureStage ? `; failure stage: ${safeText(result.failureStage)}` : "";
-  const request = result.agent?.policyRequest;
   return [
-    `### ${safeText(result.sample)}: ${safeText(result.status)}`,
-    "",
-    safeText(result.error ?? result.agent?.summary ?? ""),
-    "",
-    `Review: ${safeText(result.review?.result.verdict ?? "not completed")}; repairs: ${result.metrics.repairPasses}${failure}`,
-    ...(result.failureClass ? [`Failure class: ${safeText(result.failureClass)}`] : []),
-    ...(result.validation && !result.publishable ? [`Last completed validation: ${inlineCode(result.validation.id)}, candidate ${inlineCode(result.validation.outputDigest)}. These checks describe that snapshot; they do not authorize publication or prove later edits passed.`] : []),
-    "",
-    ...validationLines(result),
-    "",
-    ...bullets(result.diagnostics, "No additional diagnostic."),
-    ...(request ? ["", `**Question:** ${safeText(request.question)}`, "", `**Recommendation:** ${safeText(request.recommendation)}`, "", `**Evidence:** ${safeText(request.evidence)}`, "", `**Impact:** ${safeText(request.impact)}`, "", `Suggested policy ${inlineCode(request.key)}: ${safeText(request.suggestedPolicy.instruction)}`, `Rationale: ${safeText(request.suggestedPolicy.rationale)}`] : []),
-    "",
+    `### ${safe(result.sample)}: ${result.status}`, "",
+    result.error ? safe(result.error) : "", "",
+    ...(result.validation ? ["#### Validation", "", ...validation(result), ""] : []),
+    ...(result.diagnostics.length ? ["#### Diagnostics", "", ...result.diagnostics.map((item) => `- ${safe(item)}`), ""] : []),
   ].join("\n");
 }

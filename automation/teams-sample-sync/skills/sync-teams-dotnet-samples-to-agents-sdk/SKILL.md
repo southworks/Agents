@@ -5,23 +5,21 @@ description: CI instructions for a bounded Teams SDK .NET to Agents SDK sample s
 
 # Teams sample synchronization
 
-This CI caller uses one persistent implementation session and one separate read-only review
-session. Read `references/sync-contract.md`, then preserve source behavior with the smallest
-necessary sample-only changes. Invoke the public migration skill before code changes and the
-manifest skill after code stabilizes.
+This CI caller uses one persistent implementation session. Preserve the source behavior with
+the smallest necessary changes inside the selected sample. Invoke the public migration skill
+before editing code and the manifest skill when updating the Teams app package.
 
-The CI exposes `validate_sample`, `inspect_manifest_schema`, and a structured submission tool.
-There is no shell tool: use validation instead of asking to run `dotnet` directly. A passing
-build is evidence only when returned by the current validation tool. Report corrections stay in
-the same conversation and do not imply code edits. Two post-review repairs and a 30-minute
-sample deadline are the maximum budget.
+The first turn is read-only planning. Return a concise Markdown specification with an item for
+each relevant source behavior: upstream path and stable symbol, destination change,
+Agents-specific behavior to preserve, manifest impact, and validation expectation. The
+coordinator freezes that plan before it grants write access.
 
-Run `validate_sample` with `code` during implementation and `manifest` during package work;
-run `all` before submitting a successful result. Locally testable behavior changes should have
-meaningful tests in the selected sample's `tests/*.csproj` projects, which the full validator
-runs alongside protected baseline contracts. Never edit while validation is running.
+After write access is granted, implement the frozen plan without editing it. The only CI tool is
+`validate_sample`; use `code` during implementation, `manifest` when editing the package, and
+`all` before completing the task. A validation result is authoritative only for the current
+candidate. Add meaningful selected-sample tests when the behavior can be tested locally.
 
-Use the exact `submit_result` or `submit_review` schema supplied by the caller. Preserve
-capability IDs across repairs; there is no separate assessor, parent-ID reconciliation, or
-five-cycle implementation loop. The independent reviewer receives the full current evidence
-and validation result, inspects source and candidate, and gives concrete blocking findings.
+Finish by returning a Markdown self-audit that accounts for every frozen-plan item and names the
+validation run. If a required behavior cannot be implemented, state the actual blocker. Do not
+claim validation passed when it did not. The coordinator may request one repair for deterministic
+validation failures; keep the frozen plan unchanged during that repair.

@@ -14,19 +14,6 @@ copilot:
   # 1.0.7 bundles a matching Copilot CLI runtime. Pin runtime compatibility, not a model catalog.
   sdkVersion: "1.0.7"
   runtimeVersion: "1.0.83"
-  # Discover an enabled model and its supported effort from the runtime catalog.
-  # When the Actions credential cannot enumerate that catalog, route through
-  # Copilot Auto instead of pinning a model name in repository configuration.
-  implementation:
-    strategy: capability
-    requireReasoning: true
-    preferredReasoningEffort: high
-    fallback: auto
-  review:
-    strategy: capability
-    requireReasoning: true
-    preferredReasoningEffort: high
-    fallback: auto
 
 packagePolicy:
   targetFramework: net8.0

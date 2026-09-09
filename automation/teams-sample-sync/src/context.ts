@@ -2,7 +2,6 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } 
 import path from "node:path";
 import { protection, targets, SyncError } from "./config.js";
 import { digestDirectory, git, hash, materializeTree, tree, upstreamChanges } from "./git.js";
-import { applicablePolicies } from "./policy.js";
 import { readPriorState } from "./state.js";
 import type { Plan, SourceEvidence, SyncContext } from "./types.js";
 
@@ -94,7 +93,6 @@ export function createContext(repo: string, upstream: string, plan: Plan, sample
       canonicalSample: configured.canonicalSample,
     },
     manifest: target.manifest,
-    policies: applicablePolicies(repo, configured, sample),
     protectedPaths: protection(repo).protectedPaths,
   };
   const file = path.join(root, "sync-context.json");
