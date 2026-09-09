@@ -280,6 +280,75 @@ test("an unrelated final manifest area requires an evidence-backed revision", ()
   assert.match(errors.join("\n"), /Final review does not satisfy expected manifest capability base-bot/);
 });
 
+test("one assessed capability may be refined into multiple concrete final fields", () => {
+  const { implementation, review, assessment } = setup();
+  const baseline = { ...assessment, capabilities: [{ id: "named-command-discovery", kind: "bot command discovery",
+    evidence: ["README.md:Commands"], decision: "manifest-field-required" as const,
+    manifestPath: "bots[0].commandLists", reference: "references/bots.md" }] };
+  const commands = [0, 1].map((index) => ({ id: `named-command-${index}`, kind: "bot command discovery",
+    evidence: [`Agent.cs:command-${index}`], decision: "manifest-field-required" as const,
+    manifestPath: `bots[0].commandLists[0].commands[${index}]`, reference: "references/bots.md",
+    assessmentIds: ["named-command-discovery"] }));
+  const implemented = { ...implementation, manifestReport: { ...implementation.manifestReport, capabilities: commands } };
+  const reviewed = { ...review, manifestCapabilities: commands };
+
+  assert.deepEqual(manifestReviewErrors(implemented, reviewed, baseline), []);
+});
+
+test("a reviewer may revise the common area of a capability refined into children", () => {
+  const { implementation, review, assessment } = setup();
+  const baselineCapability = { id: "named-command-discovery", kind: "bot command discovery",
+    evidence: ["README.md:Commands"], decision: "manifest-field-required" as const,
+    manifestPath: "bots", reference: "references/bots.md" };
+  const baseline = { ...assessment, capabilities: [baselineCapability] };
+  const commands = [0, 1].map((index) => ({ id: `named-command-${index}`, kind: "bot command discovery",
+    evidence: [`Agent.cs:command-${index}`], decision: "manifest-field-required" as const,
+    manifestPath: `bots[0].commandLists[0].commands[${index}]`, reference: "references/bots.md",
+    assessmentIds: [baselineCapability.id] }));
+  const implemented = { ...implementation, manifestReport: { ...implementation.manifestReport, capabilities: commands } };
+  const reviewed = { ...review, manifestCapabilities: commands, expectedCapabilityRevisions: [{
+    id: baselineCapability.id, decision: "manifest-field-required" as const,
+    manifestPath: "bots[0].commandLists", explanation: "The source identifies command discovery specifically.",
+    evidence: ["README.md:Commands"], reference: "references/bots.md",
+  }] };
+
+  assert.deepEqual(manifestReviewErrors(implemented, reviewed, baseline), []);
+});
+
+test("assessment array indexes are treated as field areas rather than fixed final positions", () => {
+  const { implementation, review, assessment } = setup();
+  const moved = [{ ...implementation.manifestReport.capabilities[0]!, manifestPath: "bots[1]" }];
+  const assessed = { ...assessment, capabilities: [{ ...assessment.capabilities[0]!, manifestPath: "bots[0]" }] };
+
+  assert.deepEqual(manifestReviewErrors({ ...implementation, manifestReport: {
+    ...implementation.manifestReport, capabilities: moved,
+  } }, { ...review, manifestCapabilities: moved }, assessed), []);
+});
+
+test("assessment refinement IDs must already be lowercase", () => {
+  const { review } = setup();
+  const invalid = { ...review, manifestCapabilities: [{ ...review.manifestCapabilities[0]!,
+    assessmentIds: ["BASE-BOT"] }] };
+
+  assert.throws(() => parseReview(invalid, "sample-a", review.reviewedChangeIds), /assessmentIds must contain lowercase/);
+});
+
+test("capability mismatch explains incomplete assessed paths", () => {
+  const { implementation, review, assessment } = setup();
+  const baseline = { ...assessment, capabilities: [{ id: "link-unfurling", kind: "message extension",
+    evidence: ["Agent.cs:OnQueryLink"], decision: "manifest-field-required" as const,
+    manifestPath: "messageHandlers[0]", reference: "references/message-extensions.md" }] };
+  const capability = { id: "link-unfurling", kind: "message extension", evidence: ["Agent.cs:OnQueryLink"],
+    decision: "manifest-field-required" as const, manifestPath: "composeExtensions[0].messageHandlers[0]",
+    reference: "references/message-extensions.md" };
+  const implemented = { ...implementation, manifestReport: { ...implementation.manifestReport, capabilities: [capability] } };
+  const reviewed = { ...review, manifestCapabilities: [capability] };
+  const errors = manifestReviewErrors(implemented, reviewed, baseline).join("\n");
+
+  assert.match(errors, /expected=\(manifest-field-required, messageHandlers\[0\]\)/);
+  assert.match(errors, /actual=link-unfurling \(manifest-field-required, composeExtensions\[0\]\.messageHandlers\[0\]\)/);
+});
+
 test("capability assessment runs before implementation and is supplied to both agents", async () => {
   const { options, implementation, review, assessment } = setup();
   const order: string[] = [];
@@ -429,7 +498,7 @@ test("review contract rejects unknown IDs and unresolved prior findings", () => 
 
 test("review CLI exposes no write or shell tools", () => {
   const args = copilotArguments("review", { model: "auto" }, "review");
-  assert.ok(args.includes("--available-tools=view,grep,glob,web_fetch"));
+  assert.ok(args.includes("--available-tools=skill,view,grep,glob,web_fetch"));
   assert.ok(args.includes("--deny-tool=write"));
   assert.ok(args.includes("--deny-tool=shell"));
   assert.ok(!args.includes("--allow-tool=write"));

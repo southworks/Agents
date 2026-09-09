@@ -136,6 +136,7 @@ export interface ManifestCapabilityDecision {
   decision: ManifestCapabilityDecisionKind;
   manifestPath: string;
   reference: string;
+  assessmentIds?: string[];
 }
 
 export interface CapabilityAssessment {

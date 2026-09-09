@@ -18,6 +18,13 @@ The public migration and manifest skills remain under `agent-plugins/`; their pa
 configured in `config/targets.yml`. The internal skill is read explicitly from
 [SKILL.md](skills/sync-teams-dotnet-samples-to-agents-sdk/SKILL.md), not installed in the public plugin.
 
+Each isolated Copilot invocation registers a private copy of the configured public skill
+directories in its `COPILOT_HOME`. Prompts invoke them as
+`/teams-sdk-to-agents-sdk-dotnet-migration` and `/teams-app-manifest`, so Copilot receives the
+skill instructions and can open the references and assets bundled with each skill. This is
+stronger than describing `SKILL.md` as ordinary background reading: native invocation injects
+the selected skill into the session and exposes its complete directory as skill resources.
+
 ## How it works
 
 The [workflow](../../.github/workflows/sync-teams-dotnet-samples.yml) accepts manual dispatch
@@ -111,6 +118,21 @@ suggested YAML; no sync PR is created. Reviewer blockers appear as findings. PR 
 are not read as commands, and agent choices do not automatically become policies.
 
 ## Reports and troubleshooting
+
+Open a sample's **migrate** job and expand **Verify exact upstream commit and migrate**
+to follow Copilot output live. Phase labels distinguish initial assessment, implementation,
+review, and report corrections. The log includes the progress, tool activity, and model/usage
+information emitted by the pinned CLI; it does not expose private model reasoning.
+The same output is appended to `agent-log.txt` as it arrives, including partial output before
+a failed invocation. Console lines have a `[Copilot]` prefix; the artifact keeps the original text.
+The phase header also lists the registered skills, making missing skill registration visible in
+the workflow log.
+
+Copilot may fetch informational content only from the approved Microsoft documentation, released
+Teams schema, Teams SDK, and Agents SDK URL patterns configured by the trusted runner. General web
+search, arbitrary URLs, shell execution, MCP servers, and repository credentials remain unavailable.
+The implementation agent changes files through `apply_patch`, `edit`, or `create`; deterministic
+validation executes builds and schema checks outside the agent. The reviewer remains read-only.
 
 Artifacts contain `sync-result.json`, `source-context.json`, `agent-log.txt`, and
 `workflow-summary.md`. Successful candidates also include `change.patch` and `pr-body.md`.

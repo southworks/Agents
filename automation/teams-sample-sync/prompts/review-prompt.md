@@ -4,8 +4,11 @@ You have read-only tools. Do not edit files, run commands, publish or ask a user
 
 First read the exact changes in context.changes, both source snapshots and the candidate.
 In initial mode independently inventory the complete behavior of every source file.
-Read context.skills.migration/SKILL.md and use its SDK mappings as review criteria.
-Read context.skills.manifest/SKILL.md and its applicable references. Audit the actual manifest
+Invoke and follow the registered `/teams-sdk-to-agents-sdk-dotnet-migration` skill and use its
+SDK mappings as review criteria. Then invoke and follow the registered `/teams-app-manifest`
+skill and its applicable references. These are skills, not optional background documents: open
+every local reference selected by the evidence and fetch linked official documentation when the
+local references do not settle a capability or schema decision. Audit the actual manifest
 against implemented commands, scopes, capabilities and approved product intent.
 An existing manifest passing schema validation is not evidence of completeness.
 Independently build a capability inventory from code, routes, configuration, tests, and the
@@ -48,7 +51,8 @@ Return:
       "evidence": ["path:symbol or README section"],
       "decision": "manifest-field-required|no-manifest-field|needs-input|unsupported",
       "manifestPath": "concrete dotted path with numeric array indexes for manifest-field-required; otherwise none",
-      "reference": "manifest-skill reference used" }
+      "reference": "manifest-skill reference used",
+      "assessmentIds": [] }
   ],
   "expectedCapabilityRevisions": [
     { "id": "an ID from the pre-implementation assessment only",
@@ -78,6 +82,13 @@ not apply, with evidence. Agreement with the implementer alone is not approval e
 Use lowercase capability IDs. Never return wildcards or selectors such as `[]`, `[name: ...]`,
 or `[names: ...]` in a manifest path; report the actual numeric index in the final manifest.
 Each capability entry represents one manifest field path. Split behavior requiring multiple
-declarations into separate stable capability IDs instead of joining paths. A capability recorded
+declarations into separate stable capability IDs instead of joining paths. Reuse an assessment ID
+for the same atomic capability. When an assessed capability is broader than the concrete final
+fields, use stable child IDs and put the parent ID in every child's `assessmentIds`. The review
+must preserve the implementer's final IDs and `assessmentIds`; use `expectedCapabilityRevisions`
+instead when the assessment itself was wrong or its manifest path omitted a required parent.
+When revising a parent refined by several children, use the narrowest common manifest field area
+that contains every child rather than forcing them to share one leaf path.
+A capability recorded
 in `expectedCapabilityRevisions` is already part of your effective final inventory and need not
 be duplicated in `manifestCapabilities`.

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { SyncError, record, text } from "./config.js";
 import { digestDirectory, stable } from "./git.js";
@@ -108,13 +108,19 @@ export function copilotArguments(prompt: string, configuration: CopilotConfigura
   return [
     "--prompt", prompt,
     ...modelArguments,
-    "--silent",
-    ...(role === "review" ? ["--available-tools=view,grep,glob,web_fetch", "--deny-tool=write"] :
-      ["--available-tools=apply_patch,create,edit,view,grep,glob,web_fetch", "--allow-tool=write"]),
+    "--stream=on",
+    "--output-format=text",
+    ...(role === "review" ? ["--available-tools=skill,view,grep,glob,web_fetch", "--deny-tool=write"] :
+      ["--available-tools=skill,apply_patch,create,edit,view,grep,glob,web_fetch", "--allow-tool=write"]),
     "--deny-tool=shell",
-    "--allow-url=https://learn.microsoft.com/en-us/microsoftteams/platform/*",
-    "--allow-url=https://learn.microsoft.com/en-us/microsoft-365/extensibility/schema/*",
+    "--allow-url=https://learn.microsoft.com/*",
+    "--allow-url=https://developer.microsoft.com/json-schemas/teams/*",
+    "--allow-url=https://aka.ms/*",
+    "--allow-url=https://microsoft.github.io/teams-sdk/*",
     "--allow-url=https://github.com/OfficeDev/microsoft-teams-app-schema/*",
+    "--allow-url=https://raw.githubusercontent.com/OfficeDev/microsoft-teams-app-schema/*",
+    "--allow-url=https://github.com/microsoft/agents-for-net/*",
+    "--allow-url=https://github.com/microsoft/teams.net/*",
     "--disable-builtin-mcps",
     "--disallow-temp-dir",
     "--no-ask-user",
@@ -125,7 +131,27 @@ export function copilotArguments(prompt: string, configuration: CopilotConfigura
   ];
 }
 
+export function installCopilotSkills(repo: string, contextFile: string, copilotHome: string): string[] {
+  const context = JSON.parse(readFileSync(contextFile, "utf8")) as SyncContext;
+  const installed: string[] = [];
+  mkdirSync(path.join(copilotHome, "skills"), { recursive: true });
+  for (const configuredPath of Object.values(context.skills)) {
+    const source = path.resolve(repo, configuredPath);
+    const relative = path.relative(repo, source);
+    if (relative.startsWith("..") || path.isAbsolute(relative) || !existsSync(path.join(source, "SKILL.md"))) {
+      throw new SyncError(`Configured Copilot skill is invalid or outside the repository: ${configuredPath}`);
+    }
+    const skillFile = readFileSync(path.join(source, "SKILL.md"), "utf8");
+    const name = /^name:\s*([a-z0-9-]+)\s*$/m.exec(skillFile)?.[1];
+    if (!name) throw new SyncError(`Configured Copilot skill has no valid name: ${configuredPath}`);
+    cpSync(source, path.join(copilotHome, "skills", name), { recursive: true, force: true });
+    installed.push(name);
+  }
+  return installed;
+}
+
 export class CopilotAgentRunner implements AgentRunner {
+  private readonly calls = new Map<number, number>();
   constructor(
     private readonly repo: string,
     private readonly runnerRoot: string,
@@ -137,7 +163,18 @@ export class CopilotAgentRunner implements AgentRunner {
   async run(input: { contextFile: string; prompt: string; attempt: number; readOnly?: boolean }): Promise<unknown> {
     const copilotHome = path.join(this.runnerRoot, `${this.role}-attempt-${input.attempt}`);
     mkdirSync(copilotHome, { recursive: true });
-    const args = copilotArguments(input.prompt, this.configuration, input.readOnly ? "review" : this.role);
+    const installedSkills = installCopilotSkills(this.repo, input.contextFile, copilotHome);
+    const invocation = (this.calls.get(input.attempt) ?? 0) + 1;
+    this.calls.set(input.attempt, invocation);
+    const phase = input.attempt === 0 ? "Initial assessment" :
+      `${this.role === "implement" ? "Implementation" : "Review"} — cycle ${input.attempt}`;
+    const label = invocation > 1 ? `${phase} — report correction ${invocation - 1}` : phase;
+    const log = createCopilotLog((value) => appendFileSync(this.logFile, value, "utf8"),
+      (value) => process.stdout.write(value));
+    log.write(`\n===== ${label} =====\n`);
+    log.write(`Registered Copilot skills: ${installedSkills.join(", ")}\n`);
+    const prompt = input.prompt + "\nOutput transport: wrap the final required JSON report in a json fenced code block. Do not change its schema.";
+    const args = copilotArguments(prompt, this.configuration, input.readOnly ? "review" : this.role);
     const outcome = await new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
       const child = spawn("copilot", args, {
         cwd: this.repo,
@@ -149,15 +186,37 @@ export class CopilotAgentRunner implements AgentRunner {
         stdio: ["ignore", "pipe", "pipe"],
       });
       let stdout = ""; let stderr = "";
-      child.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString("utf8"); });
-      child.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString("utf8"); });
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
+      child.stdout.on("data", (chunk: string) => { stdout += chunk; log.write(chunk); });
+      child.stderr.on("data", (chunk: string) => { stderr += chunk; log.write(chunk); });
       child.on("error", reject);
       child.on("close", (code) => resolve({ code, stdout, stderr }));
-    }).catch((error: unknown) => { throw new SyncError(`Cannot run Copilot CLI: ${error instanceof Error ? error.message : String(error)}`); });
-    appendFileSync(this.logFile, `\n===== ${this.role} cycle ${input.attempt} =====\n${outcome.stdout}\n${outcome.stderr}\n`, "utf8");
+    }).catch((error: unknown) => { throw new SyncError(`Cannot run Copilot CLI: ${error instanceof Error ? error.message : String(error)}`); })
+      .finally(() => log.finish());
     if (outcome.code !== 0) throw new SyncError(`Copilot CLI failed with exit ${String(outcome.code)}: ${outcome.stderr.trim()}`);
     return parseCopilotOutput(outcome.stdout);
   }
+}
+
+// Prefix every console line so agent output cannot become a GitHub workflow command.
+// Keep the artifact and parser input unmodified, including incomplete final lines.
+export function createCopilotLog(artifact: (text: string) => void, console: (text: string) => void) {
+  let lineStart = true;
+  return {
+    write(text: string): void {
+      artifact(text);
+      const parts = text.split(/(?<=[\r\n])/);
+      for (const part of parts) {
+        if (!part) continue;
+        console((lineStart ? "[Copilot] " : "") + part);
+        lineStart = /[\r\n]$/.test(part);
+      }
+    },
+    finish(): void {
+      if (!lineStart) console("\n");
+    },
+  };
 }
 
 export function buildAgentPrompt(repo: string, contextFile: string, repair: boolean, policyKeys: string[]): string {

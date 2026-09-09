@@ -51,6 +51,19 @@ test("manifest validation uses released schema, package assets, and source capab
     assert.deepEqual(await checkManifest(root, targets(item.repo).samples["sample-a"]!.manifest), []);
     write(path.join(root, "color.png"), "misplaced");
     assert.match((await checkManifest(root, targets(item.repo).samples["sample-a"]!.manifest)).join("\n"), /outside appManifest/);
+    globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({
+      type: "object", properties: { webApplicationInfo: { type: "object", properties: { id: { type: "string" } },
+        additionalProperties: false } }, additionalProperties: true,
+    }), { status: 200 }));
+    write(path.join(packageRoot, "manifest.json"), JSON.stringify({
+      $schema: "https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json",
+      manifestVersion: "1.22", version: "1.0.0", id: "${{CLIENT_ID}}",
+      name: { short: "Sample" }, description: { short: "Sample", full: "Sample" },
+      icons: { color: "color.png", outline: "outline.png" }, bots: [{ botId: "${{CLIENT_ID}}", scopes: ["personal"] }],
+      webApplicationInfo: { id: "${{CLIENT_ID}}", applicationPermissions: ["User.Read"] },
+    }));
+    assert.match((await checkManifest(root, targets(item.repo).samples["sample-a"]!.manifest)).join("\n"),
+      /webApplicationInfo\.applicationPermissions: property is not allowed/);
   } finally { globalThis.fetch = originalFetch; }
 });
 

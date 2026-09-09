@@ -127,6 +127,12 @@ async function fetchSchema(url: string): Promise<unknown> {
 
 function schemaError(error: ErrorObject): string {
   const location = error.instancePath.replace(/^\//, "").replaceAll("/", ".") || "<root>";
+  const additionalProperty = error.keyword === "additionalProperties" &&
+    typeof error.params.additionalProperty === "string" ? error.params.additionalProperty : undefined;
+  if (additionalProperty) {
+    const propertyPath = location === "<root>" ? additionalProperty : `${location}.${additionalProperty}`;
+    return `Manifest schema error at ${propertyPath}: property is not allowed by the released schema`;
+  }
   return `Manifest schema error at ${location}: ${error.message ?? error.keyword}`;
 }
 
