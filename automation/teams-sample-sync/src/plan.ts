@@ -36,12 +36,17 @@ export function createPlan(repo: string, upstream: string, chosen?: string): Pla
       protection: hash(stable(owner)),
       migrationSkill: digestDirectory(path.join(repo, configured.migrationSkill)),
       manifestSkill: digestDirectory(path.join(repo, configured.manifestSkill)),
+      syncSkill: digestDirectory(path.join(repo, "automation/teams-sample-sync/skills/sync-teams-dotnet-samples-to-agents-sdk")),
       canonicalSample: digestDirectory(path.join(repo, configured.canonicalSample), owner.outputDigestExcludes),
       copilot: hash(stable(configured.copilot)),
       packagePolicy: hash(stable(configured.packagePolicy)),
-      validator: hash(stable([configured.validatorVersion,
+      validator: hash(stable([configured.validatorVersion, configured.copilot.sdkVersion, configured.copilot.runtimeVersion,
         readFileSync(path.join(repo, "automation/teams-sample-sync/prompts/agent-prompt.md"), "utf8"),
-        readFileSync(path.join(repo, "automation/teams-sample-sync/prompts/review-prompt.md"), "utf8")])),
+        readFileSync(path.join(repo, "automation/teams-sample-sync/prompts/review-prompt.md"), "utf8"),
+        digestDirectory(path.join(repo, "automation/teams-sample-sync/src")),
+        digestDirectory(path.join(repo, "automation/teams-sample-sync/tests/contracts"), owner.outputDigestExcludes),
+        readFileSync(path.join(repo, "automation/teams-sample-sync/package.json"), "utf8"),
+        readFileSync(path.join(repo, "automation/teams-sample-sync/package-lock.json"), "utf8")])),
     };
     const inputDigest = hash(stable(componentDigests));
     const changedComponents = Object.entries(componentDigests)

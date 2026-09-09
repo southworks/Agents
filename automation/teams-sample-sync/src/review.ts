@@ -1,276 +1,100 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { record, text, relativePath, SyncError } from "./config.js";
-import type { AgentResult, CapabilityAssessment, ChangeDisposition, ExpectedCapabilityRevision, ManifestCapabilityDecision, ReviewResult, SyncContext } from "./types.js";
+import { record, relativePath, SyncError, text } from "./config.js";
+import { hash, stable } from "./git.js";
+import type { AgentResult, ChangeDisposition, ManifestCapabilityDecision, ReviewResult, SyncContext } from "./types.js";
 
 function list(value: unknown, name: string): string[] {
-  if (!Array.isArray(value) || value.some((v) => typeof v !== "string" || !v.trim())) {
-    throw new SyncError(name + " must be a string list");
-  }
-  if (new Set(value).size !== value.length) throw new SyncError(name + " contains duplicates");
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !item.trim())) throw new SyncError(`${name} must be a nonempty string list`);
+  if (new Set(value).size !== value.length) throw new SyncError(`${name} contains duplicates`);
   return value as string[];
 }
-
-function concreteManifestPath(value: string): boolean {
-  return /^[A-Za-z_$][A-Za-z0-9_$-]*(?:(?:\.[A-Za-z_$][A-Za-z0-9_$-]*)|(?:\[\d+\]))*$/.test(value);
-}
-
-function withinManifestArea(value: string, area: string): boolean {
-  const normalizeIndexes = (pathValue: string): string => pathValue.replace(/\[\d+\]/g, "[*]");
-  const normalizedValue = normalizeIndexes(value);
-  const normalizedArea = normalizeIndexes(area);
-  return normalizedValue === normalizedArea || normalizedValue.startsWith(normalizedArea + ".") ||
-    normalizedValue.startsWith(normalizedArea + "[");
-}
+function objects(value: unknown, name: string): unknown[] { if (!Array.isArray(value)) throw new SyncError(`${name} must be a list`); return value; }
+function concreteManifestPath(value: string): boolean { return /^[A-Za-z_$][A-Za-z0-9_$-]*(?:(?:\.[A-Za-z_$][A-Za-z0-9_$-]*)|(?:\[\d+\]))*$/.test(value); }
 
 export function parseDispositions(value: unknown): ChangeDisposition[] {
   if (!Array.isArray(value)) throw new SyncError("dispositions must be a list");
-  return value.map((raw) => {
-    const item = record(raw, "disposition");
-    const decision = text(item.decision, "decision");
-    if (!["adapted", "already-present", "not-applicable", "blocked"].includes(decision)) {
-      throw new SyncError("Invalid disposition decision");
-    }
-    return {
-      changeId: text(item.changeId, "changeId"), decision: decision as ChangeDisposition["decision"],
-      explanation: text(item.explanation, "explanation"),
-      destinationPath: text(item.destinationPath, "destinationPath"),
-      symbol: text(item.symbol, "symbol"), verification: text(item.verification, "verification"),
-    };
-  });
-}
-
-export function parseManifestCapabilities(value: unknown): ManifestCapabilityDecision[] {
-  if (!Array.isArray(value) || value.length === 0) throw new SyncError("manifest capability ledger must be a nonempty list");
   const result = value.map((raw) => {
-    const item = record(raw, "manifest capability");
-    const decision = text(item.decision, "manifest capability.decision");
-    if (!["manifest-field-required", "no-manifest-field", "needs-input", "unsupported"].includes(decision)) {
-      throw new SyncError("Invalid manifest capability decision");
-    }
-    const capability: ManifestCapabilityDecision = {
-      id: text(item.id, "manifest capability.id").toLowerCase(), kind: text(item.kind, "manifest capability.kind"),
-      evidence: list(item.evidence, "manifest capability.evidence"),
-      decision: decision as ManifestCapabilityDecision["decision"],
-      manifestPath: text(item.manifestPath, "manifest capability.manifestPath"),
-      reference: text(item.reference, "manifest capability.reference"),
-    };
-    const assessmentIds = item.assessmentIds === undefined ? [] : list(item.assessmentIds, "manifest capability.assessmentIds");
-    if (assessmentIds.length > 0) capability.assessmentIds = assessmentIds;
-    if (!/^[a-z0-9][a-z0-9:._-]*$/.test(capability.id)) throw new SyncError("manifest capability.id must be lowercase and stable");
-    if (assessmentIds.some((id) => !/^[a-z0-9][a-z0-9:._-]*$/.test(id))) {
-      throw new SyncError(`Manifest capability ${capability.id} assessmentIds must contain lowercase stable IDs`);
-    }
-    if (capability.evidence.length === 0) throw new SyncError(`Manifest capability ${capability.id} requires source evidence`);
-    if (capability.reference === "none") throw new SyncError(`Manifest capability ${capability.id} requires a manifest-skill reference`);
-    if (decision === "manifest-field-required" && capability.manifestPath === "none") {
-      throw new SyncError(`Manifest capability ${capability.id} requires a concrete manifestPath`);
-    }
-    if (decision === "manifest-field-required" && !concreteManifestPath(capability.manifestPath)) {
-      throw new SyncError(`Manifest capability ${capability.id} manifestPath must be a concrete dotted path with numeric array indexes, for example authorization.permissions.resourceSpecific[0].name`);
-    }
-    if (decision !== "manifest-field-required" && capability.manifestPath !== "none") {
-      throw new SyncError(`Manifest capability ${capability.id} with decision ${decision} requires manifestPath none`);
-    }
-    return capability;
+    const item = record(raw, "disposition"); const decision = text(item.decision, "disposition.decision");
+    if (!["adapted", "already-present", "not-applicable", "blocked"].includes(decision)) throw new SyncError("Invalid disposition decision");
+    return { changeId: text(item.changeId, "disposition.changeId"), decision: decision as ChangeDisposition["decision"], explanation: text(item.explanation, "disposition.explanation"), destinationPath: text(item.destinationPath, "disposition.destinationPath"), symbol: text(item.symbol, "disposition.symbol"), verification: text(item.verification, "disposition.verification") };
   });
-  if (new Set(result.map((item) => item.id)).size !== result.length) throw new SyncError("manifest capability ledger contains duplicate IDs");
+  if (new Set(result.map((item) => item.changeId)).size !== result.length) throw new SyncError("dispositions contain duplicate source IDs");
   return result;
 }
 
-export function parseCapabilityAssessment(value: unknown, sample: string): CapabilityAssessment {
-  const item = record(value, "capability assessment");
-  if (item.version !== 1 || item.sample !== sample) throw new SyncError("Invalid capability assessment envelope");
-  const capabilities = parseManifestCapabilities(item.capabilities);
-  if (capabilities.some((capability) => (capability.assessmentIds ?? []).length > 0)) {
-    throw new SyncError("Pre-implementation capabilities cannot refine another assessment capability");
-  }
-  return {
-    version: 1,
-    sample,
-    summary: text(item.summary, "capability assessment.summary"),
-    capabilities,
-  };
+export function parseManifestCapabilities(value: unknown, allowEmpty = false): ManifestCapabilityDecision[] {
+  if (!Array.isArray(value) || (!allowEmpty && value.length === 0)) throw new SyncError("manifest capability inventory must be a nonempty list");
+  const result = value.map((raw) => {
+    const item = record(raw, "manifest capability"); const decision = text(item.decision, "manifest capability.decision");
+    if (!["manifest-field-required", "no-manifest-field", "needs-input", "unsupported"].includes(decision)) throw new SyncError("Invalid manifest capability decision");
+    const capability: ManifestCapabilityDecision = { id: text(item.id, "manifest capability.id").toLowerCase(), kind: text(item.kind, "manifest capability.kind"), evidence: list(item.evidence, "manifest capability.evidence"), decision: decision as ManifestCapabilityDecision["decision"], manifestPath: text(item.manifestPath, "manifest capability.manifestPath"), reference: text(item.reference, "manifest capability.reference") };
+    if (!/^[a-z0-9][a-z0-9:._-]*$/.test(capability.id)) throw new SyncError("manifest capability.id must be lowercase and stable");
+    if (capability.evidence.length === 0) throw new SyncError(`Manifest capability ${capability.id} requires source evidence`);
+    if (capability.reference === "none") throw new SyncError(`Manifest capability ${capability.id} requires a skill reference`);
+    if (capability.decision === "manifest-field-required" && !concreteManifestPath(capability.manifestPath)) throw new SyncError(`Manifest capability ${capability.id} requires a concrete manifestPath`);
+    if (capability.decision !== "manifest-field-required" && capability.manifestPath !== "none") throw new SyncError(`Manifest capability ${capability.id} requires manifestPath none`);
+    return capability;
+  });
+  if (new Set(result.map((item) => item.id)).size !== result.length) throw new SyncError("manifest capability inventory contains duplicate IDs");
+  return result;
 }
 
-function parseExpectedCapabilityRevisions(value: unknown): ExpectedCapabilityRevision[] {
-  if (value === undefined) return [];
-  if (!Array.isArray(value)) throw new SyncError("expectedCapabilityRevisions must be a list");
-  const revisions = value.map((raw) => {
-    const item = record(raw, "expected capability revision");
-    const decision = text(item.decision, "expected capability revision.decision");
-    if (!["manifest-field-required", "no-manifest-field", "needs-input", "unsupported"].includes(decision)) {
-      throw new SyncError("Invalid expected capability revision decision");
-    }
-    const manifestPath = text(item.manifestPath, "expected capability revision.manifestPath");
-    if ((decision === "manifest-field-required") === (manifestPath === "none")) {
-      throw new SyncError("Expected capability revision has inconsistent manifestPath");
-    }
-    return {
-      id: text(item.id, "expected capability revision.id").toLowerCase(),
-      decision: decision as ExpectedCapabilityRevision["decision"],
-      manifestPath,
-      explanation: text(item.explanation, "expected capability revision.explanation"),
-      evidence: list(item.evidence, "expected capability revision.evidence"),
-      reference: text(item.reference, "expected capability revision.reference"),
-    };
-  });
-  if (new Set(revisions.map((item) => item.id)).size !== revisions.length) {
-    throw new SyncError("expectedCapabilityRevisions contains duplicate IDs");
+export function parseAgentResult(value: unknown, sample: string): AgentResult {
+  const item = record(value, "agent result");
+  if (item.version !== 2 || item.sample !== sample || !["updated", "unchanged", "needs-policy", "unsupported"].includes(String(item.status))) throw new SyncError("Agent result has invalid version, sample, or status");
+  const manifest = record(item.manifestReport, "agent result.manifestReport");
+  const result: AgentResult = { version: 2, sample, status: item.status as AgentResult["status"], summary: text(item.summary, "agent result.summary"), dispositions: parseDispositions(item.dispositions), upstreamChanges: objects(item.upstreamChanges, "agent result.upstreamChanges"), preservedDifferences: objects(item.preservedDifferences, "agent result.preservedDifferences"), appliedPolicies: list(item.appliedPolicies, "agent result.appliedPolicies"), manifestReport: { mode: text(manifest.mode, "manifestReport.mode"), changes: objects(manifest.changes, "manifestReport.changes"), validation: objects(manifest.validation, "manifestReport.validation"), externalSetup: objects(manifest.externalSetup, "manifestReport.externalSetup"), capabilities: parseManifestCapabilities(manifest.capabilities, item.status === "needs-policy" || item.status === "unsupported") } };
+  if (result.status === "needs-policy") {
+    const request = record(item.policyRequest, "agent result.policyRequest"); const suggestion = record(request.suggestedPolicy, "agent result.policyRequest.suggestedPolicy");
+    result.policyRequest = { key: text(request.key, "policyRequest.key"), question: text(request.question, "policyRequest.question"), recommendation: text(request.recommendation, "policyRequest.recommendation"), evidence: text(request.evidence, "policyRequest.evidence"), impact: text(request.impact, "policyRequest.impact"), suggestedPolicy: { instruction: text(suggestion.instruction, "suggestedPolicy.instruction"), rationale: text(suggestion.rationale, "suggestedPolicy.rationale") } };
   }
-  if (revisions.some((item) => item.evidence.length === 0 || item.reference === "none")) {
-    throw new SyncError("Expected capability revisions require evidence and a manifest-skill reference");
-  }
-  if (revisions.some((item) => item.decision === "manifest-field-required" && !concreteManifestPath(item.manifestPath))) {
-    throw new SyncError("Expected capability revision manifestPath must be a concrete dotted path with numeric array indexes");
-  }
-  return revisions;
+  return result;
 }
 
 function jsonPathExists(value: unknown, expression: string): boolean {
-  if (!expression || expression === "none") return false;
-  const tokens = [...expression.matchAll(/(?:^|\.)([^.\[\]]+)|\[(\d+)\]/g)]
-    .map((match) => match[1] ?? Number(match[2]));
-  if (tokens.length === 0) return false;
-  let current: unknown = value;
-  for (const token of tokens) {
-    if (typeof token === "number") {
-      if (!Array.isArray(current) || token >= current.length) return false;
-      current = current[token];
-    } else {
-      if (!current || typeof current !== "object" || !(token in current)) return false;
-      current = (current as Record<string, unknown>)[token];
-    }
-  }
+  const tokens = [...expression.matchAll(/(?:^|\.)([^.\[\]]+)|\[(\d+)\]/g)].map((match) => match[1] ?? Number(match[2]));
+  let current = value; for (const token of tokens) { if (typeof token === "number") { if (!Array.isArray(current) || current[token] === undefined) return false; current = current[token]; } else { if (!current || typeof current !== "object" || !(token in current)) return false; current = (current as Record<string, unknown>)[token]; } }
   return current !== undefined && current !== null;
 }
 
+export function evidenceDigest(result: AgentResult): string { return hash(stable(result)); }
+
 export function coverageErrors(repo: string, context: SyncContext, agent: AgentResult): string[] {
-  const errors: string[] = [];
-  const expected = context.changes.map((change) => change.id);
-  const dispositions = agent.dispositions ?? [];
-  const actual = dispositions.map((item) => item.changeId);
-  if (new Set(actual).size !== actual.length || expected.some((id) => !actual.includes(id)) ||
-      actual.some((id) => !expected.includes(id))) errors.push("Account for each source change ID exactly once");
-  for (const item of dispositions) {
-    if (item.decision === "blocked") errors.push("Unresolved source change: " + item.changeId);
-    if (item.decision === "adapted" || item.decision === "already-present") {
-      if (!relativePath(item.destinationPath) || !item.destinationPath.startsWith(context.paths.destination + "/") ||
-          !existsSync(path.join(repo, item.destinationPath))) errors.push("Invalid destination evidence: " + item.changeId);
-    }
+  const errors: string[] = []; const expected = context.changes.map((change) => change.id); const actual = agent.dispositions.map((item) => item.changeId);
+  const policyKeys = context.policies.map((policy) => policy.key);
+  if (agent.appliedPolicies.some((key) => !policyKeys.includes(key)) ||
+      (["updated", "unchanged"].includes(agent.status) && policyKeys.some((key) => !agent.appliedPolicies.includes(key)))) {
+    errors.push("Applied policies must match the configured policy keys exactly");
   }
-  if (agent.manifestReport.mode !== "complete" || agent.manifestReport.validation.length === 0) {
-    errors.push("Complete the manifest skill assessment; schema validity alone is not completeness");
+  if (!["updated", "unchanged"].includes(agent.status)) return errors;
+  if (expected.some((id) => !actual.includes(id)) || actual.some((id) => !expected.includes(id))) errors.push("Account for each source change ID exactly once");
+  for (const item of agent.dispositions) {
+    if (item.decision === "blocked") errors.push(`Unresolved source change: ${item.changeId}`);
+    if (["adapted", "already-present"].includes(item.decision) && (!relativePath(item.destinationPath) || !item.destinationPath.startsWith(`${context.paths.destination}/`) || !existsSync(path.join(repo, item.destinationPath)))) errors.push(`Invalid destination evidence: ${item.changeId}`);
   }
+  if (agent.manifestReport.mode !== "complete" || agent.manifestReport.validation.length === 0) errors.push("Complete the manifest skill assessment");
   const manifestFile = path.join(repo, context.paths.destination, context.manifest.packageDirectory, "manifest.json");
-  if (!existsSync(manifestFile)) errors.push("The selected sample must contain appManifest/manifest.json after manifest reconciliation");
-  else {
-    let manifest: unknown;
-    try { manifest = JSON.parse(readFileSync(manifestFile, "utf8")); }
-    catch { errors.push("Cannot verify capability ledger against invalid manifest JSON"); }
-    if (manifest !== undefined) {
-      for (const capability of agent.manifestReport.capabilities) {
-        if (capability.decision === "manifest-field-required" && !jsonPathExists(manifest, capability.manifestPath)) {
-          errors.push(`Manifest capability path does not exist: ${capability.id} -> ${capability.manifestPath}`);
-        }
-        if (capability.decision === "needs-input") {
-          errors.push(`Manifest capability remains unresolved: ${capability.id}`);
-        }
-        if (capability.decision === "unsupported" && ["updated", "unchanged"].includes(agent.status)) {
-          errors.push(`Required manifest capability is unsupported: ${capability.id}`);
-        }
-      }
-    }
+  let manifest: unknown; try { manifest = JSON.parse(readFileSync(manifestFile, "utf8")); } catch { errors.push("Cannot verify capability inventory against manifest JSON"); }
+  for (const capability of agent.manifestReport.capabilities) {
+    if (capability.decision === "manifest-field-required" && manifest !== undefined && !jsonPathExists(manifest, capability.manifestPath)) errors.push(`Manifest capability path does not exist: ${capability.id} -> ${capability.manifestPath}`);
+    if (["needs-input", "unsupported"].includes(capability.decision) && ["updated", "unchanged"].includes(agent.status)) errors.push(`Unresolved manifest capability: ${capability.id}`);
   }
   return errors;
 }
 
-export function manifestReviewErrors(agent: AgentResult, review: ReviewResult, assessment?: CapabilityAssessment): string[] {
-  const expected = new Map(agent.manifestReport.capabilities.map((item) => [item.id, item]));
-  const actual = new Map(review.manifestCapabilities.map((item) => [item.id, item]));
-  const revisions = new Map((review.expectedCapabilityRevisions ?? []).map((item) => [item.id, item]));
-  const reviewed = (id: string) => actual.get(id) ?? revisions.get(id);
-  const assessmentLinks = (item: ManifestCapabilityDecision | ExpectedCapabilityRevision): string[] =>
-    "assessmentIds" in item ? item.assessmentIds ?? [] : [];
-  const sameLinks = (left: ManifestCapabilityDecision | ExpectedCapabilityRevision,
-    right: ManifestCapabilityDecision | ExpectedCapabilityRevision): boolean =>
-    assessmentLinks(left).length === assessmentLinks(right).length &&
-    assessmentLinks(left).every((id) => assessmentLinks(right).includes(id));
-  const describe = (items: ManifestCapabilityDecision[]): string => items.length === 0 ? "missing" :
-    items.map((item) => `${item.id} (${item.decision}, ${item.manifestPath})`).join("; ");
-  const errors: string[] = [];
-  for (const id of new Set([...expected.keys(), ...actual.keys()])) {
-    const implementation = expected.get(id); const reviewerDecision = reviewed(id);
-    if (!implementation || !reviewerDecision) {
-      errors.push(`Reviewer manifest capability inventory differs for ${id}: implementation=${implementation ? "present" : "missing"}; review=${reviewerDecision ? "present" : "missing"}`);
-      continue;
-    }
-    if (implementation.decision !== reviewerDecision.decision ||
-        implementation.manifestPath !== reviewerDecision.manifestPath || !sameLinks(implementation, reviewerDecision)) {
-      errors.push(`Reviewer manifest capability assessment differs for ${id}: implementation=(${implementation.decision}, ${implementation.manifestPath}, assessmentIds=${JSON.stringify(assessmentLinks(implementation))}); review=(${reviewerDecision.decision}, ${reviewerDecision.manifestPath}, assessmentIds=${JSON.stringify(assessmentLinks(reviewerDecision))})`);
-    }
-  }
-  if (assessment) {
-    for (const revision of revisions.values()) {
-      if (!assessment.capabilities.some((item) => item.id === revision.id)) {
-        errors.push(`Reviewer revised unknown expected manifest capability ${revision.id}`);
-      }
-    }
-    for (const baseline of assessment.capabilities) {
-      const revision = revisions.get(baseline.id);
-      const decision = revision?.decision ?? baseline.decision;
-      const expectedPath = revision?.manifestPath ?? baseline.manifestPath;
-      const implementations = [...expected.values()].filter((item) =>
-        item.id === baseline.id || assessmentLinks(item).includes(baseline.id));
-      const finalReviews = [...actual.values()].filter((item) =>
-        item.id === baseline.id || assessmentLinks(item).includes(baseline.id));
-      const satisfies = (item: ManifestCapabilityDecision): boolean => item.decision === decision &&
-        (decision !== "manifest-field-required" ||
-          withinManifestArea(item.manifestPath, expectedPath));
-      if (implementations.length === 0 || implementations.some((item) => !satisfies(item))) {
-        errors.push(`Implementation does not satisfy expected manifest capability ${baseline.id}: expected=(${decision}, ${expectedPath}); actual=${describe(implementations)}`);
-      }
-      const effectiveRevision = revision === undefined ? undefined : reviewed(baseline.id);
-      const finalReviewSatisfied = finalReviews.length > 0 ? finalReviews.every((item) => satisfies(item)) :
-        effectiveRevision !== undefined && effectiveRevision.decision === decision &&
-          effectiveRevision.manifestPath === expectedPath;
-      if (!finalReviewSatisfied) {
-        errors.push(`Final review does not satisfy expected manifest capability ${baseline.id}: expected=(${decision}, ${expectedPath}); actual=${describe(finalReviews)}`);
-      }
-    }
-  }
-  return errors;
-}
-
-export function parseReview(value: unknown, sample: string, expectedIds: string[], previousFindingIds: string[] = []): ReviewResult {
-  const item = record(value, "review");
-  if (item.version !== 1 || item.sample !== sample ||
-      !["approved", "changes-required", "blocked"].includes(String(item.verdict))) throw new SyncError("Invalid review envelope");
-  const reviewedChangeIds = list(item.reviewedChangeIds, "reviewedChangeIds");
-  if (expectedIds.some((id) => !reviewedChangeIds.includes(id)) || reviewedChangeIds.some((id) => !expectedIds.includes(id))) {
-    throw new SyncError("Reviewer must account for every source change");
-  }
+export function parseReview(value: unknown, sample: string, expectedChangeIds: string[], expectedCapabilityIds: string[], previousFindingIds: string[] = []): ReviewResult {
+  const item = record(value, "review"); if (item.version !== 2 || item.sample !== sample || !["approved", "changes-required", "blocked"].includes(String(item.verdict))) throw new SyncError("Invalid review envelope");
+  const reviewedChangeIds = list(item.reviewedChangeIds, "reviewedChangeIds"); const reviewedCapabilityIds = list(item.reviewedCapabilityIds, "reviewedCapabilityIds");
+  const sameIds = (actual: string[], expected: string[]) => actual.length === expected.length && expected.every((id) => actual.includes(id));
+  if (!sameIds(reviewedChangeIds, expectedChangeIds) || !sameIds(reviewedCapabilityIds, expectedCapabilityIds)) throw new SyncError("Reviewer must account for every source change and capability ID exactly once");
   if (!Array.isArray(item.findings)) throw new SyncError("Review findings must be a list");
-  const findings = item.findings.map((raw) => {
-    const finding = record(raw, "finding");
-    return { id: text(finding.id, "finding.id"), source: text(finding.source, "finding.source"),
-      destination: text(finding.destination, "finding.destination"),
-      expectedBehavior: text(finding.expectedBehavior, "finding.expectedBehavior"),
-      correction: text(finding.correction, "finding.correction") };
-  });
-  const ids = findings.map((f) => f.id);
-  const resolvedFindingIds = list(item.resolvedFindingIds, "resolvedFindingIds");
-  if (new Set(ids).size !== ids.length || resolvedFindingIds.some((id) => ids.includes(id) || !previousFindingIds.includes(id)) ||
-      previousFindingIds.some((id) => !ids.includes(id) && !resolvedFindingIds.includes(id))) {
-    throw new SyncError("Reviewer must resolve or retain each previous finding");
-  }
-  if ((item.verdict === "approved") !== (findings.length === 0)) {
-    throw new SyncError("Only a review without blocking findings can approve");
-  }
-  return { version: 1, sample, verdict: item.verdict as ReviewResult["verdict"],
-    summary: text(item.summary, "review.summary"), reviewedChangeIds, findings, resolvedFindingIds,
-    manifestAssessment: text(item.manifestAssessment, "manifestAssessment"),
-    manifestCapabilities: parseManifestCapabilities(item.manifestCapabilities),
-    expectedCapabilityRevisions: parseExpectedCapabilityRevisions(item.expectedCapabilityRevisions),
-    testAssessment: text(item.testAssessment, "testAssessment") };
+  const findings = item.findings.map((raw) => { const finding = record(raw, "finding"); const category = text(finding.category, "finding.category"); if (!["code", "manifest", "test", "evidence"].includes(category)) throw new SyncError("Invalid finding category"); return { id: text(finding.id, "finding.id"), category: category as "code" | "manifest" | "test" | "evidence", source: text(finding.source, "finding.source"), destination: text(finding.destination, "finding.destination"), expectedBehavior: text(finding.expectedBehavior, "finding.expectedBehavior"), correction: text(finding.correction, "finding.correction") }; });
+  const resolvedFindingIds = list(item.resolvedFindingIds, "resolvedFindingIds"); const ids = findings.map((finding) => finding.id);
+  if (new Set(ids).size !== ids.length || resolvedFindingIds.some((id) => ids.includes(id) || !previousFindingIds.includes(id)) || previousFindingIds.some((id) => !ids.includes(id) && !resolvedFindingIds.includes(id))) throw new SyncError("Reviewer must resolve or retain every previous finding");
+  if ((item.verdict === "approved" && findings.length !== 0) || (item.verdict === "changes-required" && findings.length === 0)) throw new SyncError("Approval requires no findings; changes-required requires actionable findings");
+  if (item.verdict === "blocked" && typeof item.blockerReason !== "string") throw new SyncError("Blocked review requires blockerReason");
+  const result: ReviewResult = { version: 2, sample, verdict: item.verdict as ReviewResult["verdict"], summary: text(item.summary, "review.summary"), reviewedChangeIds, reviewedCapabilityIds, findings, resolvedFindingIds, testAssessment: text(item.testAssessment, "review.testAssessment"), coverageLimitations: list(item.coverageLimitations, "review.coverageLimitations") };
+  if (item.blockerReason !== undefined) result.blockerReason = text(item.blockerReason, "review.blockerReason");
+  return result;
 }

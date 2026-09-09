@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
-import { REASONING_EFFORTS, type ManifestTarget, type Protection, type ReasoningEffort, type Target, type Targets } from "./types.js";
+import { REASONING_EFFORTS, type ManifestTarget, type ModelPolicy, type Protection, type ReasoningEffort, type Target, type Targets } from "./types.js";
 
 export const CONFIG_DIRECTORY = "automation/teams-sample-sync/config";
 
@@ -54,6 +54,48 @@ export function yaml(file: string): Record<string, unknown> {
   }
 }
 
+function modelPolicy(value: unknown, name: string): ModelPolicy {
+  const item = record(value, name);
+  const strategy = text(item.strategy, `${name}.strategy`);
+  if (strategy !== "auto" && strategy !== "capability") throw new SyncError(`${name}.strategy must be auto or capability`);
+  const result: ModelPolicy = { strategy };
+  const integer = (field: "minimumContextTokens"): void => {
+    if (item[field] !== undefined) {
+      if (!Number.isInteger(item[field]) || (item[field] as number) < 1) throw new SyncError(`${name}.${field} must be a positive integer`);
+      result[field] = item[field] as number;
+    }
+  };
+  integer("minimumContextTokens");
+  if (item.preferredReasoningEffort !== undefined) {
+    const effort = text(item.preferredReasoningEffort, `${name}.preferredReasoningEffort`);
+    if (!(REASONING_EFFORTS as readonly string[]).includes(effort)) throw new SyncError(`${name}.preferredReasoningEffort is invalid`);
+    result.preferredReasoningEffort = effort as ReasoningEffort;
+  }
+  for (const field of ["requireReasoning"] as const) {
+    if (item[field] !== undefined) {
+      if (typeof item[field] !== "boolean") throw new SyncError(`${name}.${field} must be boolean`);
+      result[field] = item[field] as boolean;
+    }
+  }
+  if (item.maximumCostMultiplier !== undefined) {
+    if (typeof item.maximumCostMultiplier !== "number" || !Number.isFinite(item.maximumCostMultiplier) || item.maximumCostMultiplier <= 0) throw new SyncError(`${name}.maximumCostMultiplier must be finite and positive`);
+    result.maximumCostMultiplier = item.maximumCostMultiplier;
+  }
+  if (item.fallback !== undefined) {
+    const fallback = text(item.fallback, `${name}.fallback`);
+    if (fallback !== "auto" && fallback !== "fail") throw new SyncError(`${name}.fallback must be auto or fail`);
+    result.fallback = fallback;
+  }
+  if (strategy === "auto" && Object.keys(item).some((key) => key !== "strategy")) {
+    throw new SyncError(`${name}: Auto policy cannot enforce capability or reasoning constraints`);
+  }
+  if (strategy === "capability") {
+    result.preferredReasoningEffort ??= "high";
+    if (!result.fallback) throw new SyncError(`${name}.fallback must explicitly be auto or fail`);
+  }
+  return result;
+}
+
 function manifest(value: unknown, name: string): ManifestTarget {
   const item = record(value, name);
   const result = {
@@ -85,18 +127,15 @@ export function targets(repo: string): Targets {
     destinations.add(destination);
     samples[name] = { source, destination, manifest: manifest(item.manifest, `${name}.manifest`) };
   }
-  const model = text(copilot.model, "copilot.model");
-  const reasoningEffort = copilot.reasoningEffort === undefined
-    ? undefined
-    : text(copilot.reasoningEffort, "copilot.reasoningEffort");
-  if (reasoningEffort !== undefined && !(REASONING_EFFORTS as readonly string[]).includes(reasoningEffort)) {
-    throw new SyncError(`copilot.reasoningEffort must be one of: ${REASONING_EFFORTS.join(", ")}`);
-  }
-  if (model === "auto" && reasoningEffort !== undefined) {
-    throw new SyncError("copilot.reasoningEffort must be omitted when copilot.model is auto");
-  }
-  const copilotConfiguration = { model } as Targets["copilot"];
-  if (reasoningEffort !== undefined) copilotConfiguration.reasoningEffort = reasoningEffort as ReasoningEffort;
+  const shared = copilot.default === undefined ? undefined : modelPolicy(copilot.default, "copilot.default");
+  const implementation = copilot.implementation === undefined ? shared : modelPolicy(copilot.implementation, "copilot.implementation");
+  const review = copilot.review === undefined ? shared : modelPolicy(copilot.review, "copilot.review");
+  if (!implementation || !review) throw new SyncError("copilot requires default or both implementation and review policies");
+  const sdkVersion = text(copilot.sdkVersion, "copilot.sdkVersion");
+  if (!/^\d+\.\d+\.\d+$/.test(sdkVersion)) throw new SyncError("copilot.sdkVersion must be an exact version");
+  const runtimeVersion = text(copilot.runtimeVersion, "copilot.runtimeVersion");
+  if (!/^\d+\.\d+\.\d+$/.test(runtimeVersion)) throw new SyncError("copilot.runtimeVersion must be an exact version");
+  const copilotConfiguration = { implementation, review, sdkVersion, runtimeVersion };
   const result: Targets = {
     version: 1,
     upstream: {

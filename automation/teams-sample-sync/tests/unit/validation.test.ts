@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { targets } from "../../src/config.js";
-import { checkManifest, checkProject, prepareManifest, validateSample, type ValidationRuntime } from "../../src/validate.js";
+import { assertFullValidation, commandErrors, checkManifest, checkProject, prepareManifest, validateSample, type ValidationRuntime } from "../../src/validate.js";
 import { fixture, write } from "./helpers.js";
 
 function validProject(root: string): void {
@@ -31,6 +31,35 @@ test("project validation enforces Agents host and rejects Teams bootstrap", () =
   assert.match(checkProject(root, targets(item.repo)).errors.join("\n"), /Legacy Teams or Bot SDK packages/);
   write(path.join(root, "manifest-evidence.md"), "not allowed");
   assert.match(checkProject(root, targets(item.repo)).errors.join("\n"), /manifest-evidence/);
+});
+
+test("validator command reports spawn failure, timeout, and real exit status", async () => {
+  await assert.rejects(commandErrors("missing-teams-sync-command", [], process.cwd()), /Cannot run/);
+  await assert.rejects(commandErrors(process.execPath, ["-e", "setInterval(() => {}, 1000)"], process.cwd(), 100), /timed out/);
+  assert.match((await commandErrors(process.execPath, ["-e", "console.error('specific defect'); process.exit(1)"], process.cwd())).join("\n"), /specific defect/);
+  assert.deepEqual(await commandErrors(process.execPath, ["-e", "process.exit(0)"], process.cwd()), []);
+});
+
+test("code group runs sample tests and protected contracts; partial results cannot publish", async () => {
+  const item = fixture();
+  const root = path.join(item.repo, "samples/dotnet/teams/sample-a");
+  validProject(root);
+  write(path.join(root, "tests/Sample.Tests.csproj"), "<Project />");
+  // A test fixture can refer to legacy source without polluting production checks.
+  write(path.join(root, "tests/Tests.cs"), "// fixture: AddTeams() [TeamsExtension]");
+  const configured = targets(item.repo);
+  const commands: string[][] = [];
+  const result = await validateSample(item.repo, "bot-cards", root, configured, configured.samples["sample-a"]!.manifest, [], {
+    runCommand: (_command, args) => { commands.push(args); return []; },
+    runHttpSmoke: async () => { throw new Error("code group must not run HTTP"); },
+  }, "code");
+  assert.equal(result.passed, true);
+  assert.equal(result.checks.contracts?.status, "passed");
+  assert.equal(result.checks.sampleTests?.status, "passed");
+  assert.ok(commands.some((args) => args.includes("Sample=bot-cards")));
+  assert.ok(commands.some((args) => args[1]?.endsWith("Sample.Tests.csproj")));
+  assert.throws(() => assertFullValidation(result, "bot-cards"), /full validation/);
+  assert.throws(() => assertFullValidation({ ...result, group: "all" }, "bot-cards"), /manifest/);
 });
 
 test("manifest validation uses released schema, package assets, and source capabilities", async () => {
@@ -94,14 +123,14 @@ test("validation orchestrates restore, build, HTTP smoke, and selected contracts
     assert.deepEqual(calls, ["restore", "build", "http", "test"]);
     for (const sample of ["agent-targeted-messages", "bot-attachments", "bot-meetings", "bot-message-extensions", "bot-task-modules", "bot-cards"]) {
       const checked = await validateSample(item.repo, sample, root, configured, target.manifest, [], runtime);
-      assert.equal(checked.checks.contracts, true, sample + " requires behavior contracts");
+      assert.equal(checked.checks.contracts?.status, "passed", sample + " requires behavior contracts");
       assert.ok(contractArguments.at(-1)!.includes("Sample=" + sample));
     }
     const contractFailure = await validateSample(item.repo, "bot-meetings", root, configured, target.manifest, [], {
       ...runtime, runCommand: (_command, args) => args[0] === "test" ? ["Behavior contract failed"] : [],
     });
     assert.equal(contractFailure.passed, false);
-    assert.equal(contractFailure.checks.contracts, false);
+    assert.equal(contractFailure.checks.contracts?.status, "failed");
     const startupFailure = await validateSample(item.repo, "sample-a", root, configured, target.manifest, [], {
       ...runtime, runHttpSmoke: () => Promise.resolve(["HTTP smoke process exited before readiness"]),
     });

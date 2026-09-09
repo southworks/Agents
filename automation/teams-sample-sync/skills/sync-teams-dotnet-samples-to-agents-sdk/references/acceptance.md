@@ -30,7 +30,8 @@ the sample's actual handler, response or Teams UI. Use existing tests where appl
 no dedicated project or production rule is required for an individual test change.
 
 Run the same scenario at least three times from the same clean baseline. Record verdict,
-cycle count, independent behavior result, code corrections needed, and false approvals.
+repair-pass count, rejected report count, duration, observed model/effort, independent behavior
+result, code corrections needed, and false approvals.
 Test reviewer rejection with deliberately omitted behavior and a false formatting explanation.
 Stubs in the unit suite test orchestration only; they do not establish real-model accuracy.
 

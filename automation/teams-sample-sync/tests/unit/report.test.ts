@@ -5,7 +5,7 @@ import type { SyncResult } from "../../src/types.js";
 
 function result(overrides: Partial<SyncResult> = {}): SyncResult {
   return {
-    version: 2,
+    version: 3,
     sample: "agent-targeted-messages",
     status: "updated",
     publishable: true,
@@ -14,7 +14,9 @@ function result(overrides: Partial<SyncResult> = {}): SyncResult {
     upstreamCommit: "teams-after",
     upstreamChanges: [{ status: "modified", oldPath: "Program.cs", newPath: "Program.cs", binary: false }],
     changedComponents: ["sourceTree", "policies"],
-    copilot: { model: "gpt-5.4", reasoningEffort: "high" },
+    copilot: { implementation: { strategy: "auto" }, review: { strategy: "auto" }, sdkVersion: "1.0.7", runtimeVersion: "1.0.83" },
+    observedModels: [], sourceContextDigest: "context", evidenceDigest: "evidence", diagnostics: [],
+    metrics: { repairPasses: 0, rejectedImplementerReports: 0, rejectedReviewerReports: 0 },
     migrationPolicies: [{
       key: "agent-targeted-messages.routing",
       sample: "agent-targeted-messages",
@@ -32,9 +34,10 @@ function result(overrides: Partial<SyncResult> = {}): SyncResult {
     outputDigest: "output-digest",
     componentDigests: {},
     agent: {
-      version: 1,
+      version: 2,
       sample: "agent-targeted-messages",
       status: "updated",
+      dispositions: [],
       summary: "Adapted targeted message handling to the Agents SDK.",
       upstreamChanges: ["Added targeted message routing."],
       preservedDifferences: ["Kept the Agents host startup pattern."],
@@ -49,12 +52,13 @@ function result(overrides: Partial<SyncResult> = {}): SyncResult {
       },
     },
     validation: {
-      version: 1,
+      version: 2,
       sample: "agent-targeted-messages",
+      id: "validation-1", group: "all",
       passed: true,
       repairable: true,
       outputDigest: "output-digest",
-      checks: { project: true, restore: true, build: true, manifest: true, httpSmoke: true, contracts: true },
+      checks: Object.fromEntries(["project", "restore", "build", "manifest", "httpSmoke", "contracts"].map((name) => [name, { status: "passed" as const, errors: [] }])),
       errors: [],
       externalValidationRequired: ["Credentialed Teams behavior"],
     },
@@ -84,8 +88,8 @@ test("PR body explains the trigger, sample changes, policies, and validation to 
   assert.match(body, /HTTP smoke test.*Starts the built sample and requires `GET \/` to return HTTP 200/);
   assert.match(body, /Protected behavior contracts.*sample-specific contract tests when configured/);
   assert.match(body, /Teams repository commit: `teams-after`/);
-  assert.match(body, /Copilot model: `gpt-5\.4`/);
-  assert.match(body, /Copilot reasoning effort: `high`/);
+  assert.match(body, /SDK\/runtime: `1\.0\.7\/1\.0\.83`/);
+  assert.match(body, /Actual model and reasoning effort: unknown/);
   assert.doesNotMatch(body, /\bupstream\b/i);
 });
 
@@ -114,7 +118,7 @@ test("PR keeps human changes visible and detailed evidence in traceability", () 
 
 test("validation distinguishes missing contract coverage from passing checks", () => {
   const item = result();
-  item.validation!.checks.contracts = null;
+  item.validation!.checks.contracts = { status: "skipped", errors: [] };
   assert.match(prBody(item), /Not configured — Protected behavior contracts/);
   delete item.validation;
   assert.match(prBody(item), /Not run — Build/);

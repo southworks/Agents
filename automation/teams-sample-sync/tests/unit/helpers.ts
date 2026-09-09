@@ -46,8 +46,9 @@ canonicalSample: samples/dotnet/quickstart
 migrationSkill: skills/migration
 manifestSkill: skills/manifest
 copilot:
-  model: gpt-5.4
-  reasoningEffort: high
+  sdkVersion: "1.0.7"
+  runtimeVersion: "1.0.83"
+  default: { strategy: auto }
 packagePolicy:
   targetFramework: net8.0
   agentsSdkVersion: "1.7.*"
@@ -65,7 +66,6 @@ samples:
   write(path.join(repo, "automation/teams-sample-sync/config/ownership.yml"), "version: 1\nprotectedPaths:\n  - manifest-evidence.md\n  - '**/manifest-evidence.md'\noutputDigestExcludes:\n  - bin/**\n  - obj/**\n");
   write(path.join(repo, "automation/teams-sample-sync/prompts/agent-prompt.md"), "Read CONTEXT_FILE and return JSON only.\n");
   write(path.join(repo, "automation/teams-sample-sync/prompts/review-prompt.md"), "Independently review CONTEXT_FILE and return JSON only.\n");
-  write(path.join(repo, "automation/teams-sample-sync/prompts/assessment-prompt.md"), "Assess CONTEXT_FILE before implementation and return JSON only.\n");
   write(path.join(repo, "skills/migration/SKILL.md"), "migration v1\n");
   write(path.join(repo, "skills/manifest/SKILL.md"), "manifest v1\n");
   write(path.join(repo, "samples/dotnet/quickstart/appManifest/color.png"), Buffer.from([1, 2]));
@@ -73,6 +73,11 @@ samples:
   write(path.join(repo, "samples/dotnet/teams/sample-a/value.txt"), "destination\n");
   write(path.join(repo, "samples/dotnet/teams/sample-a/appManifest/manifest.json"),
     JSON.stringify({ bots: [{ botId: "fixture", scopes: ["personal"] }] }));
+  write(path.join(repo, "automation/teams-sample-sync/package.json"), "{\"dependencies\":{\"@github/copilot-sdk\":\"1.0.7\"}}");
+  write(path.join(repo, "automation/teams-sample-sync/package-lock.json"), "{\"lockfileVersion\":3}");
+  write(path.join(repo, "automation/teams-sample-sync/src/agent-tools.ts"), "fixture tool contract");
+  write(path.join(repo, "automation/teams-sample-sync/src/sync-session.ts"), "fixture coordinator");
+  write(path.join(repo, "automation/teams-sample-sync/skills/sync-teams-dotnet-samples-to-agents-sdk/SKILL.md"), "fixture sync skill");
   commit(repo, "fixture");
   write(path.join(upstream, "samples/TeamsSDK/sample-a/dotnet/sample-a/old.txt"), "old upstream\n");
   write(path.join(upstream, "samples/TeamsSDK/new-candidate/readme.md"), "candidate\n");

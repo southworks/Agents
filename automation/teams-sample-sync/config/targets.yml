@@ -10,16 +10,18 @@ canonicalSample: samples/dotnet/quickstart
 migrationSkill: agent-plugins/agents-for-net/skills/teams-sdk-to-agents-sdk-dotnet-migration
 manifestSkill: agent-plugins/agents-sdk-common/skills/teams-app-manifest
 
-# `auto` lets Copilot select the best available model for the task.
-# For an explicit model, run `copilot`, then `/model`, and optionally add `reasoningEffort`.
 copilot:
-  model: auto
+  # 1.0.7 bundles a matching Copilot CLI runtime. Pin runtime compatibility, not a model catalog.
+  sdkVersion: "1.0.7"
+  runtimeVersion: "1.0.83"
+  default:
+    strategy: auto
 
 packagePolicy:
   targetFramework: net8.0
   agentsSdkVersion: "1.7.*"
 
-validatorVersion: "2"
+validatorVersion: "3"
 
 samples:
   agent-targeted-messages:

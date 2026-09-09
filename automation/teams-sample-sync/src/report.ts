@@ -1,4 +1,4 @@
-import type { SyncResult, UpstreamChange, ValidationChecks } from "./types.js";
+import type { SyncResult, UpstreamChange } from "./types.js";
 
 const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   sourceTree: "Teams samples repository content changed.",
@@ -8,12 +8,13 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   migrationSkill: "The Teams-to-Agents migration instructions changed.",
   manifestSkill: "The Teams manifest instructions changed.",
   canonicalSample: "The canonical Agents sample or reusable manifest assets changed.",
-  copilot: "The configured Copilot model or reasoning effort changed.",
+  copilot: "The configured Copilot role policies or pinned runtime changed.",
+  syncSkill: "The synchronization instructions changed.",
   packagePolicy: "The target framework or Agents SDK package policy changed.",
   validator: "The deterministic validation contract changed.",
 };
 
-const CHECKS: Array<{ key: keyof ValidationChecks; title: string; description: string }> = [
+const CHECKS: Array<{ key: string; title: string; description: string }> = [
   {
     key: "project",
     title: "Project structure and SDK migration",
@@ -96,8 +97,8 @@ function triggerLines(result: SyncResult): string[] {
 function validationLines(result: SyncResult): string[] {
   const checks = result.validation?.checks;
   return CHECKS.map((check) => {
-    const status = checks?.[check.key] === null ? "Not configured" :
-      checks === undefined ? "Not run" : checks[check.key] ? "Passed" : "Failed";
+    const state = checks?.[check.key]?.status;
+    const status = state === "skipped" ? "Not configured" : state === "passed" ? "Passed" : state === "failed" ? "Failed" : "Not run";
     return `- **${status} — ${check.title}:** ${check.description}`;
   });
 }
@@ -116,6 +117,7 @@ export function prBody(result: SyncResult): string {
   const external = [
     ...(agent?.manifestReport.externalSetup ?? []),
     ...(result.validation?.externalValidationRequired ?? []),
+    ...(result.review?.result.coverageLimitations ?? []),
   ];
   const teamsRepositorySection = result.previousUpstreamCommit === null
     ? ["### Teams repository baseline", "", "- Recorded the current sample snapshot for the first tracked synchronization."]
@@ -153,8 +155,7 @@ export function prBody(result: SyncResult): string {
     "",
     "### Manifest capability decisions",
     "",
-    safeText(result.assessment?.summary ?? "No pre-implementation capability assessment is available."),
-    ...bullets(result.assessment?.capabilities ?? [], "No expected manifest capability was reported."),
+    ...bullets(agent?.manifestReport.capabilities ?? [], "No expected manifest capability was reported."),
     "",
     "### Files changed in the Agents repository",
     "",
@@ -171,7 +172,6 @@ export function prBody(result: SyncResult): string {
     "## Independent review",
     "",
     safeText(result.review?.result.summary ?? "No independent approval."),
-    safeText(result.review?.result.manifestAssessment ?? ""),
     safeText(result.review?.result.testAssessment ?? ""),
     ...bullets(result.review?.result.findings ?? [], "No blocking finding reported."),
     "",
@@ -190,8 +190,12 @@ export function prBody(result: SyncResult): string {
     `- Teams repository commit: ${inlineCode(result.upstreamCommit)}`,
     `- Teams sample tree digest: ${inlineCode(result.sourceTree)}`,
     `- Validated Agents output digest: ${inlineCode(result.outputDigest ?? "not produced")}`,
-    `- Copilot model: ${inlineCode(result.copilot.model)}`,
-    `- Copilot reasoning effort: ${inlineCode(result.copilot.reasoningEffort ?? "selected automatically")}`,
+    `- Source context digest: ${inlineCode(result.sourceContextDigest)}`,
+    `- Evidence digest: ${inlineCode(result.evidenceDigest ?? "not produced")}`,
+    `- Validation run: ${inlineCode(result.validation?.id ?? "not run")}`,
+    `- SDK/runtime: ${inlineCode(`${result.copilot.sdkVersion}/${result.copilot.runtimeVersion}`)}`,
+    `- Configured model policies: ${inlineCode(JSON.stringify({ implementation: result.copilot.implementation, review: result.copilot.review }))}`,
+    ...bullets(result.observedModels, "Actual model and reasoning effort: unknown."),
     "",
     "</details>",
     "",
@@ -199,32 +203,20 @@ export function prBody(result: SyncResult): string {
 }
 
 export function workflowSummary(result: SyncResult): string {
+  const failure = result.failureStage ? `; failure stage: ${safeText(result.failureStage)}` : "";
   const request = result.agent?.policyRequest;
-  if (!request) {
-    const failure = result.failureStage ? `; failure stage: ${result.failureStage}` : "";
-    return `### ${safeText(result.sample)}: ${result.status}\n\n${safeText(result.error ?? result.agent?.summary ?? "")}\n\nReview: ${result.review?.result.verdict ?? "not completed"}; cycles: ${result.cycles ?? 0}${failure}\n\n` +
-      validationLines(result).join("\n") + "\n";
-  }
   return [
-    `### ${result.sample}: needs policy`,
+    `### ${safeText(result.sample)}: ${safeText(result.status)}`,
     "",
-    `**Question:** ${request.question}`,
+    safeText(result.error ?? result.agent?.summary ?? ""),
     "",
-    `**Recommendation:** ${request.recommendation}`,
+    `Review: ${safeText(result.review?.result.verdict ?? "not completed")}; repairs: ${result.metrics.repairPasses}${failure}`,
+    ...(result.failureClass ? [`Failure class: ${safeText(result.failureClass)}`] : []),
     "",
-    `**Evidence:** ${request.evidence}`,
+    ...validationLines(result),
     "",
-    `**Impact:** ${request.impact}`,
-    "",
-    "Suggested reviewed policy:",
-    "",
-    "```yaml",
-    `- key: ${request.key}`,
-    `  sample: ${result.sample}`,
-    `  instruction: ${JSON.stringify(request.suggestedPolicy.instruction)}`,
-    `  rationale: ${JSON.stringify(request.suggestedPolicy.rationale)}`,
-    "  source: <reviewed issue or pull request>",
-    "```",
+    ...bullets(result.diagnostics, "No additional diagnostic."),
+    ...(request ? ["", `**Question:** ${safeText(request.question)}`, "", `**Recommendation:** ${safeText(request.recommendation)}`, "", `**Evidence:** ${safeText(request.evidence)}`, "", `**Impact:** ${safeText(request.impact)}`, "", `Suggested policy ${inlineCode(request.key)}: ${safeText(request.suggestedPolicy.instruction)}`, `Rationale: ${safeText(request.suggestedPolicy.rationale)}`] : []),
     "",
   ].join("\n");
 }

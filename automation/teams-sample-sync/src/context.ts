@@ -1,10 +1,10 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { protection, targets, SyncError } from "./config.js";
 import { digestDirectory, git, hash, materializeTree, tree, upstreamChanges } from "./git.js";
 import { applicablePolicies } from "./policy.js";
 import { readPriorState } from "./state.js";
-import type { AgentResult, Plan, ReviewResult, SourceEvidence, SyncContext } from "./types.js";
+import type { Plan, SourceEvidence, SyncContext } from "./types.js";
 
 export function sourceEvidence(upstream: string, previous: string | null, current: string, sourcePath: string): SourceEvidence[] {
   // Initial mode inventories the entire source instead of treating missing history as no work.
@@ -41,16 +41,6 @@ function lockTree(root: string): void {
     else chmodSync(item, 0o444);
   }
   chmodSync(root, 0o555);
-}
-
-function unlockTree(root: string): void {
-  if (!existsSync(root)) return;
-  chmodSync(root, 0o755);
-  for (const entry of readdirSync(root, { withFileTypes: true })) {
-    const item = path.join(root, entry.name);
-    if (entry.isDirectory()) unlockTree(item);
-    else chmodSync(item, 0o644);
-  }
 }
 
 export function createContext(repo: string, upstream: string, plan: Plan, sample: string): ContextFiles {
@@ -114,14 +104,4 @@ export function createContext(repo: string, upstream: string, plan: Plan, sample
   writeFileSync(file, `${JSON.stringify(context, null, 2)}\n`, "utf8");
   lockTree(root);
   return { root, file, digest: digestDirectory(root) };
-}
-
-export function updateContextErrors(context: ContextFiles, errors: string[], implementation?: AgentResult, review?: ReviewResult): ContextFiles {
-  unlockTree(context.root);
-  const value = JSON.parse(readFileSync(context.file, "utf8")) as SyncContext;
-  value.validationErrors = [...errors];
-  if (implementation) value.feedback = { implementation, ...(review ? { review } : {}) };
-  writeFileSync(context.file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-  lockTree(context.root);
-  return { ...context, digest: digestDirectory(context.root) };
 }

@@ -7,18 +7,12 @@ inputs:
   upstreamCommit:
     description: Exact planned Teams commit
     required: true
-  maxAgentAttempts:
-    description: Shared implementation and review cycle limit
-    required: true
 runs:
   using: composite
   steps:
     - uses: actions/setup-dotnet@v5
       with:
         dotnet-version: 8.0.x
-    - name: Install pinned Copilot CLI
-      shell: bash
-      run: npm install --global @github/copilot@1.0.82
     - uses: actions/download-artifact@v7
       with: { name: teams-sample-sync-plan, path: .sync }
     - name: Verify exact upstream commit and migrate
@@ -27,10 +21,9 @@ runs:
         GITHUB_TOKEN: ${{ github.token }}
         SYNC_SAMPLE: ${{ inputs.sample }}
         UPSTREAM_COMMIT: ${{ inputs.upstreamCommit }}
-        MAX_AGENT_ATTEMPTS: ${{ inputs.maxAgentAttempts }}
       run: |
         test "$(git -C .sync/upstream rev-parse HEAD)" = "$UPSTREAM_COMMIT"
-        node "$SYNC_TOOL/dist/cli.js" migrate --repo-root . --upstream-root .sync/upstream --plan .sync/plan.json --sample "$SYNC_SAMPLE" --max-attempts "$MAX_AGENT_ATTEMPTS" --output-directory ".sync/output/$SYNC_SAMPLE"
+        node "$SYNC_TOOL/dist/cli.js" migrate --repo-root . --upstream-root .sync/upstream --plan .sync/plan.json --sample "$SYNC_SAMPLE" --output-directory ".sync/output/$SYNC_SAMPLE"
     - name: Report sample result
       if: always()
       shell: bash

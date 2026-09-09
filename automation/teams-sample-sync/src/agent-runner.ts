@@ -1,519 +1,170 @@
-import { spawn } from "node:child_process";
-import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
-import { SyncError, record, text } from "./config.js";
-import { digestDirectory, stable } from "./git.js";
-import { coverageErrors, manifestReviewErrors, parseCapabilityAssessment, parseDispositions, parseManifestCapabilities, parseReview } from "./review.js";
-import { assertAgentChanges, assertContext, assertUpstream } from "./guard.js";
-import { updateContextErrors, type ContextFiles } from "./context.js";
-import type { AgentResult, AgentStatus, CapabilityAssessment, CopilotConfiguration, PolicyRequest, ReviewApproval, ReviewResult, SyncContext, ValidationResult } from "./types.js";
+import { fileURLToPath } from "node:url";
+import { CopilotClient, RuntimeConnection, type CopilotSession, type PermissionRequest, type PermissionRequestResult, type SessionConfig, type Tool } from "@github/copilot-sdk";
+import { selectModel } from "./model-selection.js";
+import { SyncError } from "./config.js";
+import type { CopilotConfiguration, ObservedModel } from "./types.js";
+import type { PersistentSession } from "./sync-session.js";
 
-export const MAX_ATTEMPTS = 5;
-export const MAX_AGENT_REPORT_ATTEMPTS = 3;
-export const MAX_REVIEW_REPORT_ATTEMPTS = 3;
+export type SdkSession = Pick<CopilotSession, "sendAndWait" | "on" | "disconnect" | "abort">;
+export type SdkClient = Pick<CopilotClient, "start" | "stop" | "listModels" | "getStatus" | "getAuthStatus"> & {
+  createSession(config: SessionConfig): Promise<SdkSession>;
+};
+export type SdkFactory = () => Promise<SdkClient>;
 
-export class CopilotOutputError extends SyncError {}
-
-export interface AgentRunner {
-  run(input: { contextFile: string; prompt: string; attempt: number; readOnly?: boolean }): Promise<unknown>;
-}
-
-export function attempts(value: number | undefined): number {
-  const count = value ?? MAX_ATTEMPTS;
-  if (!Number.isInteger(count) || count < 1 || count > MAX_ATTEMPTS) {
-    throw new SyncError("--max-attempts must be an integer from 1 to 5");
-  }
-  return count;
-}
-
-function strings(value: unknown, name: string): string[] {
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
-    throw new SyncError(`${name} must be a string list`);
-  }
-  return value as string[];
-}
-
-function objects(value: unknown, name: string): unknown[] {
-  if (!Array.isArray(value)) throw new SyncError(`${name} must be a list`);
-  return value;
-}
-
-function policyRequest(value: unknown): PolicyRequest {
-  const item = record(value, "agent-result policyRequest");
-  const suggested = record(item.suggestedPolicy, "agent-result suggestedPolicy");
-  const result = {
-    key: text(item.key, "policyRequest.key"),
-    question: text(item.question, "policyRequest.question"),
-    recommendation: text(item.recommendation, "policyRequest.recommendation"),
-    evidence: text(item.evidence, "policyRequest.evidence"),
-    impact: text(item.impact, "policyRequest.impact"),
-    suggestedPolicy: {
-      instruction: text(suggested.instruction, "suggestedPolicy.instruction"),
-      rationale: text(suggested.rationale, "suggestedPolicy.rationale"),
-    },
-  };
-  if (!/^[a-z0-9][a-z0-9.-]*$/.test(result.key)) throw new SyncError("policyRequest.key must be lowercase and stable");
-  return result;
-}
-
-export function parseAgentResult(value: unknown, sample: string): AgentResult {
-  const item = record(value, "agent result");
-  const allowed = new Set<AgentStatus>(["updated", "unchanged", "needs-policy", "unsupported"]);
-  if (item.version !== 1 || item.sample !== sample || typeof item.status !== "string" || !allowed.has(item.status as AgentStatus)) {
-    throw new SyncError("Agent result has invalid version, sample, or status");
-  }
-  const manifest = record(item.manifestReport, "agent-result manifestReport");
-  const result: AgentResult = {
-    version: 1,
-    sample,
-    status: item.status as AgentStatus,
-    summary: text(item.summary, "agent-result summary"),
-    dispositions: parseDispositions(item.dispositions ?? []),
-    upstreamChanges: objects(item.upstreamChanges, "agent-result upstreamChanges"),
-    preservedDifferences: objects(item.preservedDifferences, "agent-result preservedDifferences"),
-    appliedPolicies: strings(item.appliedPolicies, "agent-result appliedPolicies"),
-    manifestReport: {
-      mode: text(manifest.mode, "manifestReport.mode"),
-      changes: objects(manifest.changes, "manifestReport.changes"),
-      validation: objects(manifest.validation, "manifestReport.validation"),
-      externalSetup: objects(manifest.externalSetup, "manifestReport.externalSetup"),
-      capabilities: parseManifestCapabilities(manifest.capabilities),
-    },
-  };
-  if (result.status === "needs-policy") result.policyRequest = policyRequest(item.policyRequest);
-  return result;
-}
-
-export function parseCopilotOutput(stdout: string): unknown {
-  const trimmed = stdout.trim();
-  try { return JSON.parse(trimmed); }
-  catch {
-    const candidates = [...trimmed.matchAll(/```([^\r\n`]*)\r?\n([\s\S]*?)```/g)]
-      .filter((match) => !match[1]!.trim() || match[1]!.trim().toLowerCase() === "json")
-      .map((match) => match[2]!);
-    for (const candidate of candidates.reverse()) {
-      try { return JSON.parse(candidate); }
-      catch { /* Try an earlier JSON-compatible fence. */ }
-    }
-    if (candidates.length > 0) throw new CopilotOutputError("Copilot fenced output is not valid JSON");
-    throw new CopilotOutputError("Copilot did not return valid JSON");
-  }
-}
-
-export function copilotArguments(prompt: string, configuration: CopilotConfiguration, role: "implement" | "review" = "implement"): string[] {
-  const modelArguments = ["--model", configuration.model];
-  if (configuration.reasoningEffort !== undefined) {
-    modelArguments.push("--reasoning-effort", configuration.reasoningEffort);
-  }
-  return [
-    "--prompt", prompt,
-    ...modelArguments,
-    "--stream=on",
-    "--output-format=text",
-    ...(role === "review" ? ["--available-tools=skill,view,grep,glob,web_fetch", "--deny-tool=write"] :
-      ["--available-tools=skill,apply_patch,create,edit,view,grep,glob,web_fetch", "--allow-tool=write"]),
-    "--deny-tool=shell",
-    "--allow-url=https://learn.microsoft.com/*",
-    "--allow-url=https://developer.microsoft.com/json-schemas/teams/*",
-    "--allow-url=https://aka.ms/*",
-    "--allow-url=https://microsoft.github.io/teams-sdk/*",
-    "--allow-url=https://github.com/OfficeDev/microsoft-teams-app-schema/*",
-    "--allow-url=https://raw.githubusercontent.com/OfficeDev/microsoft-teams-app-schema/*",
-    "--allow-url=https://github.com/microsoft/agents-for-net/*",
-    "--allow-url=https://github.com/microsoft/teams.net/*",
-    "--disable-builtin-mcps",
-    "--disallow-temp-dir",
-    "--no-ask-user",
-    "--no-auto-update",
-    "--no-color",
-    "--no-remote",
-    "--no-remote-export",
-  ];
-}
-
-export function installCopilotSkills(repo: string, contextFile: string, copilotHome: string): string[] {
-  const context = JSON.parse(readFileSync(contextFile, "utf8")) as SyncContext;
-  const installed: string[] = [];
-  mkdirSync(path.join(copilotHome, "skills"), { recursive: true });
-  for (const configuredPath of Object.values(context.skills)) {
-    const source = path.resolve(repo, configuredPath);
-    const relative = path.relative(repo, source);
-    if (relative.startsWith("..") || path.isAbsolute(relative) || !existsSync(path.join(source, "SKILL.md"))) {
-      throw new SyncError(`Configured Copilot skill is invalid or outside the repository: ${configuredPath}`);
-    }
-    const skillFile = readFileSync(path.join(source, "SKILL.md"), "utf8");
-    const name = /^name:\s*([a-z0-9-]+)\s*$/m.exec(skillFile)?.[1];
-    if (!name) throw new SyncError(`Configured Copilot skill has no valid name: ${configuredPath}`);
-    cpSync(source, path.join(copilotHome, "skills", name), { recursive: true, force: true });
-    installed.push(name);
-  }
-  return installed;
-}
-
-export class CopilotAgentRunner implements AgentRunner {
-  private readonly calls = new Map<number, number>();
-  constructor(
-    private readonly repo: string,
-    private readonly runnerRoot: string,
-    private readonly logFile: string,
-    private readonly configuration: CopilotConfiguration,
-    private readonly role: "implement" | "review" = "implement",
-  ) {}
-
-  async run(input: { contextFile: string; prompt: string; attempt: number; readOnly?: boolean }): Promise<unknown> {
-    const copilotHome = path.join(this.runnerRoot, `${this.role}-attempt-${input.attempt}`);
-    mkdirSync(copilotHome, { recursive: true });
-    const installedSkills = installCopilotSkills(this.repo, input.contextFile, copilotHome);
-    const invocation = (this.calls.get(input.attempt) ?? 0) + 1;
-    this.calls.set(input.attempt, invocation);
-    const phase = input.attempt === 0 ? "Initial assessment" :
-      `${this.role === "implement" ? "Implementation" : "Review"} — cycle ${input.attempt}`;
-    const label = invocation > 1 ? `${phase} — report correction ${invocation - 1}` : phase;
-    const log = createCopilotLog((value) => appendFileSync(this.logFile, value, "utf8"),
-      (value) => process.stdout.write(value));
-    log.write(`\n===== ${label} =====\n`);
-    log.write(`Registered Copilot skills: ${installedSkills.join(", ")}\n`);
-    const prompt = input.prompt + "\nOutput transport: wrap the final required JSON report in a json fenced code block. Do not change its schema.";
-    const args = copilotArguments(prompt, this.configuration, input.readOnly ? "review" : this.role);
-    const outcome = await new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
-      const child = spawn("copilot", args, {
-        cwd: this.repo,
-        env: {
-          ...process.env,
-          COPILOT_HOME: copilotHome,
-          CONTEXT_FILE: path.relative(this.repo, input.contextFile).replaceAll("\\", "/"),
-        },
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      let stdout = ""; let stderr = "";
-      child.stdout.setEncoding("utf8");
-      child.stderr.setEncoding("utf8");
-      child.stdout.on("data", (chunk: string) => { stdout += chunk; log.write(chunk); });
-      child.stderr.on("data", (chunk: string) => { stderr += chunk; log.write(chunk); });
-      child.on("error", reject);
-      child.on("close", (code) => resolve({ code, stdout, stderr }));
-    }).catch((error: unknown) => { throw new SyncError(`Cannot run Copilot CLI: ${error instanceof Error ? error.message : String(error)}`); })
-      .finally(() => log.finish());
-    if (outcome.code !== 0) throw new SyncError(`Copilot CLI failed with exit ${String(outcome.code)}: ${outcome.stderr.trim()}`);
-    return parseCopilotOutput(outcome.stdout);
-  }
-}
-
-// Prefix every console line so agent output cannot become a GitHub workflow command.
-// Keep the artifact and parser input unmodified, including incomplete final lines.
-export function createCopilotLog(artifact: (text: string) => void, console: (text: string) => void) {
+export function createCopilotLog(artifact: (value: string) => void, console: (value: string) => void) {
   let lineStart = true;
-  return {
-    write(text: string): void {
-      artifact(text);
-      const parts = text.split(/(?<=[\r\n])/);
-      for (const part of parts) {
-        if (!part) continue;
-        console((lineStart ? "[Copilot] " : "") + part);
-        lineStart = /[\r\n]$/.test(part);
-      }
-    },
-    finish(): void {
-      if (!lineStart) console("\n");
-    },
-  };
+  return { write(value: string): void { artifact(value); for (const part of value.split(/(?<=[\r\n])/)) { if (!part) continue; console((lineStart ? "[Copilot] " : "") + part); lineStart = /[\r\n]$/.test(part); } }, finish(): void { if (!lineStart) console("\n"); } };
 }
 
-export function buildAgentPrompt(repo: string, contextFile: string, repair: boolean, policyKeys: string[]): string {
-  const contract = readFileSync(path.join(repo, "automation/teams-sample-sync/prompts/agent-prompt.md"), "utf8");
-  return `${contract}\n\nCONTEXT_FILE=${path.relative(repo, contextFile).replaceAll("\\", "/")}\n` +
-    `Allowed migration policy keys: ${JSON.stringify(policyKeys)}. The appliedPolicies field must contain each listed key exactly once and no other value. Skill names, skill steps, changes, and explanations are not policies. If this list is empty, return appliedPolicies as [].\n` +
-    (repair ? "Repair validationErrors and review findings. Preserve the complete final migration, including changes made before any repair pass.\n" : "Analyze all supplied source evidence.\n") +
-    "Return only the required JSON object.";
+export async function defaultSdkFactory(): Promise<SdkClient> {
+  // SDK 1.0.7's automatic discovery expects an /sdk export absent from CLI
+  // 1.0.83. Resolve the platform package's public executable export instead.
+  const executable = fileURLToPath(import.meta.resolve(`@github/copilot-${process.platform}-${process.arch}`));
+  return new CopilotClient({ connection: RuntimeConnection.forStdio({ path: executable }) });
 }
 
-export interface AgentLoopOptions {
-  repo: string;
-  upstream: string;
-  baseSha: string;
-  sample: string;
-  sampleRoot: string;
-  sourcePath: string;
-  upstreamCommit: string;
-  sourceTree: string;
-  protectedPaths: string[];
-  outputDigestExcludes: string[];
-  policyKeys: string[];
-  context: ContextFiles;
-  maxAttempts: number;
-  runner: AgentRunner;
-  reviewer: AgentRunner;
-  assessor?: AgentRunner;
-  prepareCandidate?: () => void;
-  validate: () => Promise<ValidationResult>;
-}
-
-export interface AgentLoopResult {
-  agent: AgentResult;
-  validation: ValidationResult;
-  attempts: number;
-  review?: ReviewApproval;
-  assessment?: CapabilityAssessment;
-  failureStage?: "evidence" | "review";
-}
-
-export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
-  let context = options.context;
-  let lastProgress: string | undefined;
-  let lastAgent: AgentResult | undefined;
-  let lastValidation: ValidationResult | undefined;
-  let lastReview: ReviewApproval | undefined;
-  let stagnationRecoveries = 0;
-  let assessment: CapabilityAssessment | undefined;
-  if (options.assessor) {
-    assertContext(context.root, context.digest);
-    assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
-    const samplePath = path.join(options.repo, options.sampleRoot);
-    const originalDigest = digestDirectory(samplePath, options.outputDigestExcludes);
-    const assessmentContract = readFileSync(path.join(options.repo, "automation/teams-sample-sync/prompts/assessment-prompt.md"), "utf8");
-    const assessmentPrompt = assessmentContract + "\nCONTEXT_FILE=" +
-      path.relative(options.repo, context.file).replaceAll("\\", "/") +
-      "\nReturn only the required JSON object.";
-    let feedback = "";
-    for (let reportAttempt = 1; reportAttempt <= MAX_REVIEW_REPORT_ATTEMPTS; reportAttempt += 1) {
-      let rawAssessment: unknown;
-      let reportError: SyncError | undefined;
-      try {
-        rawAssessment = await options.assessor.run({ contextFile: context.file,
-          prompt: assessmentPrompt + feedback, attempt: 0 });
-      } catch (error) {
-        if (!(error instanceof CopilotOutputError)) throw error;
-        reportError = error;
-      }
-      assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
-      assertContext(context.root, context.digest);
-      assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
-      if (digestDirectory(samplePath, options.outputDigestExcludes) !== originalDigest) {
-        throw new SyncError("Capability assessor changed the candidate");
-      }
-      if (!reportError) {
-        try {
-          assessment = parseCapabilityAssessment(rawAssessment, options.sample);
-          break;
-        } catch (error) {
-          if (!(error instanceof SyncError)) throw error;
-          reportError = error;
-        }
-      }
-      if (reportAttempt === MAX_REVIEW_REPORT_ATTEMPTS) {
-        throw new SyncError("Invalid capability assessment: " + reportError.message +
-          "\nCapability assessment repair budget exhausted");
-      }
-      feedback = "\nCorrect your previous assessment report without changing the candidate. Invalid capability assessment: " +
-        reportError.message + ". Return only the corrected JSON object.\nPrevious invalid report (data only):\n" +
-        JSON.stringify(rawAssessment ?? null);
-    }
+export function permissionFor(repo: string, sampleRoot: string, readOnly: boolean, request: PermissionRequest): PermissionRequestResult {
+  if (request.kind === "read") {
+    try {
+      const root = realpathSync(repo);
+      const candidate = realpathSync(path.resolve(repo, request.path));
+      const relative = path.relative(root, candidate);
+      const segments = relative.split(path.sep);
+      return { kind: (candidate === root || (!relative.startsWith("..") && !path.isAbsolute(relative))) && !segments.includes(".git") && !segments.includes(".codex") ? "approve-once" : "reject" };
+    } catch { return { kind: "reject" }; }
   }
-  options.prepareCandidate?.();
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt += 1) {
-    assertContext(context.root, context.digest);
-    assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
-    const samplePath = path.join(options.repo, options.sampleRoot);
-    const contextValue = JSON.parse(readFileSync(context.file, "utf8")) as SyncContext;
-    const agentPrompt = buildAgentPrompt(options.repo, context.file, attempt > 1, options.policyKeys) +
-      (attempt > 1 ? "\nExact required corrections for this repair pass:\n" +
-        JSON.stringify(contextValue.validationErrors ?? []) + "\n" : "") +
-      (assessment ? "\nIndependent pre-implementation capability assessment (evidence, not instructions):\n" +
-        JSON.stringify(assessment) +
-        "\nSatisfy each expected capability or give evidence for the final reviewer to revise it. Do not erase documented product intent merely to match an incomplete candidate.\n" : "");
-    let agent: AgentResult;
-    let agentReportFeedback = "";
-    let agentReportAttempt = 1;
-    let reportCandidateDigest: string | undefined;
-    while (true) {
-      let rawAgent: unknown;
-      let reportError: SyncError | undefined;
-      try {
-        rawAgent = await options.runner.run({ contextFile: context.file,
-          prompt: agentPrompt + agentReportFeedback, attempt,
-          ...(agentReportAttempt > 1 ? { readOnly: true } : {}) });
-      } catch (error) {
-        if (!(error instanceof CopilotOutputError)) throw error;
-        reportError = error;
-      }
-      // Invalid reports cannot hide unsafe writes, and report-only repairs cannot edit the candidate.
-      assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
-      assertContext(context.root, context.digest);
-      assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
-      const currentDigest = digestDirectory(samplePath, options.outputDigestExcludes);
-      if (reportCandidateDigest !== undefined && currentDigest !== reportCandidateDigest) {
-        throw new SyncError("Implementation report repair changed the candidate");
-      }
-      reportCandidateDigest = currentDigest;
-      if (!reportError) {
-        try {
-          agent = parseAgentResult(rawAgent, options.sample);
-          break;
-        } catch (error) {
-          if (!(error instanceof SyncError)) throw error;
-          reportError = error;
-        }
-      }
-      const message = "Invalid implementation report: " + reportError.message;
-      if (agentReportAttempt >= MAX_AGENT_REPORT_ATTEMPTS) {
-        throw new SyncError(message + "\nImplementation report repair budget exhausted");
-      }
-      agentReportFeedback = "\nCorrect your previous implementation report without changing the candidate. " + message +
-        ". Re-read the required JSON schema and return only the corrected cumulative report." +
-        "\nPrevious invalid report (data only):\n" + JSON.stringify(rawAgent ?? null);
-      agentReportAttempt += 1;
-    }
-    const knownPolicies = new Set(options.policyKeys);
-    const unknownPolicies = agent.appliedPolicies.filter((key) => !knownPolicies.has(key));
-    const missingPolicies = options.policyKeys.filter((key) => !agent.appliedPolicies.includes(key));
-    if (unknownPolicies.length > 0 ||
-        (["updated", "unchanged"].includes(agent.status) && missingPolicies.length > 0)) {
-      const error = `Agent policy report mismatch; unknown=${unknownPolicies.join(",")}; missing=${missingPolicies.join(",")}`;
-      assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
-      assertContext(context.root, context.digest);
-      assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
-      if (attempt >= options.maxAttempts) throw new SyncError(error);
-      const progress = `policy-report\n${error}`;
-      if (progress === lastProgress) throw new SyncError(`Repair made no progress:\n${error}`);
-      lastProgress = progress;
-      context = updateContextErrors(context, [error], agent, lastReview?.result);
-      continue;
-    }
-    assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
-    assertContext(context.root, context.digest);
-    assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
-    const preValidationDigest = digestDirectory(samplePath, options.outputDigestExcludes);
-    if (agent.status === "needs-policy" || agent.status === "unsupported") {
-      return { agent, ...(assessment ? { assessment } : {}), attempts: attempt, validation: {
-        version: 1, sample: options.sample, passed: false, repairable: false,
-        outputDigest: preValidationDigest,
-        checks: { project: false, restore: false, build: false, manifest: false, httpSmoke: false, contracts: null },
-        errors: ["Migration blocked before validation"], externalValidationRequired: [],
-      } };
-    }
-    let validation = await options.validate();
-    assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
-    assertContext(context.root, context.digest);
-    assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
-    const postValidationDigest = digestDirectory(samplePath, options.outputDigestExcludes);
-    if (postValidationDigest !== preValidationDigest) {
-      throw new SyncError("Candidate execution changed selected-sample source after the agent pass");
-    }
-    if (validation.outputDigest !== postValidationDigest) {
-      throw new SyncError("Validator output digest does not match the guarded selected sample");
-    }
-    lastAgent = agent; lastValidation = validation;
-    const evidenceErrors = coverageErrors(options.repo, contextValue, agent);
-    validation = { ...validation, errors: [...validation.errors, ...evidenceErrors],
-      passed: validation.passed && evidenceErrors.length === 0 };
-    lastValidation = validation;
-    if (evidenceErrors.length > 0) {
-      const progress = stable({ digest: validation.outputDigest, errors: evidenceErrors });
-      if (progress === lastProgress) {
-        if (attempt < options.maxAttempts && stagnationRecoveries === 0) {
-          stagnationRecoveries = 1;
-          context = updateContextErrors(context, [...evidenceErrors,
-            "Previous repair made no effective candidate change. Edit the files named by the errors, reread them, and verify each exact correction before reporting success."],
-          agent, lastReview?.result);
-          continue;
-        }
-        return { agent, validation: { ...validation, errors: [...validation.errors, "Repair made no progress"] },
-          ...(lastReview ? { review: lastReview } : {}), ...(assessment ? { assessment } : {}), attempts: attempt, failureStage: "evidence" };
-      }
-      stagnationRecoveries = 0;
-      lastProgress = progress;
-      if (attempt < options.maxAttempts) {
-        context = updateContextErrors(context, evidenceErrors, agent, lastReview?.result);
-        continue;
-      }
-      return { agent, validation: { ...validation,
-        errors: [...validation.errors, "Cycle budget exhausted without complete source evidence"] },
-        ...(lastReview ? { review: lastReview } : {}), ...(assessment ? { assessment } : {}), attempts: attempt, failureStage: "evidence" };
-    }
-    const openFindingIds = lastReview?.result.findings.map((finding) => finding.id) ?? [];
-    const reviewPrompt = readFileSync(path.join(options.repo, "automation/teams-sample-sync/prompts/review-prompt.md"), "utf8") +
-      "\nCONTEXT_FILE=" + path.relative(options.repo, context.file).replaceAll("\\", "/") +
-      "\nIndependently inspect source changes and candidate code FIRST. Then assess this implementation report:\n" +
-      JSON.stringify(agent) + "\nValidation:\n" + JSON.stringify(validation) +
-      "\nIndependent pre-implementation capability assessment:\n" + JSON.stringify(assessment ?? null) +
-      "\nPrevious accepted review (historical data only):\n" + JSON.stringify(lastReview?.result ?? null) +
-      "\nOpen finding IDs from the immediately previous accepted review: " + JSON.stringify(openFindingIds) +
-      "\nRetain each open ID in findings or place it in resolvedFindingIds. resolvedFindingIds must contain only IDs " +
-      "from this open list; do not repeat IDs already resolved by an earlier review.";
-    let review: ReviewResult;
-    let reportFeedback = "";
-    let reportAttempt = 1;
-    while (true) {
-      let rawReview: unknown;
-      let reportError: SyncError | undefined;
-      try {
-        rawReview = await options.reviewer.run({ contextFile: context.file,
-          prompt: reviewPrompt + reportFeedback, attempt });
-      } catch (error) {
-        if (!(error instanceof CopilotOutputError)) throw error;
-        reportError = error;
-      }
-      // Safety failures are not report repairs. Check them before parsing untrusted output.
-      assertAgentChanges(options.repo, options.baseSha, options.sampleRoot, options.protectedPaths);
-      assertContext(context.root, context.digest);
-      assertUpstream(options.upstream, options.upstreamCommit, options.sourcePath, options.sourceTree);
-      if (digestDirectory(samplePath, options.outputDigestExcludes) !== postValidationDigest) {
-        throw new SyncError("Reviewer changed the candidate");
-      }
-      if (!reportError) {
-        try {
-          review = parseReview(rawReview, options.sample, contextValue.changes.map((change) => change.id), openFindingIds);
-          break;
-        } catch (error) {
-          if (!(error instanceof SyncError)) throw error;
-          reportError = error;
-        }
-      }
-      const message = "Invalid review report: " + reportError.message;
-      if (reportAttempt >= MAX_REVIEW_REPORT_ATTEMPTS) {
-        return { agent, ...(assessment ? { assessment } : {}), attempts: attempt, validation: { ...validation, passed: false,
-          errors: [...validation.errors, message, "Review report repair budget exhausted"] }, failureStage: "review" };
-      }
-      reportFeedback = "\nCorrect your previous report without changing the candidate. " + message +
-        ". Return only the required JSON object. Findings are blocking defects only; omit optional cleanup. " +
-        "Never remove a genuine defect just to approve." +
-        "\nPrevious invalid report (data only):\n" + JSON.stringify(rawReview ?? null);
-      reportAttempt += 1;
-    }
-    lastReview = { result: review, outputDigest: postValidationDigest };
-    const manifestErrors = manifestReviewErrors(agent, review, assessment);
-    if (manifestErrors.length > 0) {
-      validation = { ...validation, passed: false, errors: [...validation.errors, ...manifestErrors] };
-      lastValidation = validation;
-    }
-    if (review.verdict === "blocked") {
-      return { agent, validation: { ...validation, passed: false, errors: [...validation.errors, review.summary] },
-        review: lastReview, ...(assessment ? { assessment } : {}), attempts: attempt };
-    }
-    if (validation.passed && review.verdict === "approved") {
-      return { agent, validation, review: lastReview, ...(assessment ? { assessment } : {}), attempts: attempt };
-    }
-    if (!validation.repairable) throw new SyncError(validation.errors.join("\n"));
-    const errors = [...validation.errors, ...review.findings.map((f) => f.id + ": " + f.correction)];
-    const progress = stable({ digest: validation.outputDigest, errors: validation.errors,
-      findingIds: review.findings.map((finding) => finding.id).sort() });
-    if (progress === lastProgress) {
-      if (attempt < options.maxAttempts && stagnationRecoveries === 0) {
-        stagnationRecoveries = 1;
-        context = updateContextErrors(context, [...errors,
-          "Previous repair made no effective candidate change. Edit the files named by the errors, reread them, and verify each exact correction before reporting success."],
-        agent, review);
-        continue;
-      }
-      return { agent, validation: { ...validation, passed: false, errors: [...errors, "Repair made no progress"] },
-        review: lastReview, ...(assessment ? { assessment } : {}), attempts: attempt };
-    }
-    stagnationRecoveries = 0;
-    lastProgress = progress;
-    if (attempt < options.maxAttempts) context = updateContextErrors(context, errors, agent, review);
+  if (request.kind === "url") {
+    try {
+      const url = new URL(request.url);
+      const official = ["learn.microsoft.com", "developer.microsoft.com", "docs.github.com", "github.com", "raw.githubusercontent.com", "www.nuget.org", "api.nuget.org"];
+      return { kind: url.protocol === "https:" && official.includes(url.hostname) && !url.username && !url.password ? "approve-once" : "reject" };
+    } catch { return { kind: "reject" }; }
   }
-  if (!lastAgent || !lastValidation) throw new SyncError("Agent loop did not run");
-  return { agent: lastAgent, validation: { ...lastValidation, passed: false,
-    errors: [...lastValidation.errors, "Cycle budget exhausted without approval and validation"] },
-    ...(lastReview ? { review: lastReview } : {}), ...(assessment ? { assessment } : {}), attempts: options.maxAttempts };
+  if (request.kind === "custom-tool") {
+    const allowed = readOnly ? ["inspect_manifest_schema", "submit_review"] : ["validate_sample", "inspect_manifest_schema", "submit_result"];
+    return { kind: allowed.includes(request.toolName) ? "approve-once" : "reject" };
+  }
+  if (readOnly || request.kind !== "write" || request.requestSandboxBypass) return { kind: "reject" };
+  try {
+    const root = realpathSync(path.join(repo, sampleRoot));
+    const candidate = path.resolve(repo, request.fileName);
+    if (path.relative(root, candidate).split(path.sep).some((part) => [".git", ".codex", ".agents"].includes(part))) return { kind: "reject" };
+    // Resolve the closest existing ancestor so creation of nested directories works,
+    // while symlinks leading outside the selected sample remain forbidden.
+    let ancestor = candidate;
+    while (!existsSync(ancestor)) {
+      const parent = path.dirname(ancestor);
+      if (parent === ancestor) return { kind: "reject" };
+      ancestor = parent;
+    }
+    const resolved = path.resolve(realpathSync(ancestor), path.relative(ancestor, candidate));
+    return { kind: resolved.startsWith(root + path.sep) ? "approve-once" : "reject" };
+  } catch { return { kind: "reject" }; }
+}
+
+class CopilotPersistentSession implements PersistentSession {
+  private submitted: unknown;
+  private failure: Error | undefined;
+  constructor(private readonly session: SdkSession, private readonly log: ReturnType<typeof createCopilotLog>, role: "implementation" | "review", observed: ObservedModel[]) {
+    session.on("assistant.message", (event) => { const data = event as { data?: { content?: unknown } }; if (typeof data.data?.content === "string") log.write(data.data.content); });
+    session.on("assistant.usage", (event) => {
+      if (event.data.model) observed.push({ role, model: event.data.model, reasoningEffort: event.data.reasoningEffort ?? "unknown" });
+    });
+  }
+  setSubmission(value: unknown): void { this.submitted = value; }
+  fail(error: Error): void {
+    this.failure = error;
+    void this.session.abort().catch(() => {});
+  }
+  async send(message: string): Promise<unknown> {
+    if (this.failure) throw this.failure;
+    this.submitted = undefined;
+    // send() returns an acknowledgement before the agent has called its tools.
+    // The coordinator owns the overall deadline and aborts an overlong turn.
+    try { await this.session.sendAndWait({ prompt: message }, 30 * 60_000); }
+    catch (error) { throw this.failure ?? error; }
+    if (this.failure) throw this.failure;
+    return this.submitted;
+  }
+  async abort(): Promise<void> { await this.session.abort(); }
+  async close(): Promise<void> { this.log.finish(); await this.session.disconnect(); }
+}
+
+export class CopilotAgentRunner {
+  private client: SdkClient | undefined;
+  constructor(private readonly repo: string, private readonly sampleRoot: string, private readonly configuration: CopilotConfiguration, private readonly logFile: string, private readonly observed: ObservedModel[], private readonly skillDirectories: string[], private readonly factory: SdkFactory = defaultSdkFactory, private readonly isValidationActive: () => boolean = () => false, private readonly guard: () => void = () => {}) {}
+  async open(role: "implementation" | "review", tools: Tool[] = []): Promise<PersistentSession> {
+    if (!this.client) {
+      const client = await this.factory();
+      try {
+        await client.start();
+        const status = await client.getStatus();
+        if (status.version !== this.configuration.runtimeVersion) throw new SyncError(`Copilot runtime version mismatch: expected ${this.configuration.runtimeVersion}, received ${status.version}`);
+        const auth = await client.getAuthStatus();
+        if (!auth.isAuthenticated) throw new SyncError("Copilot runtime is not authenticated");
+        this.client = client;
+      } catch (error) {
+        await client.stop().catch(() => {});
+        throw error;
+      }
+    }
+    const policy = role === "implementation" ? this.configuration.implementation : this.configuration.review;
+    const selection = selectModel(policy, await this.client.listModels());
+    const log = createCopilotLog((value) => appendFileSync(this.logFile, value, "utf8"), (value) => process.stdout.write(value));
+    const prompt = readFileSync(path.join(this.repo, "automation/teams-sample-sync/prompts", role === "implementation" ? "agent-prompt.md" : "review-prompt.md"), "utf8");
+    let active: CopilotPersistentSession | undefined;
+    const rejected = new Map<string, { signature: string; count: number }>();
+    const wrappedTools: Tool[] = tools.map((tool) => ({ ...tool, handler: async (input, invocation) => {
+      if (!tool.handler) throw new SyncError(`Tool ${tool.name} has no handler`);
+      try {
+        const output = await tool.handler(input, invocation);
+        if (tool.name === "submit_result" || tool.name === "submit_review") {
+          rejected.delete(tool.name);
+          active?.setSubmission(output);
+        }
+        return output;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.write(`\nTool ${tool.name} rejected: ${message}\n`);
+        if (/changed (?:protected|outside|Git HEAD|candidate|during)|Validation changed|infrastructure failed|Cannot run |schema is unavailable|timed out/i.test(message)) {
+          active?.fail(error instanceof Error ? error : new SyncError(message));
+        } else if (tool.name === "submit_result" || tool.name === "submit_review") {
+          const signature = JSON.stringify([input, message]);
+          const previous = rejected.get(tool.name);
+          const count = previous?.signature === signature ? previous.count + 1 : 1;
+          rejected.set(tool.name, { signature, count });
+          if (count >= 2) active?.fail(new SyncError(`Report correction made no progress: ${message}`));
+        }
+        throw error;
+      }
+    } }));
+    const names = wrappedTools.map((tool) => String(tool.name));
+    const effort = selection.reasoningEffort;
+    if (effort !== undefined && effort !== "low" && effort !== "medium" && effort !== "high" && effort !== "xhigh") throw new SyncError(`Pinned SDK does not support reasoning effort: ${effort}`);
+    const availableTools = role === "implementation"
+      ? ["view", "grep", "glob", "skill", "web_fetch", "edit", "apply_patch", "create", "str_replace_editor", ...names]
+      : ["view", "grep", "glob", "skill", "web_fetch", ...names];
+    const raw = await this.client.createSession({
+      model: selection.model, ...(effort ? { reasoningEffort: effort } : {}),
+      workingDirectory: this.repo, skillDirectories: this.skillDirectories,
+      systemMessage: { mode: "append", content: prompt }, tools: wrappedTools,
+      availableTools,
+      excludedTools: ["shell", "bash", "terminal"],
+      enableConfigDiscovery: false,
+      hooks: { onPreToolUse: (input) => {
+        this.guard();
+        if (!availableTools.includes(input.toolName)) return { permissionDecision: "deny", permissionDecisionReason: "Tool is outside this session's allowed capabilities" };
+        if (this.isValidationActive() && ["edit", "apply_patch", "create", "str_replace_editor"].includes(input.toolName)) return { permissionDecision: "deny", permissionDecisionReason: "Wait for candidate validation to complete before editing" };
+        return undefined;
+      }, onPostToolUse: () => { this.guard(); } },
+      onPermissionRequest: (request) => request.kind === "write" && this.isValidationActive()
+        ? { kind: "reject" }
+        : permissionFor(this.repo, this.sampleRoot, role === "review", request),
+    });
+    active = new CopilotPersistentSession(raw, log, role, this.observed);
+    return active;
+  }
+  async close(): Promise<void> { if (this.client) { await this.client.stop(); this.client = undefined; } }
 }

@@ -88,37 +88,6 @@ test("legacy state is stale and unsafe target paths fail", () => {
   assert.throws(() => targets(item.repo), /unsafe path/);
 });
 
-test("Copilot model and reasoning effort are validated and tracked as sync input", () => {
-  const item = fixture();
-  const configured = targets(item.repo);
-  assert.deepEqual(configured.copilot, { model: "gpt-5.4", reasoningEffort: "high" });
-
-  const first = createPlan(item.repo, item.upstream);
-  const entry = first.samples["sample-a"]!;
-  write(statePath(item.repo, "sample-a"), `${JSON.stringify({
-    version: 2, sample: "sample-a", upstreamCommit: entry.upstreamCommit, sourceTree: entry.sourceTree,
-    inputDigest: entry.inputDigest, outputDigest: "output", componentDigests: entry.componentDigests, status: "verified",
-  }, null, 2)}\n`);
-  const targetsFile = path.join(item.repo, "automation/teams-sample-sync/config/targets.yml");
-  const original = readFileSync(targetsFile, "utf8");
-  write(targetsFile, original.replace("reasoningEffort: high", "reasoningEffort: medium"));
-  assert.deepEqual(createPlan(item.repo, item.upstream).samples["sample-a"]!.changedComponents, ["copilot"]);
-
-  write(targetsFile, original.replace("reasoningEffort: high", "reasoningEffort: extreme"));
-  assert.throws(() => targets(item.repo), /reasoningEffort must be one of/);
-});
-
-test("Copilot auto model omits reasoning effort", () => {
-  const item = fixture();
-  const targetsFile = path.join(item.repo, "automation/teams-sample-sync/config/targets.yml");
-  const original = readFileSync(targetsFile, "utf8");
-  write(targetsFile, original.replace("model: gpt-5.4\n  reasoningEffort: high", "model: auto"));
-  assert.deepEqual(targets(item.repo).copilot, { model: "auto" });
-
-  write(targetsFile, original.replace("model: gpt-5.4", "model: auto"));
-  assert.throws(() => targets(item.repo), /reasoningEffort must be omitted/);
-});
-
 test("state v2 created before Copilot configuration becomes pending without losing three-way history", () => {
   const item = fixture();
   const first = createPlan(item.repo, item.upstream);
@@ -135,4 +104,40 @@ test("state v2 created before Copilot configuration becomes pending without losi
   assert.equal(next.status, "pending");
   assert.deepEqual(next.changedComponents, ["copilot"]);
   assert.equal((next.previousState as { upstreamCommit: string }).upstreamCommit, entry.upstreamCommit);
+});
+
+test("role model policies are validated and tracked as synchronization inputs", () => {
+  const item = fixture();
+  const file = path.join(item.repo, "automation/teams-sample-sync/config/targets.yml");
+  const original = readFileSync(file, "utf8");
+  const entry = createPlan(item.repo, item.upstream).samples["sample-a"]!;
+  write(statePath(item.repo, "sample-a"), JSON.stringify({ version: 2, sample: "sample-a", upstreamCommit: entry.upstreamCommit, sourceTree: entry.sourceTree, inputDigest: entry.inputDigest, outputDigest: "output", componentDigests: entry.componentDigests, status: "verified" }));
+  assert.equal(targets(item.repo).copilot.implementation.strategy, "auto");
+  write(file, original.replace("default: { strategy: auto }", "default: { strategy: capability, requireReasoning: true, fallback: fail }"));
+  assert.equal(targets(item.repo).copilot.implementation.preferredReasoningEffort, "high");
+  assert.deepEqual(createPlan(item.repo, item.upstream).samples["sample-a"]!.changedComponents, ["copilot"]);
+  for (const invalid of ["strategy: auto, preferredReasoningEffort: high", "strategy: capability", "strategy: capability, fallback: fail, maximumCostMultiplier: .inf", "strategy: capability, fallback: fail, preferredReasoningEffort: extreme", "strategy: capability, fallback: fail, preferredReasoningEffort: max"]) {
+    write(file, original.replace("default: { strategy: auto }", `default: { ${invalid} }`));
+    assert.throws(() => targets(item.repo));
+  }
+});
+test("trusted skill, prompt and tool changes invalidate checkpoints", () => {
+  const item = fixture();
+  const entry = createPlan(item.repo, item.upstream).samples["sample-a"]!;
+  write(statePath(item.repo, "sample-a"), JSON.stringify({ version: 2, sample: "sample-a", upstreamCommit: entry.upstreamCommit, sourceTree: entry.sourceTree, inputDigest: entry.inputDigest, outputDigest: "output", componentDigests: entry.componentDigests, status: "verified" }));
+  for (const [relative, component] of [
+    ["skills/sync-teams-dotnet-samples-to-agents-sdk/SKILL.md", "syncSkill"],
+    ["prompts/agent-prompt.md", "validator"],
+    ["prompts/review-prompt.md", "validator"],
+    ["src/agent-tools.ts", "validator"],
+    ["src/sync-session.ts", "validator"],
+    ["package.json", "validator"],
+    ["package-lock.json", "validator"],
+  ]) {
+    const file = path.join(item.repo, "automation/teams-sample-sync", relative!);
+    const original = readFileSync(file, "utf8");
+    write(file, `${original}\nchanged requirement\n`);
+    assert.ok(createPlan(item.repo, item.upstream).samples["sample-a"]!.changedComponents.includes(component!));
+    write(file, original);
+  }
 });

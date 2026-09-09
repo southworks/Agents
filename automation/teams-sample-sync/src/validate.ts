@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -7,7 +8,7 @@ import { XMLParser } from "fast-xml-parser";
 import { parseDocument } from "yaml";
 import { digestDirectory } from "./git.js";
 import { SyncError } from "./config.js";
-import type { ManifestTarget, Targets, ValidationChecks, ValidationResult } from "./types.js";
+import type { ManifestTarget, Targets, ValidationCheck, ValidationResult } from "./types.js";
 
 const REQUIRED_PACKAGES = [
   "Microsoft.Agents.Authentication.Msal",
@@ -22,7 +23,7 @@ function allFiles(root: string): string[] {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const item = path.join(directory, entry.name);
       if (entry.isSymbolicLink()) throw new SyncError(`Symlink is not allowed: ${item}`);
-      if (entry.isDirectory()) visit(item);
+      if (entry.isDirectory() && !["bin", "obj", ".git", ".vs"].includes(entry.name)) visit(item);
       else if (entry.isFile()) files.push(item);
     }
   };
@@ -74,7 +75,7 @@ export function checkProject(sampleRoot: string, configured: Targets): { project
     name.startsWith("Microsoft.Bot.") || name.startsWith("Microsoft.TeamsFx"));
   if (legacyPackages.length > 0) errors.push(`Legacy Teams or Bot SDK packages remain: ${legacyPackages.sort().join(", ")}`);
   const sources = allFiles(sampleRoot)
-    .filter((file) => file.endsWith(".cs") && !["bin", "obj"].includes(path.relative(sampleRoot, file).split(path.sep)[0]!))
+    .filter((file) => file.endsWith(".cs") && !["bin", "obj", "tests"].includes(path.relative(sampleRoot, file).split(path.sep)[0]!))
     .map((file) => readFileSync(file, "utf8")).join("\n");
   if (!sources.includes("AgentApplication")) errors.push("Missing AgentApplication implementation");
   if (!/partial\s+class\s+\w+[\s\S]*?:\s*AgentApplication/.test(sources)) errors.push("Missing partial AgentApplication subclass");
@@ -111,11 +112,16 @@ function renderPlaceholders(value: unknown): unknown {
   return value.replace(/\$\{\{([^{}]+)\}\}/g, replace).replace(/<<([^<>]+)>>/g, replace);
 }
 
-async function fetchSchema(url: string): Promise<unknown> {
+export async function fetchSchema(url: string): Promise<unknown> {
+  const address = new URL(url);
+  if (address.protocol !== "https:" || address.hostname !== "developer.microsoft.com" ||
+      !/^\/json-schemas\/teams\/v\d+\.\d+\/MicrosoftTeams\.schema\.json$/.test(address.pathname) || address.search || address.hash) {
+    throw new SyncError("Only released Teams manifest schema URLs are supported");
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20_000);
   try {
-    const response = await fetch(url, { headers: { "User-Agent": "teams-sample-sync/2" }, signal: controller.signal });
+    const response = await fetch(url, { headers: { "User-Agent": "teams-sample-sync/3" }, signal: controller.signal, redirect: "error" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (bytes.byteLength > 5_000_000) throw new Error("Schema response exceeds 5 MB");
@@ -136,7 +142,7 @@ function schemaError(error: ErrorObject): string {
   return `Manifest schema error at ${location}: ${error.message ?? error.keyword}`;
 }
 
-export async function checkManifest(sampleRoot: string, manifestTarget: ManifestTarget): Promise<string[]> {
+export async function checkManifest(sampleRoot: string, manifestTarget: ManifestTarget, loadSchema = fetchSchema): Promise<string[]> {
   const errors: string[] = [];
   const packageRoot = path.join(sampleRoot, manifestTarget.packageDirectory);
   const manifestPath = path.join(packageRoot, "manifest.json");
@@ -165,7 +171,7 @@ export async function checkManifest(sampleRoot: string, manifestTarget: Manifest
     }
   }
   const sources = allFiles(sampleRoot)
-    .filter((file) => file.endsWith(".cs") && !["bin", "obj"].includes(path.relative(sampleRoot, file).split(path.sep)[0]!))
+    .filter((file) => file.endsWith(".cs") && !["bin", "obj", "tests"].includes(path.relative(sampleRoot, file).split(path.sep)[0]!))
     .map((file) => readFileSync(file, "utf8")).join("\n");
   if (sources.includes("AgentApplication") && (!Array.isArray(manifest.bots) || manifest.bots.length === 0)) {
     errors.push("Manifest bots capability does not match the Agents application source");
@@ -186,20 +192,56 @@ export async function checkManifest(sampleRoot: string, manifestTarget: Manifest
     return errors;
   }
   const ajv = new Ajv({ allErrors: true, strict: false, unicodeRegExp: false, validateSchema: false, logger: false });
-  const validate = ajv.compile(await fetchSchema(schemaUrl) as AnySchema);
+  const validate = ajv.compile(await loadSchema(schemaUrl) as AnySchema);
   if (!validate(renderPlaceholders(manifest))) errors.push(...(validate.errors ?? []).slice(0, 10).map(schemaError));
   return errors;
 }
 
-function commandErrors(command: string, args: string[], cwd: string): string[] {
-  const result = spawnSync(command, args, { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-  if (result.error) throw new SyncError(`Cannot run ${command}: ${result.error.message}`);
-  if (result.status === 0) return [];
-  const detail = `${result.stdout}\n${result.stderr}`.trim();
-  if (/NU13(?:00|01)|unable to load the service index|name or service not known|temporary failure in name resolution|connection (?:refused|timed out)|TLS handshake|network is unreachable/i.test(detail)) {
-    throw new SyncError(`Validation infrastructure failed while running ${command} ${args.join(" ")}:\n${detail}`);
+export function sanitizedChildEnvironment(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+  const retained = ["PATH", "Path", "SystemRoot", "WINDIR", "HOME", "USERPROFILE", "TMP", "TEMP", "DOTNET_ROOT", "DOTNET_CLI_HOME", "NUGET_PACKAGES", "SSL_CERT_FILE"];
+  const environment: NodeJS.ProcessEnv = {};
+  for (const key of retained) if (process.env[key] !== undefined) environment[key] = process.env[key];
+  for (const [key, value] of Object.entries(extra)) environment[key] = value;
+  return environment;
+}
+
+const activeProcesses = new Set<ReturnType<typeof spawn>>();
+export function cancelValidationProcesses(): void {
+  for (const child of activeProcesses) terminate(child);
+}
+
+export async function commandErrors(command: string, args: string[], cwd: string, timeoutMs = 10 * 60_000): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { cwd, detached: process.platform !== "win32", env: sanitizedChildEnvironment(), stdio: ["ignore", "pipe", "pipe"] });
+    activeProcesses.add(child);
+    let output = "";
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; terminate(child); }, timeoutMs);
+    const append = (chunk: Buffer): void => { output = (output + chunk.toString("utf8")).slice(-1024 * 1024); };
+    child.stdout.on("data", append);
+    child.stderr.on("data", append);
+    const cleanup = (): void => { clearTimeout(timer); activeProcesses.delete(child); };
+    child.on("error", (error) => { cleanup(); reject(new SyncError(`Cannot run ${command}: ${error.message}`)); });
+    child.on("close", (code) => {
+      cleanup();
+      if (timedOut) { reject(new SyncError(`Validation command timed out: ${command} ${args.join(" ")}`)); return; }
+      if (code === 0) { resolve([]); return; }
+      if (/NU13(?:00|01)|unable to load the service index|name or service not known|temporary failure in name resolution|connection (?:refused|timed out)|TLS handshake|network is unreachable/i.test(output)) {
+        reject(new SyncError(`Validation infrastructure failed while running ${command}:\n${output.trim()}`)); return;
+      }
+      resolve([`${command} ${args.join(" ")} failed:\n${output.trim()}`]);
+    });
+  });
+}
+
+function terminate(child: ReturnType<typeof spawn>): void {
+  if (!child.pid) return;
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
+    return;
   }
-  return [`${command} ${args.join(" ")} failed:\n${detail}`];
+  try { process.kill(-child.pid, "SIGKILL"); return; } catch { /* Child may not own a process group. */ }
+  child.kill("SIGKILL");
 }
 
 async function httpSmoke(sampleRoot: string, project: string): Promise<string[]> {
@@ -207,24 +249,30 @@ async function httpSmoke(sampleRoot: string, project: string): Promise<string[]>
   const url = `http://127.0.0.1:${port}`;
   const child = spawn("dotnet", ["run", "--project", project, "--no-build", "--no-restore", "--urls", url], {
     cwd: sampleRoot,
-    env: { ...process.env, ASPNETCORE_URLS: url, ASPNETCORE_ENVIRONMENT: "Development" },
+    env: sanitizedChildEnvironment({ ASPNETCORE_URLS: url, ASPNETCORE_ENVIRONMENT: "Development" }),
     stdio: ["ignore", "pipe", "pipe"],
+    detached: process.platform !== "win32",
   });
+  activeProcesses.add(child);
+  let spawnError: Error | undefined;
+  child.on("error", (error) => { spawnError = error; });
   let output = "";
-  child.stdout.on("data", (chunk: Buffer) => { output += chunk.toString("utf8"); });
-  child.stderr.on("data", (chunk: Buffer) => { output += chunk.toString("utf8"); });
+  child.stdout.on("data", (chunk: Buffer) => { output = (output + chunk.toString("utf8")).slice(-1024 * 1024); });
+  child.stderr.on("data", (chunk: Buffer) => { output = (output + chunk.toString("utf8")).slice(-1024 * 1024); });
   try {
     for (let count = 0; count < 40; count += 1) {
+      if (spawnError) throw new SyncError(`Cannot start HTTP smoke process: ${spawnError.message}`);
       if (child.exitCode !== null) return [`HTTP smoke process exited before readiness:\n${output.trim()}`];
       try {
-        const response = await fetch(`${url}/`);
+        const response = await fetch(`${url}/`, { signal: AbortSignal.timeout(500) });
         if (response.status === 200) return [];
       } catch { /* Wait for startup. */ }
       await delay(500);
     }
     return [`HTTP smoke GET / did not return 200:\n${output.trim()}`];
   } finally {
-    child.kill();
+    terminate(child);
+    activeProcesses.delete(child);
   }
 }
 
@@ -239,11 +287,12 @@ export function prepareManifest(sampleRoot: string, canonicalRoot: string, targe
 }
 
 export interface ValidationRuntime {
-  runCommand: (command: string, args: string[], cwd: string) => string[];
+  runCommand: (command: string, args: string[], cwd: string) => string[] | Promise<string[]>;
   runHttpSmoke: (sampleRoot: string, project: string) => Promise<string[]>;
+  loadSchema?: typeof fetchSchema;
 }
 
-const defaultRuntime: ValidationRuntime = {
+export const defaultValidationRuntime: ValidationRuntime = {
   runCommand: commandErrors,
   runHttpSmoke: httpSmoke,
 };
@@ -255,39 +304,72 @@ export async function validateSample(
   configured: Targets,
   target: ManifestTarget,
   excludes: string[],
-  runtime: ValidationRuntime = defaultRuntime,
+  runtime: ValidationRuntime = defaultValidationRuntime,
+  group: "code" | "manifest" | "all" = "all",
 ): Promise<ValidationResult> {
-  const checks: ValidationChecks = { project: false, restore: false, build: false, manifest: false, httpSmoke: false, contracts: false };
+  if (!["code", "manifest", "all"].includes(group)) throw new SyncError("Invalid validation group");
+  const checks: Record<string, ValidationCheck> = {};
   const errors: string[] = [];
-  const projectCheck = checkProject(sampleRoot, configured);
-  errors.push(...projectCheck.errors);
-  checks.project = projectCheck.errors.length === 0;
-  if (projectCheck.project) {
-    const restore = runtime.runCommand("dotnet", ["restore", projectCheck.project, "--nologo"], sampleRoot);
-    errors.push(...restore); checks.restore = restore.length === 0;
-    if (checks.restore) {
-      const build = runtime.runCommand("dotnet", ["build", projectCheck.project, "--no-restore", "--nologo", "--warnaserror"], sampleRoot);
-      errors.push(...build); checks.build = build.length === 0;
-    }
-  }
-  const manifestErrors = await checkManifest(sampleRoot, target);
-  errors.push(...manifestErrors); checks.manifest = manifestErrors.length === 0;
-  if (checks.build && projectCheck.project) {
-    const smoke = await runtime.runHttpSmoke(sampleRoot, projectCheck.project);
-    errors.push(...smoke); checks.httpSmoke = smoke.length === 0;
-  }
-  if (["agent-targeted-messages", "bot-ai-messages", "bot-attachments", "bot-cards", "bot-meetings", "bot-message-extensions", "bot-task-modules"].includes(sample)) {
-    const contracts = checks.build ? runtime.runCommand("dotnet", ["test", path.join(repo, "automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj"), "--nologo", "--warnaserror", "--filter", "Sample=" + sample], repo) : ["Contract tests require a successful sample build"];
-    errors.push(...contracts); checks.contracts = contracts.length === 0;
-  } else checks.contracts = null;
+  const result = (name: string, failures: string[]): void => {
+    checks[name] = { status: failures.length ? "failed" : "passed", errors: failures };
+    errors.push(...failures);
+  };
+  const skip = (name: string, reason?: string): void => {
+    checks[name] = { status: reason ? "not-run" : "skipped", errors: reason ? [reason] : [] };
+  };
+  let project: string | undefined;
+  let buildPassed = false;
+  if (group !== "manifest") {
+    const projectCheck = checkProject(sampleRoot, configured);
+    project = projectCheck.project;
+    result("project", projectCheck.errors);
+    if (project) {
+      const restore = await runtime.runCommand("dotnet", ["restore", project, "--nologo"], sampleRoot);
+      result("restore", restore);
+      if (restore.length === 0) {
+        const build = await runtime.runCommand("dotnet", ["build", project, "--no-restore", "--nologo", "--warnaserror"], sampleRoot);
+        result("build", build); buildPassed = build.length === 0;
+      } else skip("build", "Build requires a successful restore");
+    } else { skip("restore", "Restore requires a project"); skip("build", "Build requires a project"); }
+  } else for (const name of ["project", "restore", "build"]) skip(name);
+  if (group !== "code") result("manifest", await checkManifest(sampleRoot, target, runtime.loadSchema));
+  else skip("manifest");
+  if (group === "all") {
+    if (buildPassed && project) result("httpSmoke", await runtime.runHttpSmoke(sampleRoot, project));
+    else skip("httpSmoke", "HTTP smoke requires a successful build");
+  } else skip("httpSmoke");
+  const hasContracts = ["agent-targeted-messages", "bot-ai-messages", "bot-attachments", "bot-cards", "bot-meetings", "bot-message-extensions", "bot-task-modules"].includes(sample);
+  if (group !== "manifest" && hasContracts) {
+    if (buildPassed) result("contracts", await runtime.runCommand("dotnet", ["test", path.join(repo, "automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj"), "--nologo", "--warnaserror", "--filter", "Sample=" + sample], repo));
+    else skip("contracts", "Contract tests require a successful build");
+  } else skip("contracts");
+  const testsRoot = path.join(sampleRoot, "tests");
+  const testProjects = existsSync(testsRoot) ? readdirSync(testsRoot).filter((name) => name.endsWith(".csproj")) : [];
+  if (group !== "manifest" && testProjects.length > 0) {
+    if (testProjects.length !== 1) result("sampleTests", ["Expected exactly one tests/*.csproj when sample tests are present"]);
+    else if (!buildPassed) skip("sampleTests", "Sample tests require a successful build");
+    else result("sampleTests", await runtime.runCommand("dotnet", ["test", path.join(testsRoot, testProjects[0]!), "--nologo", "--warnaserror"], sampleRoot));
+  } else skip("sampleTests");
   return {
-    version: 1,
-    sample,
-    passed: errors.length === 0,
-    repairable: true,
-    outputDigest: digestDirectory(sampleRoot, excludes),
-    checks,
-    errors,
+    version: 2, id: randomUUID(), sample, group,
+    passed: errors.length === 0 && Object.values(checks).every((check) => check.status !== "failed" && check.status !== "not-run"),
+    repairable: true, outputDigest: digestDirectory(sampleRoot, excludes), checks, errors,
     externalValidationRequired: ["Credentialed Teams, Entra, Graph, Azure Bot, and portal behavior when applicable"],
   };
+}
+
+export function assertFullValidation(value: ValidationResult, sample: string, sampleRoot?: string): void {
+  if (value.version !== 2 || value.sample !== sample || value.group !== "all" || !value.passed || !value.id || !value.outputDigest || value.errors.length) {
+    throw new SyncError("Current full validation is required");
+  }
+  for (const key of ["project", "restore", "build", "manifest", "httpSmoke"]) {
+    if (value.checks[key]?.status !== "passed") throw new SyncError(`Required validation check did not pass: ${key}`);
+  }
+  const hasContracts = ["agent-targeted-messages", "bot-ai-messages", "bot-attachments", "bot-cards", "bot-meetings", "bot-message-extensions", "bot-task-modules"].includes(sample);
+  if (hasContracts && value.checks.contracts?.status !== "passed") throw new SyncError("Protected contracts did not pass");
+  if (sampleRoot && existsSync(path.join(sampleRoot, "tests")) &&
+      readdirSync(path.join(sampleRoot, "tests")).some((name) => name.endsWith(".csproj")) && value.checks.sampleTests?.status !== "passed") {
+    throw new SyncError("Sample regression tests did not pass");
+  }
+  if (Object.values(value.checks).some((check) => !["passed", "skipped"].includes(check.status) || check.errors.length)) throw new SyncError("Validation contains failing or incomplete checks");
 }

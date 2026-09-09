@@ -11,6 +11,11 @@ This is a standalone skill for Agents SDK source. Treat caller-provided requirem
 
 ## Execution and response contract
 
+If the caller provides manifest-schema inspection and validation tools, use them for the
+checks below instead of requiring shell execution. Preserve their exact diagnostics and
+validate the final manifest before claiming success. A read-only reviewer inspects and
+reports corrections without writing the manifest.
+
 An explicit invocation of this skill with an application or source path is a request to process that application. Unless the user explicitly requests review, audit, or no changes, inspect the source and immediately perform Generate or Complete mode. Do not stop after inspection.
 
 Generate and Complete have only two user-visible phases:

@@ -7,6 +7,11 @@ description: Use when migrating a customer's Teams SDK (teams.net) bot to the Mi
 
 ## Overview
 
+When an automation caller supplies validation tools instead of shell access, use those
+tools to perform the build, tests, and startup checks required below. A current passing
+tool result is equivalent evidence; do not request unavailable shell access or claim
+validation from source inspection alone. Follow the caller's read-only role when reviewing.
+
 Migrates a **Teams SDK** (`teams.net`, https://github.com/microsoft/teams.net) bot to a Microsoft 365
 Agents SDK **`AgentApplication`**. The Teams SDK registers fluent event delegates
 (`teamsApp.OnMessage(async context => ...)`) on an `IContext<T>`; the Agents SDK routes activities to

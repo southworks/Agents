@@ -11,9 +11,6 @@ on:
         description: Create draft pull requests
         type: boolean
         default: false
-      maxAgentAttempts:
-        description: Maximum implementation/review cycles (1-5)
-        default: "5"
 
 env:
   SYNC_TOOL: automation/teams-sample-sync
@@ -81,7 +78,6 @@ jobs:
         with:
           sample: ${{ matrix.sample }}
           upstreamCommit: ${{ matrix.upstreamCommit }}
-          maxAgentAttempts: ${{ inputs.maxAgentAttempts }}
 
   publish:
     name: publish · ${{ matrix.sample }}

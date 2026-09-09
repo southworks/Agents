@@ -5,7 +5,7 @@ import type { PlanSample, State, ValidationResult } from "./types.js";
 export const statePath = (repo: string, sample: string): string => path.join(repo, "automation/teams-sample-sync/state", `${sample}.lock.json`);
 
 const PRIOR_COMPONENT_DIGESTS = ["sourceTree", "target", "policies", "protection", "migrationSkill", "manifestSkill", "canonicalSample", "packagePolicy", "validator"];
-const REQUIRED_COMPONENT_DIGESTS = [...PRIOR_COMPONENT_DIGESTS, "copilot"];
+const REQUIRED_COMPONENT_DIGESTS = [...PRIOR_COMPONENT_DIGESTS, "copilot", "syncSkill"];
 
 function validateStateEnvelope(value: State, sample: string): void {
   if (value.version !== 2 || value.sample !== sample || value.status !== "verified" ||
@@ -25,7 +25,7 @@ export function readState(repo: string, sample: string): State | undefined {
   if (!value || typeof value !== "object" || (value as { version?: unknown }).version !== 2) return undefined;
   const candidate = value as State;
   validateStateEnvelope(candidate, sample);
-  if (!("copilot" in candidate.componentDigests) &&
+  if ((!("syncSkill" in candidate.componentDigests) || !("copilot" in candidate.componentDigests)) &&
       PRIOR_COMPONENT_DIGESTS.every((key) => typeof candidate.componentDigests[key] === "string")) {
     return candidate;
   }

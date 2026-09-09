@@ -1,50 +1,31 @@
 # Teams sample synchronization
 
-Internal automation for adapting selected samples from `OfficeDev/Microsoft-Teams-Samples`
-to the Agents SDK samples in this repository. This is not part of the customer plugin.
+This internal automation synchronizes the seven selected Teams SDK .NET samples into their
+Agents SDK counterparts. It has distinct plan, migrate, and publish jobs. Migrate has no
+repository-write credential; publish neither invokes Copilot nor executes candidate code.
+Manual dispatch remains the only trigger and `createPr` remains false by default.
 
-## Layout
+## Runtime and flow
 
-- `src/`: the trusted CLI (`plan`, `migrate`, `verify-patch`).
-- `actions/`: composite actions called by the GitHub workflow.
-- `config/`: selected samples, ownership checks, and human-managed migration policies.
-- `prompts/`: implementation and independent-review instructions.
-- `skills/`: the internal sync skill and supporting references.
-- `tests/unit/`: CLI and orchestration regression tests.
-- `tests/contracts/`: protected behavior tests for existing samples.
-- `state/`: version-2 checkpoints, advanced only through reviewed sync PRs.
+The migration runtime is pinned to `@github/copilot-sdk` 1.0.7 and its compatible
+`@github/copilot` runtime 1.0.83. The SDK adapter explicitly resolves the platform package's
+executable export because this SDK release's automatic `/sdk` lookup is incompatible with
+the CLI package's exports. Runtime startup/version negotiation has been checked locally;
+a live model migration remains a separate integration check. The workflow
+does not install a separate global CLI. Node 24
+and .NET 8 are used in CI. The local tool uses an SDK client for one persistent implementation
+conversation, exposes narrow validation/schema/result tools, validates the current candidate,
+then creates a separate read-only reviewer session. Up to two post-review repairs are allowed
+within a 30-minute per-sample deadline.
 
-The public migration and manifest skills remain under `agent-plugins/`; their paths are
-configured in `config/targets.yml`. The internal skill is read explicitly from
-[SKILL.md](skills/sync-teams-dotnet-samples-to-agents-sdk/SKILL.md), not installed in the public plugin.
+The implementation result is versioned evidence containing every source disposition and a
+single capability inventory. Validation binds to the sample output digest. Review binds to the
+output digest, canonical evidence digest, and validation run ID. Version-3 result artifacts
+record these bindings, stage metrics, diagnostics, event log, runtime policy, and observed model
+metadata. Old transient v2 artifacts are intentionally rejected by publishing; persisted v2
+checkpoints remain readable.
 
-Each isolated Copilot invocation registers a private copy of the configured public skill
-directories in its `COPILOT_HOME`. Prompts invoke them as
-`/teams-sdk-to-agents-sdk-dotnet-migration` and `/teams-app-manifest`, so Copilot receives the
-skill instructions and can open the references and assets bundled with each skill. This is
-stronger than describing `SKILL.md` as ordinary background reading: native invocation injects
-the selected skill into the session and exposes its complete directory as skill resources.
-
-## How it works
-
-The [workflow](../../.github/workflows/sync-teams-dotnet-samples.yml) accepts manual dispatch
-only. It keeps three separate jobs and their permissions:
-
-1. **Plan:** pin the Teams commit and compare sample inputs with saved state.
-2. **Migrate:** a read-only agent first derives expected behavior and manifest capabilities
-   from the original evidence. The implementation agent then uses the migration skill first
-   and the manifest skill second. Deterministic validation and a read-only final review check
-   the candidate against that independent baseline. Repair remains limited to five cycles;
-   one explicit recovery attempt is allowed when a repair produces no effective change before
-   the no-progress circuit breaker stops repeated identical work.
-3. **Publish:** apply and verify the approved patch, then create one draft PR per sample.
-   This job does not use Copilot or run candidate sample code.
-
-Plan and migrate have no repository-write credential. Agents cannot modify the automation,
-policies, state, or protected tests. A blocked or rejected result creates no publishable
-patch or state update. No schedule, automatic merge, or automatic addition of new samples.
-
-## Run and test
+## Run and diagnose
 
 From the repository root:
 
@@ -55,95 +36,32 @@ npm run build --prefix automation/teams-sample-sync
 dotnet test automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj
 ```
 
-Node.js 24 and .NET 8 are used in CI. Migration additionally requires the pinned Copilot
-CLI installed by `actions/migrate/action.yml` and suitable Copilot credentials.
-CLI commands, after checking out the desired Teams source into `.sync/upstream`:
+The SDK smoke test requires Actions-compatible Copilot credentials and is not run locally by
+default. Offline tests cover the coordinator, evidence/digest gates, model policy and validation
+boundary; they do not claim that a live Copilot service was exercised.
 
-```sh
-node automation/teams-sample-sync/dist/cli.js plan --repo-root . --upstream-root .sync/upstream --sample agent-targeted-messages --output .sync/plan.json
-node automation/teams-sample-sync/dist/cli.js migrate --repo-root . --upstream-root .sync/upstream --plan .sync/plan.json --sample agent-targeted-messages --max-attempts 5 --output-directory .sync/output/agent-targeted-messages
-```
+To run the live smoke test deliberately, set `TEAMS_SYNC_SDK_SMOKE=1` and run
+`npm run test:sdk-smoke --prefix automation/teams-sample-sync` with Copilot credentials.
+This sends model prompts and consumes usage. Without the opt-in it is skipped.
 
-Use a clean isolated checkout for migration. `verify-patch` is run after applying the
-artifact patch to the exact recorded Agents base commit; the publish action shows this sequence.
+Auto is the default for both roles and does not force a reasoning effort. A role can use
+`strategy: capability` with `minimumContextTokens`, `requireReasoning`,
+`preferredReasoningEffort`, `maximumCostMultiplier`, and an explicit `fallback: auto|fail`.
+Candidates must advertise enabled policy and the required metadata; reasoning compatibility
+is checked before cost ordering. Unknown metadata is not treated as zero cost or unlimited
+capacity. The pinned SDK supports low, medium, high, and xhigh effort. Selection by these
+constraints does not guarantee model quality; compare real migration outcomes before
+changing the default.
 
-### GitHub and fork testing
+Agent-authored regression tests use one `tests/*.csproj` inside the selected sample.
+Exclude `tests/**/*.cs` from the sample application's compile items when necessary.
+Both `code` and `all` validation groups run these tests and applicable protected contracts;
+only `all` can authorize review/publication. Nested test `bin`/`obj` output is excluded from
+source digests. Credentialed Teams/Graph/UI coverage limitations remain explicit in the PR.
 
-Start with one sample and `createPr: false`. For fork testing, change
-`TEAMS_SAMPLES_REPOSITORY` in the workflow to your fork and push the test change to its
-`main` branch. Keep the fork history that contains the previous source commit.
-The plan job checks out the Agents repository's default branch; selecting a different
-dispatch branch alone does not change the CLI version used. Make sure the tested checkout
-contains this automation layout. Never merge fork-only checkpoints into production.
-
-Compare actual changed behavior, not only green workflow checks. See
-[acceptance scenarios](skills/sync-teams-dotnet-samples-to-agents-sdk/references/acceptance.md).
-All seven selected samples have a baseline contract. Migration selects tests using the
-`Sample=<sample-name>` trait; a failed contract blocks publication. The shared test project
-builds all referenced samples, but only the selected sample's tests execute in that migration.
-Build, schema and HTTP startup checks do not prove complete functionality.
-
-| Sample | Protected baseline behavior |
-|---|---|
-| `agent-targeted-messages` | Help is targeted to the requesting user, including suggested-action recipients |
-| `bot-ai-messages` | Unknown input returns help |
-| `bot-attachments` | Declined file consent returns the file-specific refusal and successful invoke acknowledgement |
-| `bot-cards` | Card-actions command returns an adaptive card |
-| `bot-meetings` | Meeting-start event returns the meeting title and join link |
-| `bot-message-extensions` | Link query returns a card preview containing the requested URL |
-| `bot-task-modules` | Custom-form fetch returns a dialog using the configured endpoint |
-
-These tests send activities through the actual SDK routes. They do not call private
-handlers, use tenant credentials, or test Graph calls, file transfer, background reminder
-delivery or full Teams UI behavior. They protect existing behavior, not every possible
-new source feature. Extend them through human-reviewed changes as required; the migration
-agent cannot edit the tests. Bump `validatorVersion` when changing validation requirements
-so already tracked samples are evaluated again.
-
-Run one sample's contracts locally:
-
-```sh
-dotnet test automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj --filter Sample=bot-meetings
-```
-
-## Policies and human review
-
-Edit `config/migration-policy.yml` through a normal reviewed PR. Each policy has a unique
-`key`, selected `sample`, `instruction`, `rationale`, and `source` (reviewed issue or PR).
-Use policies for durable constraints, not routine implementation choices. Agents may add
-useful sample-related functionality when they explain its benefit and evidence in the PR.
-
-When the implementer needs a policy, the workflow summary contains a recommendation and
-suggested YAML; no sync PR is created. Reviewer blockers appear as findings. PR comments
-are not read as commands, and agent choices do not automatically become policies.
-
-## Reports and troubleshooting
-
-Open a sample's **migrate** job and expand **Verify exact upstream commit and migrate**
-to follow Copilot output live. Phase labels distinguish initial assessment, implementation,
-review, and report corrections. The log includes the progress, tool activity, and model/usage
-information emitted by the pinned CLI; it does not expose private model reasoning.
-The same output is appended to `agent-log.txt` as it arrives, including partial output before
-a failed invocation. Console lines have a `[Copilot]` prefix; the artifact keeps the original text.
-The phase header also lists the registered skills, making missing skill registration visible in
-the workflow log.
-
-Copilot may fetch informational content only from the approved Microsoft documentation, released
-Teams schema, Teams SDK, and Agents SDK URL patterns configured by the trusted runner. General web
-search, arbitrary URLs, shell execution, MCP servers, and repository credentials remain unavailable.
-The implementation agent changes files through `apply_patch`, `edit`, or `create`; deterministic
-validation executes builds and schema checks outside the agent. The reviewer remains read-only.
-
-Artifacts contain `sync-result.json`, `source-context.json`, `agent-log.txt`, and
-`workflow-summary.md`. Successful candidates also include `change.patch` and `pr-body.md`.
-The PR shows changes, reasons, policies, validation, manual checks and collapsed traceability.
-No `manifest-evidence.md` is written.
-
-- No pending sample: compare the selected source, saved state and input digests.
-- Invalid review report: the reviewer repairs its report within the shared budget.
-- Rejected or blocked: read the result error, findings and agent log before rerunning.
-- Existing open sync PR: review or close it; the publisher will not overwrite it.
-- After this relocation: regenerate old pending patches, which refer to the former state path.
-
-Model selection remains `auto` in `config/targets.yml`. Inspect available models and effort
-levels with Copilot's interactive `/model` command before choosing an explicit model.
+For an authorized pilot, use an isolated fork with `createPr: false`, begin with
+`agent-targeted-messages`, and test initial import, an incremental behavior delta, malformed
+evidence, and an unchanged rerun. The plan job checks out the default branch, so ensure it
+contains this refactor before testing a branch. Artifacts include `sync-result.json`,
+`source-context.json`, `agent-log.txt`, `agent-events.jsonl`, and `workflow-summary.md`;
+publishable artifacts additionally contain `change.patch` and `pr-body.md`.
