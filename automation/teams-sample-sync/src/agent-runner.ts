@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { BuiltInTools, CopilotClient, RuntimeConnection, ToolSet, type CopilotSession, type PermissionRequest, type PermissionRequestResult, type SessionConfig, type Tool } from "@github/copilot-sdk";
+import { CopilotClient, RuntimeConnection, ToolSet, type CopilotSession, type PermissionRequest, type PermissionRequestResult, type SessionConfig, type Tool } from "@github/copilot-sdk";
 import { SyncError } from "./config.js";
 import type { CopilotConfiguration, ObservedModel } from "./types.js";
 
@@ -68,7 +68,7 @@ export class CopilotAgentRunner {
     const prompt = readFileSync(path.join(this.repo, "automation/teams-sample-sync/prompts/agent-prompt.md"), "utf8");
     let active: PersistentImplementationSession | undefined;
     const names = tools.map((tool) => tool.name);
-    const availableTools = new ToolSet().addBuiltIn([...BuiltInTools.Isolated, "view", "grep", "glob", "skill", "web_fetch", "edit", "apply_patch", "create", "str_replace_editor"]);
+    const availableTools = new ToolSet().addBuiltIn(["view", "grep", "glob", "skill", "web_fetch", "edit", "apply_patch", "create", "str_replace_editor"]);
     for (const name of names) availableTools.addCustom(name);
     const raw = await this.client.createSession({
       model: "auto", workingDirectory: this.repo, skillDirectories: this.skillDirectories, systemMessage: { mode: "append", content: prompt }, tools,

@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import type { PermissionRequest, SessionConfig } from "@github/copilot-sdk";
+import { ToolSet, type PermissionRequest, type SessionConfig } from "@github/copilot-sdk";
 import { CopilotAgentRunner, permissionFor, type SdkClient, type SdkSession } from "../../src/agent-runner.js";
 
 const write = (fileName: string): PermissionRequest => ({ kind: "write", fileName, intention: "test", diff: "", canOfferSessionApproval: false });
@@ -27,6 +27,9 @@ test("implementation sessions use Copilot Auto and one validation tool", async (
     const runner = new CopilotAgentRunner(repo, "sample", { sdkVersion: "1.0.7", runtimeVersion: "1.0.83" }, path.join(repo, "agent.log"), [], [], async () => client);
     const active = await runner.open([{ name: "validate_sample", description: "Validate", parameters: { type: "object" }, handler: async () => ({}) }]);
     assert.equal(config?.model, "auto"); assert.equal(config?.tools?.length, 1); assert.equal(config?.tools?.[0]?.name, "validate_sample");
+    const availableTools = config?.availableTools as ToolSet;
+    assert.equal(availableTools.toArray().includes("builtin:skill"), true);
+    assert.equal(availableTools.toArray().includes("builtin:task"), false);
     await active.close(); await runner.close();
   } finally { rmSync(repo, { recursive: true, force: true }); }
 });
