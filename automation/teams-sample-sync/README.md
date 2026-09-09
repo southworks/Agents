@@ -10,13 +10,15 @@ migration plan without write permission. The coordinator saves and hashes that p
 session then uses the Teams-to-Agents and manifest skills to implement it, validate its work, and
 self-audit the final files against the frozen plan. The workflow independently runs the full
 validator, allows one repair turn for deterministic failures, and publishes only a verified patch.
+When verification finds that no selected-sample file needs a change, the published patch contains
+only synchronization state and is explicitly reported as **no changes required**.
 
 Copilot uses Auto routing. The workflow records the observed model for diagnosis but does not
 select a model, enumerate a model catalog, or force a reasoning effort.
 
 The workflow preserves pinned source commits, source context, selected-sample write confinement,
 full validation, incremental state, and patch verification. It does not use a reviewer session,
-agent-authored evidence schemas, report-only PRs, or policy configuration.
+agent-authored evidence schemas, or policy configuration.
 
 Run locally from the repository root:
 

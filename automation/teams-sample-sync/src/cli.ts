@@ -12,7 +12,7 @@ import { createPlan } from "./plan.js";
 import { prBody, workflowSummary } from "./report.js";
 import { createState, statePath, validateState } from "./state.js";
 import { prepareManifest, type ValidationRuntime } from "./validate.js";
-import { runMigrationSession } from "./sync-session.js";
+import { assertOutcomeMatchesSampleChanges, runMigrationSession } from "./sync-session.js";
 import type { Plan, State, SyncContext, SyncResult } from "./types.js";
 
 function parseArgs(items: string[]): Record<string, string> { const result: Record<string, string> = {}; for (let index = 0; index < items.length; index += 2) { const option = items[index]; const value = items[index + 1]; if (!option?.startsWith("--") || !value || value.startsWith("--")) throw new SyncError(`Invalid argument: ${String(option)}`); const key = option.slice(2); if (!["repo-root", "upstream-root", "plan", "sample", "output-directory", "output", "result"].includes(key)) throw new SyncError(`Unknown option: ${option}`); if (key in result) throw new SyncError(`Duplicate option: ${option}`); result[key] = value; } return result; }
@@ -43,10 +43,12 @@ export async function migrateCandidate(repo: string, values: Record<string, stri
       const migration = await runMigrationSession({ sample, contextFile: path.relative(repo, contextFiles.file).replaceAll("\\", "/"), output, session, validate: () => validateTool(host, "all") });
       result.validation = migration.validation; result.outputDigest = migration.validation.outputDigest; result.planHash = migration.planHash; result.selfAudit = migration.selfAudit;
       writeFileSync(path.join(output, "self-audit.md"), `${migration.selfAudit}\n`, "utf8");
+      const sampleChanges = changedPaths(repo, baseSha).filter((item) => item.startsWith(`${sampleRelative}/`));
+      assertOutcomeMatchesSampleChanges(migration.outcome, sampleChanges);
       const state = createState(sample, entry, migration.validation); const lock = statePath(repo, sample); writeJson(lock, state); git(repo, ["add", "-N", "--", sampleRelative, path.relative(repo, lock).replaceAll("\\", "/")]);
       const patch = git(repo, ["diff", "--binary", baseSha, "--", sampleRelative, path.relative(repo, lock).replaceAll("\\", "/")], true) as Buffer;
       if (patch.length === 0) throw new SyncError("Validated migration produced no sample or state patch");
-      writeFileSync(path.join(output, "change.patch"), patch); result.status = "updated"; result.publishable = true; result.destinationChanges = changedPaths(repo, baseSha).filter((item) => item === path.relative(repo, lock).replaceAll("\\", "/") || item.startsWith(`${sampleRelative}/`)); result.state = state;
+      writeFileSync(path.join(output, "change.patch"), patch); result.status = migration.outcome === "changed" ? "updated" : "no-changes"; result.publishable = true; result.destinationChanges = changedPaths(repo, baseSha).filter((item) => item === path.relative(repo, lock).replaceAll("\\", "/") || item.startsWith(`${sampleRelative}/`)); result.state = state;
     } finally { await session.close(); }
   } catch (error) { result.error = error instanceof Error ? error.message : String(error); result.diagnostics.push(result.error); }
   finally { await runner.close().catch((error) => { result.publishable = false; result.status = "failed"; result.error = `Runtime cleanup failed: ${String(error)}`; result.diagnostics.push(result.error); }); writeJson(path.join(output, "sync-result.json"), result); writeFileSync(path.join(output, "workflow-summary.md"), workflowSummary(result), "utf8"); if (result.publishable) writeFileSync(path.join(output, "pr-body.md"), prBody(result), "utf8"); }
@@ -57,13 +59,15 @@ async function migrate(repo: string, values: Record<string, string>): Promise<nu
 
 function verifyPatch(repo: string, values: Record<string, string>): void {
   const sample = required(values, "sample"); const resultFile = resolveOption(required(values, "result")); const result = readJson<SyncResult>(resultFile);
-  if (result.version !== 4 || result.sample !== sample || result.status !== "updated" || !result.publishable || !result.state || !result.outputDigest || !result.planHash || !result.validation?.passed) throw new SyncError("Only a complete validated migration is publishable");
+  if (result.version !== 4 || result.sample !== sample || !["updated", "no-changes"].includes(result.status) || !result.publishable || !result.state || !result.outputDigest || !result.planHash || !result.validation?.passed) throw new SyncError("Only a complete validated migration is publishable");
   const contextFile = path.join(path.dirname(resultFile), "source-context.json"); const planFile = path.join(path.dirname(resultFile), "migration-plan.md");
   if (!existsSync(contextFile) || !existsSync(planFile) || hash(readFileSync(planFile, "utf8").trim()) !== result.planHash) throw new SyncError("Trusted source context or frozen migration plan is missing or changed");
   const context = readJson<SyncContext>(contextFile); if (hash(stable(context)) !== result.sourceContextDigest || context.sample !== sample || context.upstream.currentCommit !== result.upstreamCommit || context.upstream.currentTree !== result.sourceTree) throw new SyncError("Source context does not match the validated result");
   const configured = targets(repo); const owner = protection(repo); const target = configured.samples[sample]; if (!target || stable(result.copilot) !== stable(configured.copilot) || result.componentDigests.copilot !== hash(stable(result.copilot))) throw new SyncError("Copilot configuration differs from validated result");
   const head = git(repo, ["rev-parse", "HEAD"]) as string; if (head !== result.baseSha) throw new SyncError("Publish checkout differs from validated base SHA"); const sampleRelative = `${configured.destinationRoot}/${target.destination}`.replaceAll("\\", "/"); const stateRelative = path.relative(repo, statePath(repo, sample)).replaceAll("\\", "/"); const changed = changedPaths(repo, head);
   if (!result.destinationChanges || stable(changed) !== stable(result.destinationChanges)) throw new SyncError("Applied paths differ from validated result");
+  const sampleChanges = changed.filter((item) => item.startsWith(`${sampleRelative}/`));
+  assertOutcomeMatchesSampleChanges(result.status === "updated" ? "changed" : "no-changes", sampleChanges);
   for (const item of changed) if (item === "manifest-evidence.md" || item.endsWith("/manifest-evidence.md") || matches(item, owner.protectedPaths) || (item !== stateRelative && !item.startsWith(`${sampleRelative}/`))) throw new SyncError(`Patch changes prohibited path: ${item}`);
   const patchFile = path.join(path.dirname(resultFile), "change.patch"); if (!existsSync(patchFile)) throw new SyncError("Result patch is missing"); git(repo, ["apply", "--check", "--reverse", "--binary", patchFile]);
   if (digestDirectory(path.join(repo, sampleRelative), owner.outputDigestExcludes) !== result.outputDigest) throw new SyncError("Applied sample output digest differs from validated result");

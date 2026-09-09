@@ -29,7 +29,9 @@ candidate. Add meaningful selected-sample tests when the behavior can be tested 
 Before full validation, re-open the final implementation, README/help text, and manifest. Compare
 them against the capability inventory by exact command title and surface; schema validation alone
 does not prove capability coverage. Finish by returning a Markdown self-audit that accounts for
-every frozen-plan item and names the validation run. If a required behavior cannot be implemented,
-state the actual blocker. Do not claim validation passed when it did not. The coordinator may
-request one repair for deterministic validation failures; keep the frozen plan unchanged during
-that repair.
+every frozen-plan item and names the validation run. Start it with `## Self-audit`, then write
+`Outcome: changed` or `Outcome: no changes required` on its own line. A no-changes outcome requires
+evidence that every plan item was verified and that no selected-sample file needs modification. If
+a required behavior cannot be implemented, state the actual blocker. Do not claim validation passed
+when it did not. The coordinator may request one repair for deterministic validation failures; keep
+the frozen plan unchanged during that repair.

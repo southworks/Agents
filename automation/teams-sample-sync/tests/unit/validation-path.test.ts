@@ -120,3 +120,27 @@ test("rejects manifest commands missing or inconsistent with explicit README cla
     rmSync(sampleRoot, { recursive: true, force: true });
   }
 });
+
+test("returns a repairable error for a noncanonical released schema URL", async () => {
+  const sampleRoot = mkdtempSync(path.join(os.tmpdir(), "teams-sync-schema-url-"));
+  try {
+    const packageRoot = path.join(sampleRoot, "appManifest");
+    mkdirSync(packageRoot);
+    writeFileSync(path.join(packageRoot, "color.png"), "icon");
+    writeFileSync(path.join(packageRoot, "outline.png"), "icon");
+    writeFileSync(path.join(packageRoot, "manifest.json"), JSON.stringify({
+      "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
+      manifestVersion: "1.19", version: "1.0.0", id: "${{TEAMS_APP_ID}}",
+      name: { short: "Schema" }, description: { short: "Schema", full: "Schema" },
+      icons: { color: "color.png", outline: "outline.png" }, bots: [{ botId: "${{BOT_ID}}", scopes: ["personal"] }],
+    }));
+    const errors = await checkManifest(sampleRoot, {
+      distribution: "zip",
+      packageDirectory: "appManifest",
+      placeholderConvention: "${{NAME}}",
+    }, async () => ({ type: "object" }));
+    assert.deepEqual(errors, ["Manifest $schema does not match manifestVersion on developer.microsoft.com"]);
+  } finally {
+    rmSync(sampleRoot, { recursive: true, force: true });
+  }
+});

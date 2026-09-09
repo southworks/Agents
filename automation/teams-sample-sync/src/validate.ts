@@ -247,7 +247,7 @@ export async function checkManifest(sampleRoot: string, manifestTarget: Manifest
   try { url = new URL(schemaUrl); }
   catch { errors.push("Manifest $schema is not a valid URL"); return errors; }
   const suffix = `/json-schemas/teams/v${version}/MicrosoftTeams.schema.json`;
-  if (url.protocol !== "https:" || url.hostname !== "developer.microsoft.com" || !url.pathname.endsWith(suffix)) {
+  if (url.protocol !== "https:" || url.hostname !== "developer.microsoft.com" || url.pathname !== suffix) {
     errors.push("Manifest $schema does not match manifestVersion on developer.microsoft.com");
     return errors;
   }

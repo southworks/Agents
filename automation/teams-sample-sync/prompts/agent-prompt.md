@@ -14,7 +14,9 @@ edit only the selected sample, and keep the plan unchanged. Run validate_sample 
 When implementation is complete, reread the source context, frozen plan, changed files, README/help
 text, and actual manifest. Compare exact command titles and surfaces before full validation; schema
 validation alone does not prove capability coverage. Return a Markdown self-audit that accounts
-for every plan item and names the validation you ran.
+for every plan item and names the validation you ran. Start it with `## Self-audit`, then write
+`Outcome: changed` or `Outcome: no changes required` on its own line. Use the latter only after
+the complete plan has been verified and no selected-sample file needs modification.
 
 If a required behavior cannot be implemented, explain the real blocker in the self-audit. Never
 claim validation passed when it did not. Do not edit workflow files, automation, skills,

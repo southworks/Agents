@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { runMigrationSession } from "../../src/sync-session.js";
+import { assertOutcomeMatchesSampleChanges, runMigrationSession } from "../../src/sync-session.js";
 import type { ImplementationSession } from "../../src/agent-runner.js";
 import type { ValidationResult } from "../../src/types.js";
 
@@ -22,7 +22,7 @@ class FakeSession implements ImplementationSession {
 
 test("freezes the plan before implementation and repairs validation once", async () => {
   const output = mkdtempSync(path.join(os.tmpdir(), "teams-sync-session-"));
-  const session = new FakeSession(["# Plan\n- Program.Main", "# Audit\n- Program.Main done", "# Repair audit\n- Program.Main fixed"]);
+  const session = new FakeSession(["## Migration plan\n- Program.Main", "## Self-audit\nOutcome: changed\n- Program.Main done", "## Self-audit\nOutcome: changed\n- Program.Main fixed"]);
   const results = [validation(false, "first"), validation(true, "second")];
   try {
     const result = await runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session, validate: async () => results.shift()! });
@@ -34,7 +34,7 @@ test("freezes the plan before implementation and repairs validation once", async
     assert.match(session.prompts[1]!, /schema validity alone is insufficient/);
     assert.match(session.prompts[2]!, /Build failed/);
     assert.match(session.prompts[2]!, /do not explain away a semantic mismatch/);
-    assert.equal(readFileSync(path.join(output, "migration-plan.md"), "utf8"), "# Plan\n- Program.Main\n");
+    assert.equal(readFileSync(path.join(output, "migration-plan.md"), "utf8"), "## Migration plan\n- Program.Main\n");
   } finally { rmSync(output, { recursive: true, force: true }); }
 });
 
@@ -42,8 +42,20 @@ test("requires a self-audit after a successful implementation", async () => {
   const output = mkdtempSync(path.join(os.tmpdir(), "teams-sync-session-"));
   try {
     await assert.rejects(
-      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["# Plan", ""]), validate: async () => validation(true, "ready") }),
-      /self-audit/,
+      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["## Migration plan", "I'll begin the implementation now."]), validate: async () => validation(true, "ready") }),
+      /Markdown self-audit/,
     );
+  } finally { rmSync(output, { recursive: true, force: true }); }
+});
+
+test("rejects progress-only plans and contradictory outcomes", async () => {
+  const output = mkdtempSync(path.join(os.tmpdir(), "teams-sync-session-"));
+  try {
+    await assert.rejects(
+      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["I'll begin by inspecting the sample."]), validate: async () => validation(true, "ready") }),
+      /complete Markdown migration plan/,
+    );
+    assert.throws(() => assertOutcomeMatchesSampleChanges("changed", []), /selected sample is unchanged/);
+    assert.throws(() => assertOutcomeMatchesSampleChanges("no-changes", ["samples/dotnet/teams/sample/Program.cs"]), /selected sample was modified/);
   } finally { rmSync(output, { recursive: true, force: true }); }
 });
