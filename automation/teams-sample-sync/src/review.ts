@@ -43,13 +43,23 @@ export function parseManifestCapabilities(value: unknown, allowEmpty = false): M
 export function parseAgentResult(value: unknown, sample: string): AgentResult {
   const item = record(value, "agent result");
   if (item.version !== 2 || item.sample !== sample || !["updated", "unchanged", "needs-policy", "unsupported"].includes(String(item.status))) throw new SyncError("Agent result has invalid version, sample, or status");
+  const blocked = item.status === "needs-policy" || item.status === "unsupported";
+  if (blocked && item.manifestReport === undefined) {
+    const result: AgentResult = { version: 2, sample, status: item.status as AgentResult["status"], summary: text(item.summary, "agent result.summary"), dispositions: [], upstreamChanges: [], preservedDifferences: [], appliedPolicies: [], manifestReport: { mode: "blocked", changes: [], validation: [], externalSetup: [], capabilities: [] } };
+    if (result.status === "needs-policy") addPolicyRequest(result, item);
+    return result;
+  }
   const manifest = record(item.manifestReport, "agent result.manifestReport");
-  const result: AgentResult = { version: 2, sample, status: item.status as AgentResult["status"], summary: text(item.summary, "agent result.summary"), dispositions: parseDispositions(item.dispositions), upstreamChanges: objects(item.upstreamChanges, "agent result.upstreamChanges"), preservedDifferences: objects(item.preservedDifferences, "agent result.preservedDifferences"), appliedPolicies: list(item.appliedPolicies, "agent result.appliedPolicies"), manifestReport: { mode: text(manifest.mode, "manifestReport.mode"), changes: objects(manifest.changes, "manifestReport.changes"), validation: objects(manifest.validation, "manifestReport.validation"), externalSetup: objects(manifest.externalSetup, "manifestReport.externalSetup"), capabilities: parseManifestCapabilities(manifest.capabilities, item.status === "needs-policy" || item.status === "unsupported") } };
+  const result: AgentResult = { version: 2, sample, status: item.status as AgentResult["status"], summary: text(item.summary, "agent result.summary"), dispositions: parseDispositions(item.dispositions), upstreamChanges: objects(item.upstreamChanges, "agent result.upstreamChanges"), preservedDifferences: objects(item.preservedDifferences, "agent result.preservedDifferences"), appliedPolicies: list(item.appliedPolicies, "agent result.appliedPolicies"), manifestReport: { mode: text(manifest.mode, "manifestReport.mode"), changes: objects(manifest.changes, "manifestReport.changes"), validation: objects(manifest.validation, "manifestReport.validation"), externalSetup: objects(manifest.externalSetup, "manifestReport.externalSetup"), capabilities: parseManifestCapabilities(manifest.capabilities, blocked) } };
   if (result.status === "needs-policy") {
-    const request = record(item.policyRequest, "agent result.policyRequest"); const suggestion = record(request.suggestedPolicy, "agent result.policyRequest.suggestedPolicy");
-    result.policyRequest = { key: text(request.key, "policyRequest.key"), question: text(request.question, "policyRequest.question"), recommendation: text(request.recommendation, "policyRequest.recommendation"), evidence: text(request.evidence, "policyRequest.evidence"), impact: text(request.impact, "policyRequest.impact"), suggestedPolicy: { instruction: text(suggestion.instruction, "suggestedPolicy.instruction"), rationale: text(suggestion.rationale, "suggestedPolicy.rationale") } };
+    addPolicyRequest(result, item);
   }
   return result;
+}
+
+function addPolicyRequest(result: AgentResult, item: Record<string, unknown>): void {
+  const request = record(item.policyRequest, "agent result.policyRequest"); const suggestion = record(request.suggestedPolicy, "agent result.policyRequest.suggestedPolicy");
+  result.policyRequest = { key: text(request.key, "policyRequest.key"), question: text(request.question, "policyRequest.question"), recommendation: text(request.recommendation, "policyRequest.recommendation"), evidence: text(request.evidence, "policyRequest.evidence"), impact: text(request.impact, "policyRequest.impact"), suggestedPolicy: { instruction: text(suggestion.instruction, "suggestedPolicy.instruction"), rationale: text(suggestion.rationale, "suggestedPolicy.rationale") } };
 }
 
 function jsonPathExists(value: unknown, expression: string): boolean {

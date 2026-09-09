@@ -19,7 +19,11 @@ test("strict capability discovery failure stops before session creation", async 
   await checkUnavailableCatalog({ strategy: "capability", fallback: "fail" }, 2, true);
 });
 
-async function checkUnavailableCatalog(policy: ModelPolicy, expectedCalls: number, strict = false): Promise<void> {
+test("explicit model sessions send configured effort without model discovery", async () => {
+  await checkUnavailableCatalog({ strategy: "explicit", model: "gpt-5.6-terra", reasoningEffort: "high" }, 0, false, "gpt-5.6-terra", "high");
+});
+
+async function checkUnavailableCatalog(policy: ModelPolicy, expectedCalls: number, strict = false, expectedModel = "auto", expectedEffort?: string): Promise<void> {
   const repo = mkdtempSync(path.join(os.tmpdir(), "sync-catalog-"));
   const configs: SessionConfig[] = [];
   let catalogCalls = 0;
@@ -52,8 +56,8 @@ async function checkUnavailableCatalog(policy: ModelPolicy, expectedCalls: numbe
     assert.equal(catalogCalls, expectedCalls);
     assert.equal(configs.length, strict ? 0 : 2);
     for (const config of configs) {
-      assert.equal(config.model, "auto");
-      assert.equal(Object.hasOwn(config, "reasoningEffort"), false);
+      assert.equal(config.model, expectedModel);
+      assert.equal(config.reasoningEffort, expectedEffort);
     }
   } finally {
     await runner.close();

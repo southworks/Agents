@@ -114,6 +114,28 @@ function policyLines(result: SyncResult): string[] {
 
 export function prBody(result: SyncResult): string {
   const agent = result.agent;
+  const notIncluded = result.publicationKind === "report" ? [
+    "## Not included / requires a decision",
+    "",
+    `This run did not apply the affected Teams behavior. Status: **${safeText(result.status)}**.`,
+    "",
+    safeText(result.error ?? agent?.summary ?? "No structured reason was supplied."),
+    "",
+    "### Affected source changes",
+    "",
+    ...bullets(agent?.dispositions ?? [], "The agent did not identify individual source changes."),
+    ...(agent?.policyRequest ? [
+      "",
+      "### Requested policy decision",
+      "",
+      `- Question: ${safeText(agent.policyRequest.question)}`,
+      `- Recommendation: ${safeText(agent.policyRequest.recommendation)}`,
+      `- Evidence: ${safeText(agent.policyRequest.evidence)}`,
+      `- Impact: ${safeText(agent.policyRequest.impact)}`,
+      `- Suggested policy ${inlineCode(agent.policyRequest.key)}: ${safeText(agent.policyRequest.suggestedPolicy.instruction)}`,
+    ] : []),
+    "",
+  ] : [];
   const external = [
     ...(agent?.manifestReport.externalSetup ?? []),
     ...(result.validation?.externalValidationRequired ?? []),
@@ -126,6 +148,7 @@ export function prBody(result: SyncResult): string {
     "> [!IMPORTANT]",
     "> Automated draft for one sample. Review sample behavior, manifest permissions, and external setup before merge.",
     "",
+    ...notIncluded,
     "## Description",
     "",
     `Synchronizes ${inlineCode(result.sample)} from ${inlineCode(result.sourceRepository ?? "OfficeDev/Microsoft-Teams-Samples")}, the Teams samples repository, to the Agents repository.`,
@@ -198,6 +221,24 @@ export function prBody(result: SyncResult): string {
     ...bullets(result.observedModels, "Actual model and reasoning effort: unknown."),
     "",
     "</details>",
+    "",
+  ].join("\n");
+}
+
+/** A report-only PR needs a real, reviewable diff while keeping the explanation in its body. */
+export function blockingRecord(result: SyncResult): string {
+  return [
+    `# Teams sample synchronization report: ${result.sample}`,
+    "",
+    `Status: ${result.status}`,
+    "",
+    safeText(result.error ?? result.agent?.summary ?? "No structured reason was supplied."),
+    "",
+    "## Affected source changes",
+    "",
+    ...(result.agent?.dispositions ?? []).map((item) => `- ${safeText(item.changeId)}: ${safeText(item.decision)}; ${safeText(item.explanation)}`),
+    "",
+    "This record is generated for the accompanying draft PR. Resolve the stated policy or support gap, then rerun synchronization.",
     "",
   ].join("\n");
 }

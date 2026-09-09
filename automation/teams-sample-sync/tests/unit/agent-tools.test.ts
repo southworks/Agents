@@ -51,7 +51,10 @@ test("submission rejects missing or stale validation and missing capability evid
 
 test("unsupported submission is accepted without running validation", async () => {
   const { environment, host, result, accepted } = hostFixture();
-  try { await submitResult(host, { ...result, status: "unsupported", dispositions: [], manifestReport: { ...result.manifestReport, capabilities: [] } }); assert.equal(accepted.length, 1); }
+  try {
+    await submitResult(host, { version: 2, sample: "sample-a", status: "unsupported", summary: "No supported Agents equivalent exists." });
+    assert.deepEqual(accepted, [{ ...result, status: "unsupported", summary: "No supported Agents equivalent exists.", dispositions: [], upstreamChanges: [], preservedDifferences: [], appliedPolicies: [], manifestReport: { mode: "blocked", changes: [], validation: [], externalSetup: [], capabilities: [] } }]);
+  }
   finally { rmSync(environment.root, { recursive: true, force: true }); }
 });
 

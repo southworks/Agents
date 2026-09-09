@@ -16,6 +16,11 @@ If submit_result returns accepted: false, read its error and instruction fields,
 identified evidence, and resubmit. This is local validation feedback, not a backend outage.
 A conversational completion summary does not replace an accepted submission.
 
+When implementation is impossible without a policy decision or unsupported capability, stop
+before editing and submit the small blocker form: `version`, `sample`, `status` (`needs-policy`
+or `unsupported`), and `summary`. A `needs-policy` result also requires `policyRequest`. Do not
+invent completed-migration evidence for a blocker; the workflow will create the reviewable report.
+
 The tool's JSON schema defines the exact result fields; do not invent an assessment report,
 revision ledger, parent capability IDs, or a conversational JSON wrapper. Keep each capability
 ID stable across repairs. A blocked result must explain its evidence and policy request rather

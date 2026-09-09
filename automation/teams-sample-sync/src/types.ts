@@ -3,8 +3,8 @@ export interface Target { source: string; destination: string; manifest: Manifes
 
 export const REASONING_EFFORTS = ["low", "medium", "high", "xhigh"] as const;
 export type ReasoningEffort = typeof REASONING_EFFORTS[number];
-export type ModelStrategy = "auto" | "capability";
-export interface ModelPolicy { strategy: ModelStrategy; minimumContextTokens?: number; preferredReasoningEffort?: ReasoningEffort; requireReasoning?: boolean; maximumCostMultiplier?: number; fallback?: "auto" | "fail"; }
+export type ModelStrategy = "auto" | "explicit" | "capability";
+export interface ModelPolicy { strategy: ModelStrategy; model?: string; reasoningEffort?: ReasoningEffort; minimumContextTokens?: number; preferredReasoningEffort?: ReasoningEffort; requireReasoning?: boolean; maximumCostMultiplier?: number; fallback?: "auto" | "fail"; }
 export interface CopilotConfiguration { implementation: ModelPolicy; review: ModelPolicy; sdkVersion: string; runtimeVersion: string; }
 export interface Targets { version: 1; upstream: { repository: string; ref: string; root: string }; destinationRoot: string; canonicalSample: string; migrationSkill: string; manifestSkill: string; copilot: CopilotConfiguration; packagePolicy: { targetFramework: string; agentsSdkVersion: string }; validatorVersion: string; samples: Record<string, Target>; }
 export interface MigrationPolicy { key: string; sample: string; instruction: string; rationale: string; source: string; }
@@ -32,4 +32,5 @@ export type SyncStage = "preflight" | "inspect" | "migrate-code" | "reconcile-ma
 export interface AgentEvent { at: string; stage: SyncStage; type: string; detail: Record<string, unknown>; }
 export interface SyncMetrics { repairPasses: number; rejectedImplementerReports: number; rejectedReviewerReports: number; }
 export interface ObservedModel { role: "implementation" | "review"; model: string; reasoningEffort: string; }
-export interface SyncResult { version: 3; sample: string; status: AgentStatus | "failed"; publishable: boolean; baseSha: string; previousUpstreamCommit: string | null; upstreamCommit: string; upstreamChanges: UpstreamChange[]; changedComponents: string[]; copilot: CopilotConfiguration; observedModels: ObservedModel[]; migrationPolicies: MigrationPolicy[]; sourceTree: string; sourceContextDigest: string; inputDigest: string; componentDigests: Record<string, string>; destinationChanges?: string[]; outputDigest?: string; evidenceDigest?: string; state?: State; agent?: AgentResult; validation?: ValidationResult; review?: ReviewApproval; metrics: SyncMetrics; failureStage?: SyncStage; failureClass?: string; error?: string; sourceRepository?: string; diagnostics: string[]; }
+export type PublicationKind = "update" | "report";
+export interface SyncResult { version: 3; sample: string; status: AgentStatus | "failed"; publishable: boolean; publicationKind?: PublicationKind; reportPath?: string; baseSha: string; previousUpstreamCommit: string | null; upstreamCommit: string; upstreamChanges: UpstreamChange[]; changedComponents: string[]; copilot: CopilotConfiguration; observedModels: ObservedModel[]; migrationPolicies: MigrationPolicy[]; sourceTree: string; sourceContextDigest: string; inputDigest: string; componentDigests: Record<string, string>; destinationChanges?: string[]; outputDigest?: string; evidenceDigest?: string; state?: State; agent?: AgentResult; validation?: ValidationResult; review?: ReviewApproval; metrics: SyncMetrics; failureStage?: SyncStage; failureClass?: string; error?: string; sourceRepository?: string; diagnostics: string[]; }

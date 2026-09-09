@@ -5,6 +5,10 @@ import type { ModelPolicy } from "../../src/types.js";
 const policy: ModelPolicy = { strategy: "capability", requireReasoning: true, preferredReasoningEffort: "high", minimumContextTokens: 100, fallback: "fail" };
 const candidate = (id: string, multiplier = 1): ModelInfo => ({ id, policy: { state: "enabled" }, capabilities: { supports: { reasoningEffort: true }, limits: { max_prompt_tokens: 200, max_context_window_tokens: 400 } }, billing: { multiplier }, supportedReasoningEfforts: ["high", "medium"], defaultReasoningEffort: "medium" });
 test("Auto does not force effort", () => assert.deepEqual(selectModel({ strategy: "auto" }, []), { model: "auto", reason: "Configured Auto routing; no forced reasoning effort" }));
+test("explicit policy sends its configured model and reasoning effort without catalog discovery", () => {
+  assert.deepEqual(selectModel({ strategy: "explicit", model: "gpt-5.6-terra", reasoningEffort: "high" }, []),
+    { model: "gpt-5.6-terra", reasoningEffort: "high", reason: "Configured explicit model and reasoning effort" });
+});
 test("select eligible effort before cost, preserving deterministic ties", () => {
   const cheap = candidate("cheap", 0); cheap.supportedReasoningEfforts = ["medium"];
   assert.equal(selectModel(policy, [cheap, candidate("b", 2), candidate("a", 2)]).model, "a");

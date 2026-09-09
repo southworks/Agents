@@ -113,10 +113,14 @@ test("role model policies are validated and tracked as synchronization inputs", 
   const entry = createPlan(item.repo, item.upstream).samples["sample-a"]!;
   write(statePath(item.repo, "sample-a"), JSON.stringify({ version: 2, sample: "sample-a", upstreamCommit: entry.upstreamCommit, sourceTree: entry.sourceTree, inputDigest: entry.inputDigest, outputDigest: "output", componentDigests: entry.componentDigests, status: "verified" }));
   assert.equal(targets(item.repo).copilot.implementation.strategy, "auto");
+  write(file, original.replace("default: { strategy: auto }", "implementation: { strategy: explicit, model: gpt-5.6-terra, reasoningEffort: high }\n  review: { strategy: explicit, model: gpt-5.6-terra, reasoningEffort: medium }"));
+  assert.deepEqual(targets(item.repo).copilot.implementation, { strategy: "explicit", model: "gpt-5.6-terra", reasoningEffort: "high" });
+  assert.deepEqual(targets(item.repo).copilot.review, { strategy: "explicit", model: "gpt-5.6-terra", reasoningEffort: "medium" });
+  write(file, original);
   write(file, original.replace("default: { strategy: auto }", "default: { strategy: capability, requireReasoning: true, fallback: fail }"));
   assert.equal(targets(item.repo).copilot.implementation.preferredReasoningEffort, "high");
   assert.deepEqual(createPlan(item.repo, item.upstream).samples["sample-a"]!.changedComponents, ["copilot"]);
-  for (const invalid of ["strategy: auto, preferredReasoningEffort: high", "strategy: capability", "strategy: capability, fallback: fail, maximumCostMultiplier: .inf", "strategy: capability, fallback: fail, preferredReasoningEffort: extreme", "strategy: capability, fallback: fail, preferredReasoningEffort: max"]) {
+  for (const invalid of ["strategy: auto, preferredReasoningEffort: high", "strategy: explicit, model: auto, reasoningEffort: high", "strategy: explicit, model: gpt-5.6-terra", "strategy: capability", "strategy: capability, fallback: fail, maximumCostMultiplier: .inf", "strategy: capability, fallback: fail, preferredReasoningEffort: extreme", "strategy: capability, fallback: fail, preferredReasoningEffort: max"]) {
     write(file, original.replace("default: { strategy: auto }", `default: { ${invalid} }`));
     assert.throws(() => targets(item.repo));
   }

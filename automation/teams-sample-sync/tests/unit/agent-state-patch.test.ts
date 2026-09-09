@@ -10,6 +10,7 @@ import { createContext } from "../../src/context.js";
 import { changedPaths, digestDirectory, hash, stable } from "../../src/git.js";
 import { createPlan } from "../../src/plan.js";
 import { evidenceDigest } from "../../src/review.js";
+import { blockingRecord } from "../../src/report.js";
 import { createState, statePath, validateState } from "../../src/state.js";
 import type { AgentResult, SyncContext, SyncResult, ValidationResult } from "../../src/types.js";
 import { fixture, git, gitBuffer, write } from "./helpers.js";
@@ -74,6 +75,24 @@ test("version-2 checkpoints require successful validation", () => {
   const state = createState("sample-a", entry, validation(true, "output"));
   validateState(state, "sample-a"); assert.equal(state.version, 2);
 });
+
+test("structured unsupported results publish only a verified report patch", async () => {
+  const item = fixture();
+  const plan = createPlan(item.repo, item.upstream); const entry = plan.samples["sample-a"]!;
+  const contextFiles = createContext(item.repo, item.upstream, plan, "sample-a"); const context = JSON.parse(readFileSync(contextFiles.file, "utf8")) as SyncContext;
+  const baseSha = git(item.repo, "rev-parse", "HEAD"); const reportPath = "automation/teams-sample-sync/reports/sample-a.md";
+  const agent: AgentResult = { version: 2, sample: "sample-a", status: "unsupported", summary: "The required source feature has no supported Agents equivalent.", dispositions: [], upstreamChanges: [], preservedDifferences: [], appliedPolicies: [], manifestReport: { mode: "blocked", changes: [], validation: [], externalSetup: [], capabilities: [] } };
+  const result: SyncResult = { version: 3, sample: "sample-a", status: "unsupported", publishable: true, publicationKind: "report", reportPath, baseSha, previousUpstreamCommit: null, upstreamCommit: entry.upstreamCommit!, upstreamChanges: context.upstream.changes, changedComponents: entry.changedComponents, destinationChanges: [reportPath], copilot: targets(item.repo).copilot, observedModels: [], migrationPolicies: [], sourceTree: entry.sourceTree!, sourceContextDigest: hash(stable(context)), inputDigest: entry.inputDigest!, componentDigests: entry.componentDigests!, agent, metrics: { repairPasses: 0, rejectedImplementerReports: 0, rejectedReviewerReports: 0 }, diagnostics: [], error: agent.summary };
+  const resultDirectory = path.join(item.repo, ".sync/report"); write(path.join(resultDirectory, "source-context.json"), JSON.stringify(context));
+  write(path.join(item.repo, reportPath), blockingRecord(result)); git(item.repo, "add", "-N", "--", reportPath);
+  write(path.join(resultDirectory, "change.patch"), gitBuffer(item.repo, "diff", "--binary", baseSha, "--", reportPath));
+  const resultFile = path.join(resultDirectory, "sync-result.json"); write(resultFile, JSON.stringify(result));
+  try {
+    assert.equal(await main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]), 0);
+    write(path.join(item.repo, "samples/dotnet/teams/sample-a/unauthorized.cs"), "partial candidate");
+    assert.equal(await main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]), 2, "report PRs must never include partial migration files");
+  } finally { rmSync(item.root, { recursive: true, force: true }); }
+});
 test("publisher verifies v3 bindings and rejects stale, incomplete, and tampered artifacts", async () => {
   const item = fixture(); const plan = createPlan(item.repo, item.upstream); const entry = plan.samples["sample-a"]!;
   const contextFiles = createContext(item.repo, item.upstream, plan, "sample-a");
@@ -87,7 +106,7 @@ test("publisher verifies v3 bindings and rejects stale, incomplete, and tampered
   const resultDirectory = path.join(item.repo, ".sync/result");
   write(path.join(resultDirectory, "change.patch"), gitBuffer(item.repo, "diff", "--binary", baseSha, "--", sampleRelative, "automation/teams-sample-sync/state/sample-a.lock.json"));
   write(path.join(resultDirectory, "source-context.json"), JSON.stringify(context));
-  const result: SyncResult = { version: 3, sample: "sample-a", status: "updated", publishable: true, baseSha, previousUpstreamCommit: null, upstreamCommit: entry.upstreamCommit!, upstreamChanges: context.upstream.changes, changedComponents: entry.changedComponents, destinationChanges: changedPaths(item.repo, baseSha), copilot: targets(item.repo).copilot, observedModels: [], migrationPolicies: [], sourceTree: entry.sourceTree!, sourceContextDigest: hash(stable(context)), inputDigest: entry.inputDigest!, componentDigests: entry.componentDigests!, outputDigest, evidenceDigest: evidenceDigest(agent), state, agent, validation: checked, review: { outputDigest, evidenceDigest: evidenceDigest(agent), validationId: checked.id, result: { version: 2, sample: "sample-a", verdict: "approved", summary: "Reviewed", reviewedChangeIds: context.changes.map((change) => change.id), reviewedCapabilityIds: ["base-bot"], findings: [], resolvedFindingIds: [], testAssessment: "Fixture checked", coverageLimitations: [] } }, metrics: { repairPasses: 0, rejectedImplementerReports: 0, rejectedReviewerReports: 0 }, diagnostics: [] };
+  const result: SyncResult = { version: 3, sample: "sample-a", status: "updated", publishable: true, publicationKind: "update", baseSha, previousUpstreamCommit: null, upstreamCommit: entry.upstreamCommit!, upstreamChanges: context.upstream.changes, changedComponents: entry.changedComponents, destinationChanges: changedPaths(item.repo, baseSha), copilot: targets(item.repo).copilot, observedModels: [], migrationPolicies: [], sourceTree: entry.sourceTree!, sourceContextDigest: hash(stable(context)), inputDigest: entry.inputDigest!, componentDigests: entry.componentDigests!, outputDigest, evidenceDigest: evidenceDigest(agent), state, agent, validation: checked, review: { outputDigest, evidenceDigest: evidenceDigest(agent), validationId: checked.id, result: { version: 2, sample: "sample-a", verdict: "approved", summary: "Reviewed", reviewedChangeIds: context.changes.map((change) => change.id), reviewedCapabilityIds: ["base-bot"], findings: [], resolvedFindingIds: [], testAssessment: "Fixture checked", coverageLimitations: [] } }, metrics: { repairPasses: 0, rejectedImplementerReports: 0, rejectedReviewerReports: 0 }, diagnostics: [] };
   const resultFile = path.join(resultDirectory, "sync-result.json");
   const verify = async (value: unknown): Promise<number> => { write(resultFile, JSON.stringify(value)); return main(["verify-patch", "--repo-root", item.repo, "--sample", "sample-a", "--result", resultFile]); };
   assert.equal(await verify(result), 0, "current validated v3 patch must publish");

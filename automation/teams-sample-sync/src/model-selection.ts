@@ -19,6 +19,7 @@ const cost = (model: ModelInfo): number | undefined => {
 
 export function selectModel(policy: ModelPolicy, models: ModelInfo[]): ModelSelection {
   if (policy.strategy === "auto") return { model: "auto", reason: "Configured Auto routing; no forced reasoning effort" };
+  if (policy.strategy === "explicit") return { model: policy.model!, ...(policy.reasoningEffort ? { reasoningEffort: policy.reasoningEffort } : {}), reason: "Configured explicit model and reasoning effort" };
   const desired = policy.preferredReasoningEffort ?? "high";
   const eligible = models.filter((model) => {
     if (!model.id.trim() || model.policy?.state !== "enabled") return false;

@@ -101,6 +101,16 @@ test("PR body identifies a first tracked synchronization without claiming a Team
   assert.doesNotMatch(body, /Teams repository changes detected/);
 });
 
+test("report-only PR leads with the omitted behavior and the reason", () => {
+  const item = result({ status: "needs-policy", publishable: true, publicationKind: "report", reportPath: "automation/teams-sample-sync/reports/agent-targeted-messages.md", destinationChanges: ["automation/teams-sample-sync/reports/agent-targeted-messages.md"], error: "The source relies on an unsupported credential flow." });
+  item.agent = { ...item.agent!, status: "needs-policy", dispositions: [{ changeId: "source-1", decision: "blocked", explanation: "Requires a policy decision", destinationPath: "none", symbol: "none", verification: "none" }], manifestReport: { ...item.agent!.manifestReport, capabilities: [] }, policyRequest: { key: "agent-targeted-messages.credential-flow", question: "Which credential flow should replace the source?", recommendation: "Use the approved Agents flow.", evidence: "The source uses an unavailable API.", impact: "The command is not included.", suggestedPolicy: { instruction: "Use approved flow.", rationale: "Current API is unavailable." } } };
+  const body = prBody(item);
+  assert.ok(body.indexOf("## Not included / requires a decision") < body.indexOf("## Description"));
+  assert.match(body, /unsupported credential flow/);
+  assert.match(body, /source-1/);
+  assert.match(body, /Which credential flow should replace the source/);
+});
+
 test("PR keeps human changes visible and detailed evidence in traceability", () => {
   const item = result();
   item.agent!.dispositions = [{ changeId: "change-1", decision: "adapted",

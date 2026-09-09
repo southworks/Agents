@@ -57,8 +57,8 @@ export function yaml(file: string): Record<string, unknown> {
 function modelPolicy(value: unknown, name: string): ModelPolicy {
   const item = record(value, name);
   const strategy = text(item.strategy, `${name}.strategy`);
-  if (strategy !== "auto" && strategy !== "capability") throw new SyncError(`${name}.strategy must be auto or capability`);
-  const result: ModelPolicy = { strategy };
+  if (!["auto", "explicit", "capability"].includes(strategy)) throw new SyncError(`${name}.strategy must be auto, explicit, or capability`);
+  const result: ModelPolicy = { strategy: strategy as ModelPolicy["strategy"] };
   const integer = (field: "minimumContextTokens"): void => {
     if (item[field] !== undefined) {
       if (!Number.isInteger(item[field]) || (item[field] as number) < 1) throw new SyncError(`${name}.${field} must be a positive integer`);
@@ -66,6 +66,11 @@ function modelPolicy(value: unknown, name: string): ModelPolicy {
     }
   };
   integer("minimumContextTokens");
+  if (item.reasoningEffort !== undefined) {
+    const effort = text(item.reasoningEffort, `${name}.reasoningEffort`);
+    if (!(REASONING_EFFORTS as readonly string[]).includes(effort)) throw new SyncError(`${name}.reasoningEffort is invalid`);
+    result.reasoningEffort = effort as ReasoningEffort;
+  }
   if (item.preferredReasoningEffort !== undefined) {
     const effort = text(item.preferredReasoningEffort, `${name}.preferredReasoningEffort`);
     if (!(REASONING_EFFORTS as readonly string[]).includes(effort)) throw new SyncError(`${name}.preferredReasoningEffort is invalid`);
@@ -89,7 +94,14 @@ function modelPolicy(value: unknown, name: string): ModelPolicy {
   if (strategy === "auto" && Object.keys(item).some((key) => key !== "strategy")) {
     throw new SyncError(`${name}: Auto policy cannot enforce capability or reasoning constraints`);
   }
+  if (strategy === "explicit") {
+    result.model = text(item.model, `${name}.model`);
+    if (result.model === "auto") throw new SyncError(`${name}.model must name a concrete Copilot model; use strategy: auto for Auto routing`);
+    if (!result.reasoningEffort) throw new SyncError(`${name}.reasoningEffort is required for an explicit model`);
+    if (Object.keys(item).some((key) => !["strategy", "model", "reasoningEffort"].includes(key))) throw new SyncError(`${name}: explicit policy only accepts model and reasoningEffort`);
+  }
   if (strategy === "capability") {
+    if (result.reasoningEffort !== undefined) throw new SyncError(`${name}.reasoningEffort is only valid for an explicit model`);
     result.preferredReasoningEffort ??= "high";
     if (!result.fallback) throw new SyncError(`${name}.fallback must explicitly be auto or fail`);
   }

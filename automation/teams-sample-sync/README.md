@@ -44,18 +44,23 @@ To run the live smoke test deliberately, set `TEAMS_SYNC_SDK_SMOKE=1` and run
 `npm run test:sdk-smoke --prefix automation/teams-sample-sync` with Copilot credentials.
 This sends model prompts and consumes usage. Without the opt-in it is skipped.
 
-Auto is the default for both roles and does not force a reasoning effort or call model
-discovery. GitHub Actions tokens were rejected by the `models.list` endpoint in the pilot;
-Auto must not depend on that endpoint. A role can use
-`strategy: capability` with `minimumContextTokens`, `requireReasoning`,
-`preferredReasoningEffort`, `maximumCostMultiplier`, and an explicit `fallback: auto|fail`.
-If discovery fails, capability mode honors `fallback: auto`; otherwise it stops with a
-discovery error. Auto fallback omits reasoning effort and does not guarantee the requested
-capabilities. Candidates must advertise enabled policy and the required metadata; reasoning compatibility
-is checked before cost ordering. Unknown metadata is not treated as zero cost or unlimited
-capacity. The pinned SDK supports low, medium, high, and xhigh effort. Selection by these
-constraints does not guarantee model quality; compare real migration outcomes before
-changing the default.
+`config/targets.yml` uses `strategy: capability` for implementation and review. The runtime
+catalog is queried and the coordinator selects an enabled model that advertises the configured
+reasoning capability and preferred effort. The catalog controls the model identifier; no model
+name is baked into the repository configuration. When GitHub Actions credentials cannot use the
+`models.list` endpoint, as in the pilot, the configured `fallback: auto` routes through Copilot
+Auto. In that case no effort is sent and the resulting model and available metadata are recorded
+in the run artifact and PR description.
+
+An administrator can intentionally use `strategy: explicit` with a concrete `model` and
+`reasoningEffort` for a controlled experiment or a temporary operational requirement. An
+unavailable explicit model is a CI configuration failure. `strategy: auto` is also available and
+does not query the catalog. Capability policies can additionally set `minimumContextTokens`,
+`maximumCostMultiplier`, and `fallback: auto|fail`. Candidates must advertise enabled policy and
+the required metadata; reasoning compatibility is checked before cost ordering. Unknown metadata
+is not treated as zero cost or unlimited capacity. The pinned SDK supports low, medium, high, and
+xhigh effort. Selection by these constraints does not guarantee model quality; compare real
+migration outcomes before changing the policy.
 
 Agent-authored regression tests use one `tests/*.csproj` inside the selected sample.
 Exclude `tests/**/*.cs` from the sample application's compile items when necessary.
@@ -68,7 +73,12 @@ For an authorized pilot, use an isolated fork with `createPr: false`, begin with
 evidence, and an unchanged rerun. The plan job checks out the default branch, so ensure it
 contains this refactor before testing a branch. Artifacts include `sync-result.json`,
 `source-context.json`, `agent-log.txt`, `agent-events.jsonl`, and `workflow-summary.md`;
-publishable artifacts additionally contain `change.patch` and `pr-body.md`.
+publishable artifacts additionally contain `change.patch` and `pr-body.md`. A valid structured
+`needs-policy` or `unsupported` result is a reportable outcome: the workflow succeeds and, with
+`createPr`, opens a draft report-only PR. Its leading **Not included / requires a decision**
+section identifies the omitted behavior, reason, affected source changes, and policy request.
+Partial candidate edits, failed validation, invalid agent evidence, authentication, runtime, or
+integrity errors remain CI failures and cannot create a report PR.
 
 Submission validation failures return `accepted: false` with an actionable error and correction
 instruction. Repeating an unresolved diagnostic twice stops the session even if unrelated report
