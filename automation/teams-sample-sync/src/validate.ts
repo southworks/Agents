@@ -112,6 +112,55 @@ function renderPlaceholders(value: unknown): unknown {
   return value.replace(/\$\{\{([^{}]+)\}\}/g, replace).replace(/<<([^<>]+)>>/g, replace);
 }
 
+interface ReadmeCommandClaim { title: string; triggers: string[]; }
+
+function readmeManifestCommandClaims(sampleRoot: string): ReadmeCommandClaim[] {
+  const readme = readdirSync(sampleRoot).find((name) => /^readme\.md$/i.test(name));
+  if (!readme) return [];
+  const content = readFileSync(path.join(sampleRoot, readme), "utf8");
+  const claims: ReadmeCommandClaim[] = [];
+  const patterns = [
+    { expression: /`([^`\r\n]+)`\s+as\s+(?:an?\s+)?(slash|mention)\s+command/gi, triggers: undefined },
+    { expression: /`([^`\r\n]+)`\s+for\s+both\s+command\s+surfaces/gi, triggers: ["mention", "slash"] },
+  ];
+  const manifestClaims = content.split(/\r?\n\s*\r?\n/)
+    .filter((paragraph) => /manifest/i.test(paragraph) && /declar/i.test(paragraph));
+  for (const paragraph of manifestClaims) {
+    for (const pattern of patterns) {
+      for (const match of paragraph.matchAll(pattern.expression)) {
+        if (!match[1] || claims.some((claim) => claim.title === match[1])) continue;
+        claims.push({ title: match[1], triggers: pattern.triggers ?? [match[2]!.toLowerCase()] });
+      }
+    }
+  }
+  return claims;
+}
+
+function manifestBotCommands(manifest: Record<string, unknown>): Map<string, string[][]> {
+  const commands = new Map<string, string[][]>();
+  if (!Array.isArray(manifest.bots)) return commands;
+  for (const bot of manifest.bots) {
+    if (!bot || typeof bot !== "object") continue;
+    const commandLists = (bot as Record<string, unknown>).commandLists;
+    if (!Array.isArray(commandLists)) continue;
+    for (const commandList of commandLists) {
+      if (!commandList || typeof commandList !== "object") continue;
+      const list = commandList as Record<string, unknown>;
+      const entries = list.commands;
+      if (!Array.isArray(entries)) continue;
+      const triggers = Array.isArray(list.triggers)
+        ? list.triggers.filter((trigger): trigger is string => typeof trigger === "string").sort()
+        : ["mention"];
+      for (const entry of entries) {
+        if (!entry || typeof entry !== "object") continue;
+        const title = (entry as Record<string, unknown>).title;
+        if (typeof title === "string") commands.set(title, [...(commands.get(title) ?? []), triggers]);
+      }
+    }
+  }
+  return commands;
+}
+
 export async function fetchSchema(url: string): Promise<unknown> {
   const address = new URL(url);
   if (address.protocol !== "https:" || address.hostname !== "developer.microsoft.com" ||
@@ -179,6 +228,17 @@ export async function checkManifest(sampleRoot: string, manifestTarget: Manifest
   if (/Teams(?:Query|SubmitAction|FetchAction|QueryLink|SelectItem)Route/.test(sources) &&
       (!Array.isArray(manifest.composeExtensions) || manifest.composeExtensions.length === 0)) {
     errors.push("Manifest composeExtensions capability does not match message-extension routes");
+  }
+  const declaredCommands = manifestBotCommands(manifest);
+  for (const claim of readmeManifestCommandClaims(sampleRoot)) {
+    const declarations = declaredCommands.get(claim.title) ?? [];
+    if (declarations.length === 0) {
+      errors.push(`README says the app manifest declares bot command "${claim.title}", but bots[].commandLists does not contain it`);
+    } else if (declarations.length > 1) {
+      errors.push(`Bot command "${claim.title}" must appear in exactly one bots[].commandLists entry`);
+    } else if (declarations[0]!.join(",") !== claim.triggers.join(",")) {
+      errors.push(`README requires bot command "${claim.title}" triggers [${claim.triggers.join(", ")}], but its commandLists entry has [${declarations[0]!.join(", ")}]`);
+    }
   }
   const version = manifest.manifestVersion;
   const schemaUrl = manifest.$schema;

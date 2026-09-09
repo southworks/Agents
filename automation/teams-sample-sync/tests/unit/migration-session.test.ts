@@ -29,8 +29,11 @@ test("freezes the plan before implementation and repairs validation once", async
     assert.equal(result.repairPasses, 1);
     assert.equal(session.writable, true);
     assert.equal(session.prompts.length, 3);
+    assert.match(session.prompts[0]!, /actual manifest JSON[\s\S]*bots\[\]\.commandLists/);
     assert.match(session.prompts[1]!, /frozen migration plan/);
+    assert.match(session.prompts[1]!, /schema validity alone is insufficient/);
     assert.match(session.prompts[2]!, /Build failed/);
+    assert.match(session.prompts[2]!, /do not explain away a semantic mismatch/);
     assert.equal(readFileSync(path.join(output, "migration-plan.md"), "utf8"), "# Plan\n- Program.Main\n");
   } finally { rmSync(output, { recursive: true, force: true }); }
 });
