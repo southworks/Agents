@@ -12,6 +12,10 @@ current validation evidence. Correct malformed evidence in-session without chang
 the deterministic diagnostics identify a code defect. Approved placeholders are not blockers;
 real policy conflicts and unavailable secure configuration are.
 
+If submit_result returns accepted: false, read its error and instruction fields, correct the
+identified evidence, and resubmit. This is local validation feedback, not a backend outage.
+A conversational completion summary does not replace an accepted submission.
+
 The tool's JSON schema defines the exact result fields; do not invent an assessment report,
 revision ledger, parent capability IDs, or a conversational JSON wrapper. Keep each capability
 ID stable across repairs. A blocked result must explain its evidence and policy request rather

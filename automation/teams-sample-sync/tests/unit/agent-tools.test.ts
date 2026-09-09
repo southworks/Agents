@@ -55,6 +55,21 @@ test("unsupported submission is accepted without running validation", async () =
   finally { rmSync(environment.root, { recursive: true, force: true }); }
 });
 
+test("submission diagnostics identify the incorrect evidence field and correction", async () => {
+  const { environment, host, result, validation } = hostFixture();
+  try {
+    host.lastValidation = validation;
+    const invalid = structuredClone(result);
+    invalid.dispositions[0]!.destinationPath = "Properties/launchSettings.EXAMPLE.json";
+    await assert.rejects(submitResult(host, invalid), /Invalid destination evidence:.*received "Properties\/launchSettings.EXAMPLE.json".*path must be inside samples\/dotnet\/teams\/sample-a\//);
+    invalid.dispositions[0]!.destinationPath = `${host.sampleRoot}/missing.json`;
+    await assert.rejects(submitResult(host, invalid), /file does not exist.*Set destinationPath/);
+    invalid.dispositions = result.dispositions;
+    invalid.manifestReport.capabilities[0]!.decision = "no-manifest-field";
+    await assert.rejects(submitResult(host, invalid), /Set manifestPath to the literal string "none"/);
+  } finally { rmSync(environment.root, { recursive: true, force: true }); }
+});
+
 test("schema inspection shares cached released content across calls", async () => {
   const { environment, host } = hostFixture(); let loads = 0;
   host.validationRuntime = { runCommand: () => [], runHttpSmoke: async () => [], loadSchema: async () => { loads++; return schema; } };

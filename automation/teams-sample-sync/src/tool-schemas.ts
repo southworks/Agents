@@ -8,9 +8,9 @@ const array = (items: Record<string, unknown>): Record<string, unknown> => ({ ty
 
 export const implementationSchema = object({
   version: { const: 2 }, sample: text, status: { enum: ["updated", "unchanged", "needs-policy", "unsupported"] }, summary: text,
-  dispositions: array(object({ changeId: text, decision: { enum: ["adapted", "already-present", "not-applicable", "blocked"] }, explanation: text, destinationPath: text, symbol: text, verification: text })),
+  dispositions: array(object({ changeId: text, decision: { enum: ["adapted", "already-present", "not-applicable", "blocked"] }, explanation: text, destinationPath: { ...text, description: "Repository-relative existing destination file, including samples/dotnet/teams/<sample>/, with forward slashes. Required for adapted/already-present." }, symbol: text, verification: text })),
   upstreamChanges: evidenceItems, preservedDifferences: evidenceItems, appliedPolicies: strings,
-  manifestReport: object({ mode: text, changes: evidenceItems, validation: evidenceItems, externalSetup: evidenceItems, capabilities: { ...array(object({ id: { ...text, pattern: "^[a-z0-9][a-z0-9:._-]*$" }, kind: text, evidence: { ...strings, minItems: 1 }, decision: { enum: ["manifest-field-required", "no-manifest-field", "needs-input", "unsupported"] }, manifestPath: text, reference: text })) } }),
+  manifestReport: object({ mode: text, changes: evidenceItems, validation: evidenceItems, externalSetup: evidenceItems, capabilities: { ...array(object({ id: { ...text, pattern: "^[a-z0-9][a-z0-9:._-]*$" }, kind: text, evidence: { ...strings, minItems: 1 }, decision: { enum: ["manifest-field-required", "no-manifest-field", "needs-input", "unsupported"] }, manifestPath: { ...text, description: 'Concrete path such as bots[0].supportsTargetedMessages for manifest-field-required; otherwise the literal string "none".' }, reference: text })) } }),
   policyRequest: object({ key: text, question: text, recommendation: text, evidence: text, impact: text, suggestedPolicy: object({ instruction: text, rationale: text }) }),
 }, ["policyRequest"]) as NonNullable<Tool["parameters"]>;
 

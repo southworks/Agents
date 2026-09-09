@@ -33,7 +33,7 @@ export function parseManifestCapabilities(value: unknown, allowEmpty = false): M
     if (capability.evidence.length === 0) throw new SyncError(`Manifest capability ${capability.id} requires source evidence`);
     if (capability.reference === "none") throw new SyncError(`Manifest capability ${capability.id} requires a skill reference`);
     if (capability.decision === "manifest-field-required" && !concreteManifestPath(capability.manifestPath)) throw new SyncError(`Manifest capability ${capability.id} requires a concrete manifestPath`);
-    if (capability.decision !== "manifest-field-required" && capability.manifestPath !== "none") throw new SyncError(`Manifest capability ${capability.id} requires manifestPath none`);
+    if (capability.decision !== "manifest-field-required" && capability.manifestPath !== "none") throw new SyncError(`Manifest capability ${capability.id} requires manifestPath none; received ${JSON.stringify(capability.manifestPath)}. Set manifestPath to the literal string "none" for decision ${capability.decision}.`);
     return capability;
   });
   if (new Set(result.map((item) => item.id)).size !== result.length) throw new SyncError("manifest capability inventory contains duplicate IDs");
@@ -71,7 +71,10 @@ export function coverageErrors(repo: string, context: SyncContext, agent: AgentR
   if (expected.some((id) => !actual.includes(id)) || actual.some((id) => !expected.includes(id))) errors.push("Account for each source change ID exactly once");
   for (const item of agent.dispositions) {
     if (item.decision === "blocked") errors.push(`Unresolved source change: ${item.changeId}`);
-    if (["adapted", "already-present"].includes(item.decision) && (!relativePath(item.destinationPath) || !item.destinationPath.startsWith(`${context.paths.destination}/`) || !existsSync(path.join(repo, item.destinationPath)))) errors.push(`Invalid destination evidence: ${item.changeId}`);
+    if (["adapted", "already-present"].includes(item.decision)) {
+      const reason = !relativePath(item.destinationPath) ? "path must be repository-relative with forward slashes" : !item.destinationPath.startsWith(`${context.paths.destination}/`) ? `path must be inside ${context.paths.destination}/` : !existsSync(path.join(repo, item.destinationPath)) ? "file does not exist" : undefined;
+      if (reason) errors.push(`Invalid destination evidence: ${item.changeId}; received ${JSON.stringify(item.destinationPath)}: ${reason}. Set destinationPath to the actual existing destination file, including ${context.paths.destination}/. If the source was intentionally not ported, use not-applicable with an explanation instead of claiming adapted/already-present.`);
+    }
   }
   if (agent.manifestReport.mode !== "complete" || agent.manifestReport.validation.length === 0) errors.push("Complete the manifest skill assessment");
   const manifestFile = path.join(repo, context.paths.destination, context.manifest.packageDirectory, "manifest.json");

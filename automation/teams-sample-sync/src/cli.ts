@@ -3,7 +3,7 @@ import type { Tool } from "@github/copilot-sdk";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { CopilotAgentRunner } from "./agent-runner.js";
+import { CopilotAgentRunner, type SdkFactory } from "./agent-runner.js";
 import { createContext } from "./context.js";
 import { protection, targets, SyncError } from "./config.js";
 import { guardCandidate, inspectManifestSchema, submitResult, submitReview, validateTool, validationInProgress, type ToolHost } from "./agent-tools.js";
@@ -12,7 +12,7 @@ import { createPlan } from "./plan.js";
 import { prBody, workflowSummary } from "./report.js";
 import { coverageErrors, evidenceDigest, parseAgentResult, parseReview } from "./review.js";
 import { createState, statePath, validateState } from "./state.js";
-import { assertFullValidation, cancelValidationProcesses, prepareManifest } from "./validate.js";
+import { assertFullValidation, cancelValidationProcesses, prepareManifest, type ValidationRuntime } from "./validate.js";
 import { implementationSchema, reviewSchema } from "./tool-schemas.js";
 import { runSyncSession } from "./sync-session.js";
 import type { AgentEvent, AgentResult, Plan, ReviewResult, State, SyncContext, SyncResult } from "./types.js";
@@ -24,7 +24,7 @@ function writeJson(file: string, value: unknown): void { mkdirSync(path.dirname(
 function resolveOption(value: string): string { return path.resolve(process.env.INIT_CWD ?? process.cwd(), value); }
 function tool(name: string, description: string, schema: Tool["parameters"], handler: (value: unknown) => Promise<unknown> | unknown): Tool { return { name, description, ...(schema ? { parameters: schema } : {}), handler, skipPermission: true }; }
 
-async function migrateCandidate(repo: string, values: Record<string, string>): Promise<number> {
+export async function migrateCandidate(repo: string, values: Record<string, string>, dependencies: { sdkFactory?: SdkFactory; validationRuntime?: ValidationRuntime } = {}): Promise<number> {
   const upstream = resolveOption(required(values, "upstream-root")); const plan = readJson<Plan>(resolveOption(required(values, "plan"))); const sample = required(values, "sample"); const output = resolveOption(required(values, "output-directory")); mkdirSync(output, { recursive: true });
   const configured = targets(repo); const owner = protection(repo); const target = configured.samples[sample]; const entry = plan.samples[sample];
   if (plan.version !== 2 || !target || !entry?.upstreamCommit || !entry.sourceTree || !entry.inputDigest || !entry.componentDigests || entry.status !== "pending") throw new SyncError("Plan does not contain a pending selected sample");
@@ -33,9 +33,13 @@ async function migrateCandidate(repo: string, values: Record<string, string>): P
   const events: AgentEvent[] = []; const observedModels: SyncResult["observedModels"] = []; const agentLog = path.join(output, "agent-log.txt"); writeFileSync(agentLog, "", "utf8"); writeJson(path.join(output, "source-context.json"), context);
   const syncResult: SyncResult = { version: 3, sample, status: "failed", publishable: false, baseSha, previousUpstreamCommit: context.upstream.previousCommit, upstreamCommit: entry.upstreamCommit, upstreamChanges: context.upstream.changes, changedComponents: entry.changedComponents, copilot: configured.copilot, observedModels, migrationPolicies: context.policies, sourceTree: entry.sourceTree, sourceContextDigest: hash(stable(context)), inputDigest: entry.inputDigest, componentDigests: entry.componentDigests, metrics: { repairPasses: 0, rejectedImplementerReports: 0, rejectedReviewerReports: 0 }, diagnostics: [], sourceRepository: context.upstream.repository };
   let acceptedAgent: AgentResult | undefined; let acceptedReview: ReviewResult | undefined;
-  const host: ToolHost = { repo, upstream, baseSha, sampleRoot: sampleRelative, sourcePath: `${configured.upstream.root}/${target.source}`, upstreamCommit: entry.upstreamCommit, sourceTree: entry.sourceTree, protectedPaths: owner.protectedPaths, excludes: owner.outputDigestExcludes, contextRoot: contextFiles.root, contextDigest: contextFiles.digest, context, configured, acceptImplementation: (result) => { acceptedAgent = result; }, acceptReview: (result) => { acceptedReview = result; } };
+  const host: ToolHost = { repo, upstream, baseSha, sampleRoot: sampleRelative, sourcePath: `${configured.upstream.root}/${target.source}`, upstreamCommit: entry.upstreamCommit, sourceTree: entry.sourceTree, protectedPaths: owner.protectedPaths, excludes: owner.outputDigestExcludes, contextRoot: contextFiles.root, contextDigest: contextFiles.digest, context, configured, ...(dependencies.validationRuntime ? { validationRuntime: dependencies.validationRuntime } : {}), onValidation: (validation) => { syncResult.validation = validation; events.push({ at: new Date().toISOString(), stage: syncResult.failureStage ?? "validate", type: "validation-completed", detail: { validation } }); }, acceptImplementation: (result) => { acceptedAgent = result; }, acceptReview: (result) => { acceptedReview = result; } };
   const skillDirectories = [path.join(repo, "automation/teams-sample-sync/skills/sync-teams-dotnet-samples-to-agents-sdk"), path.join(repo, configured.migrationSkill), path.join(repo, configured.manifestSkill)];
-  const runner = new CopilotAgentRunner(repo, sampleRelative, configured.copilot, agentLog, observedModels, skillDirectories, undefined, () => validationInProgress(host), () => { guardCandidate(host); });
+  const runner = new CopilotAgentRunner(repo, sampleRelative, configured.copilot, agentLog, observedModels, skillDirectories, dependencies.sdkFactory, () => validationInProgress(host), () => { guardCandidate(host); }, (role, message) => {
+    if (role === "implementation") syncResult.metrics.rejectedImplementerReports++;
+    else syncResult.metrics.rejectedReviewerReports++;
+    events.push({ at: new Date().toISOString(), stage: syncResult.failureStage ?? "validate", type: "submission-rejected", detail: { role, error: message } });
+  });
   const validateSchema = { type: "object", additionalProperties: false, required: ["group"], properties: { group: { type: "string", enum: ["code", "manifest", "all"] } } };
   const schemaQuery = { type: "object", additionalProperties: false, required: ["path"], properties: { path: { type: "string" } } };
   const implementationTools = [tool("validate_sample", "Run the trusted selected-sample validation.", validateSchema, async (input) => validateTool(host, String((input as { group?: unknown })?.group) as "code" | "manifest" | "all")), tool("inspect_manifest_schema", "Inspect a field in the released selected manifest schema.", schemaQuery, async (input) => inspectManifestSchema(host, String((input as { path?: unknown })?.path))), tool("submit_result", "Submit current structured implementation evidence.", implementationSchema, (input) => submitResult(host, input))];
@@ -45,7 +49,7 @@ async function migrateCandidate(repo: string, values: Record<string, string>): P
     for (const skill of skillDirectories) if (!existsSync(path.join(skill, "SKILL.md"))) throw new SyncError(`Configured skill is unavailable: ${skill}`);
     prepareManifest(sampleRoot, path.join(repo, configured.canonicalSample), target.manifest);
     const result = await runSyncSession({ sample, contextFile: path.relative(repo, contextFiles.file).replaceAll("\\", "/"), sourceChangeIds: context.changes.map((change) => change.id), policyKeys: context.policies.map((policy) => policy.key), createImplementation: () => runner.open("implementation", implementationTools), createReviewer: () => runner.open("review", reviewTools), validate: (group) => validateTool(host, group), outputDigest: () => guardCandidate(host), coverage: (agent) => coverageErrors(repo, context, agent), cancelValidation: cancelValidationProcesses, event: (event) => { events.push(event); syncResult.failureStage = event.stage; } });
-    syncResult.agent = result.agent; if (result.validation) syncResult.validation = result.validation; if (result.review) syncResult.review = result.review; if (result.validation) syncResult.outputDigest = result.validation.outputDigest; syncResult.evidenceDigest = result.evidenceDigest; syncResult.metrics = result.metrics;
+    syncResult.agent = result.agent; if (result.validation) syncResult.validation = result.validation; if (result.review) syncResult.review = result.review; if (result.validation) syncResult.outputDigest = result.validation.outputDigest; syncResult.evidenceDigest = result.evidenceDigest; syncResult.metrics.repairPasses = result.metrics.repairPasses; syncResult.metrics.rejectedImplementerReports += result.metrics.rejectedImplementerReports; syncResult.metrics.rejectedReviewerReports += result.metrics.rejectedReviewerReports;
     if (result.stage === "blocked" || result.agent.status === "needs-policy" || result.agent.status === "unsupported") { syncResult.status = result.agent.status === "needs-policy" || result.agent.status === "unsupported" ? result.agent.status : "failed"; syncResult.error = result.review?.result.blockerReason ?? result.agent.summary; syncResult.failureClass = "blocked"; syncResult.failureStage = result.stage; }
     else if (!result.review || result.review.result.verdict !== "approved") { syncResult.error = "Independent review did not approve the candidate"; syncResult.failureStage = result.stage; }
     else {

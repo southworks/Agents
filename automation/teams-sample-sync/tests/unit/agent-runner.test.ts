@@ -89,6 +89,7 @@ test("persistent adapter waits for tool submission and retains only accepted res
   let aborted = 0;
   let disconnected = 0;
   let stopped = 0;
+  let feedback: unknown;
   const session: SdkSession = {
     on: (() => () => {}) as SdkSession["on"],
     sendAndWait: async () => {
@@ -96,7 +97,7 @@ test("persistent adapter waits for tool submission and retains only accepted res
       await new Promise((resolve) => setImmediate(resolve));
       const tool = config?.tools?.find((entry) => entry.name === "submit_result");
       assert.ok(tool?.handler);
-      await tool.handler({ raw: waitCalls }, { sessionId: "test", toolCallId: "call", toolName: tool.name, arguments: {} });
+      feedback = await tool.handler({ raw: waitCalls }, { sessionId: "test", toolCallId: "call", toolName: tool.name, arguments: {} });
       return undefined;
     },
     abort: async () => { aborted += 1; },
@@ -123,10 +124,16 @@ test("persistent adapter waits for tool submission and retains only accepted res
     assert.equal(denied?.permissionDecision, "deny");
     assert.deepEqual(await active.send("first"), { accepted: true });
     reject = true;
-    await assert.rejects(active.send("second"), /invalid report/);
-    await active.abort?.();
+    assert.equal(await active.send("second"), undefined, "rejection must never become an accepted submission");
+    assert.equal((feedback as { accepted: boolean }).accepted, false);
+    assert.match((feedback as { error: string }).error, /invalid report/);
+    reject = false;
+    assert.deepEqual(await active.send("corrected report"), { accepted: true });
+    reject = true;
+    assert.equal(await active.send("new rejected report"), undefined);
+    await assert.rejects(active.send("different payload, same error"), /Report correction made no progress: invalid report/);
     await active.close();
     await runner.close();
-    assert.deepEqual({ waitCalls, aborted, disconnected, stopped }, { waitCalls: 2, aborted: 1, disconnected: 1, stopped: 1 });
+    assert.deepEqual({ waitCalls, aborted, disconnected, stopped }, { waitCalls: 5, aborted: 1, disconnected: 1, stopped: 1 });
   } finally { rmSync(repo, { recursive: true, force: true }); }
 });

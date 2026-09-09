@@ -14,6 +14,7 @@ export interface ToolHost {
   repo: string; upstream: string; baseSha: string; sampleRoot: string; sourcePath: string; upstreamCommit: string; sourceTree: string;
   protectedPaths: string[]; excludes: string[]; contextRoot: string; contextDigest: string; context: SyncContext; configured: Targets;
   lastValidation?: ValidationResult; validationRuntime?: ValidationRuntime;
+  onValidation?(result: ValidationResult): void;
   acceptImplementation(result: AgentResult): void; acceptReview(result: ReviewResult): void;
 }
 const queues = new WeakMap<ToolHost, Promise<unknown>>();
@@ -74,6 +75,7 @@ export function validateTool(host: ToolHost, group: "code" | "manifest" | "all")
       const after = guardCandidate(host);
       if (before !== after || value.outputDigest !== after) throw new SyncError("Validation changed candidate source or returned a stale digest");
       host.lastValidation = value;
+      host.onValidation?.(value);
       return value;
     } finally { activeValidation.delete(host); }
   });

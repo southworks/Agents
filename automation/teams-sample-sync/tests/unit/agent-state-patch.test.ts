@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { main } from "../../src/cli.js";
+import { main, migrateCandidate } from "../../src/cli.js";
+import type { SdkClient, SdkSession } from "../../src/agent-runner.js";
+import type { SessionConfig } from "@github/copilot-sdk";
 import { targets } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { changedPaths, digestDirectory, hash, stable } from "../../src/git.js";
@@ -11,6 +13,58 @@ import { evidenceDigest } from "../../src/review.js";
 import { createState, statePath, validateState } from "../../src/state.js";
 import type { AgentResult, SyncContext, SyncResult, ValidationResult } from "../../src/types.js";
 import { fixture, git, gitBuffer, write } from "./helpers.js";
+
+test("failed report submission preserves validation artifacts and never publishes", async () => {
+  const item = fixture();
+  const output = path.join(item.repo, ".sync/output");
+  const root = path.join(item.repo, "samples/dotnet/teams/sample-a");
+  write(path.join(root, "Sample.csproj"), '<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup><ItemGroup><PackageReference Include="Microsoft.Agents.Hosting.AspNetCore" Version="1.7.*" /><PackageReference Include="Microsoft.Agents.Extensions.MSTeams" Version="1.7.*" /><PackageReference Include="Microsoft.Agents.Authentication.Msal" Version="1.7.*" /></ItemGroup></Project>');
+  write(path.join(root, "Program.cs"), "builder.AddAgentDefaults().AddAgent<SampleAgent>(); app.UseAgents(); app.MapDefaultAgentEndpoints(); [TeamsExtension] partial class SampleAgent : AgentApplication {}");
+  write(path.join(root, "appManifest/manifest.json"), JSON.stringify({ $schema: "https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json", manifestVersion: "1.22", version: "1.0.0", id: "${{CLIENT_ID}}", name: { short: "Sample" }, description: { short: "Sample", full: "Sample" }, icons: { color: "color.png", outline: "outline.png" }, bots: [{ botId: "${{CLIENT_ID}}", scopes: ["personal"] }] }));
+  const planFile = path.join(item.repo, ".sync/plan.json");
+  write(planFile, JSON.stringify(createPlan(item.repo, item.upstream)));
+  let config: SessionConfig;
+  let checked: ValidationResult | undefined;
+  let sessions = 0;
+  const call = async (name: string, input: unknown) => {
+    const tool = config.tools!.find((tool) => tool.name === name)!;
+    return tool.handler!(input, { sessionId: "test", toolCallId: name, toolName: name, arguments: input });
+  };
+  const session: SdkSession = {
+    on: (() => () => {}) as SdkSession["on"], abort: async () => {}, disconnect: async () => {},
+    sendAndWait: async () => {
+      checked = await call("validate_sample", { group: "all" }) as ValidationResult;
+      assert.equal(checked.passed, true, checked.errors.join("; "));
+      for (const summary of ["first attempt", "different summary"]) {
+        const feedback = await call("submit_result", { summary }) as { accepted: boolean; error: string };
+        assert.equal(feedback.accepted, false);
+        assert.match(feedback.error, /Invalid implementation fields/);
+      }
+      return undefined;
+    },
+  };
+  const client: SdkClient = { start: async () => {}, stop: async () => [], listModels: async () => [], getStatus: async () => ({ version: "1.0.83", protocolVersion: 3 }), getAuthStatus: async () => ({ isAuthenticated: true }), createSession: async (value) => { config = value; sessions++; return session; } };
+  const previousToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = "offline-test-token";
+  try {
+    const code = await migrateCandidate(item.repo, { "upstream-root": item.upstream, plan: planFile, sample: "sample-a", "output-directory": output }, { sdkFactory: async () => client, validationRuntime: { runCommand: () => [], runHttpSmoke: async () => [], loadSchema: async () => ({ type: "object" }) } });
+    assert.equal(code, 1);
+    const result = JSON.parse(readFileSync(path.join(output, "sync-result.json"), "utf8")) as SyncResult;
+    assert.deepEqual(result.validation, checked);
+    assert.equal(result.publishable, false);
+    assert.equal(result.metrics.rejectedImplementerReports, 2);
+    assert.match(result.error!, /Report correction made no progress/);
+    assert.equal(sessions, 1, "review must not start without accepted evidence");
+    assert.equal(existsSync(path.join(output, "change.patch")), false);
+    assert.equal(existsSync(statePath(item.repo, "sample-a")), false);
+    const events = readFileSync(path.join(output, "agent-events.jsonl"), "utf8");
+    assert.match(events, /validation-completed/);
+    assert.match(events, /submission-rejected/);
+  } finally {
+    if (previousToken === undefined) delete process.env.GITHUB_TOKEN; else process.env.GITHUB_TOKEN = previousToken;
+    rmSync(item.root, { recursive: true, force: true });
+  }
+});
 function validation(passed: boolean, outputDigest: string): ValidationResult {
   return { version: 2, id: "validation-1", sample: "sample-a", passed, repairable: true, outputDigest, group: "all", checks: Object.fromEntries(["project", "restore", "build", "manifest", "httpSmoke", "contracts", "sampleTests"].map((name) => [name, { status: passed ? "passed" : "failed", errors: [] }])), errors: passed ? [] : ["failure"], externalValidationRequired: [] };
 }

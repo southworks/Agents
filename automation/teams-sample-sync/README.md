@@ -69,3 +69,9 @@ evidence, and an unchanged rerun. The plan job checks out the default branch, so
 contains this refactor before testing a branch. Artifacts include `sync-result.json`,
 `source-context.json`, `agent-log.txt`, `agent-events.jsonl`, and `workflow-summary.md`;
 publishable artifacts additionally contain `change.patch` and `pr-body.md`.
+
+Submission validation failures return `accepted: false` with an actionable error and correction
+instruction. Repeating an unresolved diagnostic twice stops the session even if unrelated report
+text changes. Rejection counts and diagnostics are recorded in the artifact events. Every completed
+validation is also recorded immediately; failed runs retain the latest completed validation with
+its candidate digest, which is diagnostic evidence and never substitutes for publication approval.

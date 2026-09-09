@@ -13,3 +13,6 @@ assertions. Use `inspect_manifest_schema` or official documentation before dispu
 Submit through `submit_review` using its exact JSON schema. Return `changes-required` for a
 repairable defect and `blocked` only for an external or policy dependency that cannot be resolved.
 Do not regenerate a competing capability inventory or demand historical assessment revisions.
+
+If submit_review returns accepted: false, correct the fields identified in its error and
+instruction, then resubmit. This is local validation feedback, not a backend outage.

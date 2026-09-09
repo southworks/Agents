@@ -212,6 +212,7 @@ export function workflowSummary(result: SyncResult): string {
     "",
     `Review: ${safeText(result.review?.result.verdict ?? "not completed")}; repairs: ${result.metrics.repairPasses}${failure}`,
     ...(result.failureClass ? [`Failure class: ${safeText(result.failureClass)}`] : []),
+    ...(result.validation && !result.publishable ? [`Last completed validation: ${inlineCode(result.validation.id)}, candidate ${inlineCode(result.validation.outputDigest)}. These checks describe that snapshot; they do not authorize publication or prove later edits passed.`] : []),
     "",
     ...validationLines(result),
     "",

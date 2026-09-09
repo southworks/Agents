@@ -94,7 +94,7 @@ class CopilotPersistentSession implements PersistentSession {
 
 export class CopilotAgentRunner {
   private client: SdkClient | undefined;
-  constructor(private readonly repo: string, private readonly sampleRoot: string, private readonly configuration: CopilotConfiguration, private readonly logFile: string, private readonly observed: ObservedModel[], private readonly skillDirectories: string[], private readonly factory: SdkFactory = defaultSdkFactory, private readonly isValidationActive: () => boolean = () => false, private readonly guard: () => void = () => {}) {}
+  constructor(private readonly repo: string, private readonly sampleRoot: string, private readonly configuration: CopilotConfiguration, private readonly logFile: string, private readonly observed: ObservedModel[], private readonly skillDirectories: string[], private readonly factory: SdkFactory = defaultSdkFactory, private readonly isValidationActive: () => boolean = () => false, private readonly guard: () => void = () => {}, private readonly onRejection: (role: "implementation" | "review", message: string) => void = () => {}) {}
   async open(role: "implementation" | "review", tools: Tool[] = []): Promise<PersistentSession> {
     if (!this.client) {
       const client = await this.factory();
@@ -127,7 +127,7 @@ export class CopilotAgentRunner {
     const selection = selectModel(policy, models);
     const prompt = readFileSync(path.join(this.repo, "automation/teams-sample-sync/prompts", role === "implementation" ? "agent-prompt.md" : "review-prompt.md"), "utf8");
     let active: CopilotPersistentSession | undefined;
-    const rejected = new Map<string, { signature: string; count: number }>();
+    const rejected = new Map<string, Map<string, number>>();
     const wrappedTools: Tool[] = tools.map((tool) => ({ ...tool, handler: async (input, invocation) => {
       if (!tool.handler) throw new SyncError(`Tool ${tool.name} has no handler`);
       try {
@@ -143,11 +143,23 @@ export class CopilotAgentRunner {
         if (/changed (?:protected|outside|Git HEAD|candidate|during)|Validation changed|infrastructure failed|Cannot run |schema is unavailable|timed out/i.test(message)) {
           active?.fail(error instanceof Error ? error : new SyncError(message));
         } else if (tool.name === "submit_result" || tool.name === "submit_review") {
-          const signature = JSON.stringify([input, message]);
-          const previous = rejected.get(tool.name);
-          const count = previous?.signature === signature ? previous.count + 1 : 1;
-          rejected.set(tool.name, { signature, count });
+          this.onRejection(role, message);
+          // Count diagnostic identities, not the whole report. Rewording a summary
+          // or alternating other errors must not reset an unresolved defect.
+          const counts = rejected.get(tool.name) ?? new Map<string, number>();
+          const signatures = [...new Set(message.split("\n").map((line) => line.split("; received ")[0]!.trim()))];
+          let count = 0;
+          for (const signature of signatures) {
+            const attempts = (counts.get(signature) ?? 0) + 1;
+            counts.set(signature, attempts);
+            count = Math.max(count, attempts);
+          }
+          rejected.set(tool.name, counts);
           if (count >= 2) active?.fail(new SyncError(`Report correction made no progress: ${message}`));
+          // Expected validation failures are tool data. Throwing routes them through
+          // the runtime's generic tool-error handling instead of useful feedback.
+          return { accepted: false, error: message, retryable: count < 2,
+            instruction: "The submission was rejected by local validation, not a backend outage. Correct the fields identified above and resubmit. Preserve valid code and evidence; rerun validation only if candidate files changed or validation is missing/stale." };
         }
         throw error;
       }
