@@ -25,7 +25,7 @@ test("freezes the plan before implementation and repairs validation once", async
   const session = new FakeSession(["# Plan\n- Program.Main", "# Audit\n- Program.Main done", "# Repair audit\n- Program.Main fixed"]);
   const results = [validation(false, "first"), validation(true, "second")];
   try {
-    const result = await runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session, validate: async () => results.shift()!, outputDigest: () => results.length === 1 ? "first" : "second" });
+    const result = await runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session, validate: async () => results.shift()! });
     assert.equal(result.repairPasses, 1);
     assert.equal(session.writable, true);
     assert.equal(session.prompts.length, 3);
@@ -39,7 +39,7 @@ test("requires a self-audit after a successful implementation", async () => {
   const output = mkdtempSync(path.join(os.tmpdir(), "teams-sync-session-"));
   try {
     await assert.rejects(
-      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["# Plan", ""]), validate: async () => validation(true, "ready"), outputDigest: () => "ready" }),
+      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["# Plan", ""]), validate: async () => validation(true, "ready") }),
       /self-audit/,
     );
   } finally { rmSync(output, { recursive: true, force: true }); }

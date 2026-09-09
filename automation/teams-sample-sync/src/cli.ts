@@ -40,7 +40,7 @@ export async function migrateCandidate(repo: string, values: Record<string, stri
     prepareManifest(sampleRoot, path.join(repo, configured.canonicalSample), target.manifest);
     const session = await runner.open([tool("validate_sample", "Run trusted validation for the selected sample.", schema, async (input) => validateTool(host, String((input as { group?: unknown }).group) as "code" | "manifest" | "all"))]);
     try {
-      const migration = await runMigrationSession({ sample, contextFile: path.relative(repo, contextFiles.file).replaceAll("\\", "/"), output, session, validate: () => validateTool(host, "all"), outputDigest: () => guardCandidate(host) });
+      const migration = await runMigrationSession({ sample, contextFile: path.relative(repo, contextFiles.file).replaceAll("\\", "/"), output, session, validate: () => validateTool(host, "all") });
       result.validation = migration.validation; result.outputDigest = migration.validation.outputDigest; result.planHash = migration.planHash; result.selfAudit = migration.selfAudit;
       writeFileSync(path.join(output, "self-audit.md"), `${migration.selfAudit}\n`, "utf8");
       const state = createState(sample, entry, migration.validation); const lock = statePath(repo, sample); writeJson(lock, state); git(repo, ["add", "-N", "--", sampleRelative, path.relative(repo, lock).replaceAll("\\", "/")]);

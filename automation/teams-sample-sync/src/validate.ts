@@ -324,10 +324,11 @@ export async function validateSample(
     project = projectCheck.project;
     result("project", projectCheck.errors);
     if (project) {
-      const restore = await runtime.runCommand("dotnet", ["restore", project, "--nologo"], sampleRoot);
+      const projectArgument = path.relative(sampleRoot, project);
+      const restore = await runtime.runCommand("dotnet", ["restore", projectArgument, "--nologo"], sampleRoot);
       result("restore", restore);
       if (restore.length === 0) {
-        const build = await runtime.runCommand("dotnet", ["build", project, "--no-restore", "--nologo", "--warnaserror"], sampleRoot);
+        const build = await runtime.runCommand("dotnet", ["build", projectArgument, "--no-restore", "--nologo", "--warnaserror"], sampleRoot);
         result("build", build); buildPassed = build.length === 0;
       } else skip("build", "Build requires a successful restore");
     } else { skip("restore", "Restore requires a project"); skip("build", "Build requires a project"); }
@@ -335,7 +336,7 @@ export async function validateSample(
   if (group !== "code") result("manifest", await checkManifest(sampleRoot, target, runtime.loadSchema));
   else skip("manifest");
   if (group === "all") {
-    if (buildPassed && project) result("httpSmoke", await runtime.runHttpSmoke(sampleRoot, project));
+    if (buildPassed && project) result("httpSmoke", await runtime.runHttpSmoke(sampleRoot, path.relative(sampleRoot, project)));
     else skip("httpSmoke", "HTTP smoke requires a successful build");
   } else skip("httpSmoke");
   const hasContracts = ["agent-targeted-messages", "bot-ai-messages", "bot-attachments", "bot-cards", "bot-meetings", "bot-message-extensions", "bot-task-modules"].includes(sample);
@@ -348,7 +349,7 @@ export async function validateSample(
   if (group !== "manifest" && testProjects.length > 0) {
     if (testProjects.length !== 1) result("sampleTests", ["Expected exactly one tests/*.csproj when sample tests are present"]);
     else if (!buildPassed) skip("sampleTests", "Sample tests require a successful build");
-    else result("sampleTests", await runtime.runCommand("dotnet", ["test", path.join(testsRoot, testProjects[0]!), "--nologo", "--warnaserror"], sampleRoot));
+    else result("sampleTests", await runtime.runCommand("dotnet", ["test", path.relative(sampleRoot, path.join(testsRoot, testProjects[0]!)), "--nologo", "--warnaserror"], sampleRoot));
   } else skip("sampleTests");
   return {
     version: 2, id: randomUUID(), sample, group,

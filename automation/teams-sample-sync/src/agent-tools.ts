@@ -1,5 +1,7 @@
 import { assertAgentChanges, assertContext, assertUpstream } from "./guard.js";
 import { SyncError } from "./config.js";
+import { digestDirectory } from "./git.js";
+import path from "node:path";
 import { validateSample, type ValidationRuntime } from "./validate.js";
 import type { SyncContext, Targets, ValidationResult } from "./types.js";
 
@@ -9,10 +11,16 @@ export interface ToolHost {
 }
 
 let activeValidation = false;
-export function guardCandidate(host: ToolHost): string { assertAgentChanges(host.repo, host.baseSha, host.sampleRoot, host.protectedPaths); assertContext(host.contextRoot, host.contextDigest); assertUpstream(host.upstream, host.upstreamCommit, host.sourcePath, host.sourceTree); return host.baseSha; }
+export function guardCandidate(host: ToolHost): void { assertAgentChanges(host.repo, host.baseSha, host.sampleRoot, host.protectedPaths); assertContext(host.contextRoot, host.contextDigest); assertUpstream(host.upstream, host.upstreamCommit, host.sourcePath, host.sourceTree); }
 export async function validateTool(host: ToolHost, group: "code" | "manifest" | "all"): Promise<ValidationResult> {
   if (activeValidation) throw new SyncError("Validation is already running");
   guardCandidate(host); activeValidation = true;
-  try { const validation = await validateSample(host.repo, host.context.sample, host.sampleRoot, host.configured, host.context.manifest, host.excludes, host.validationRuntime, group); guardCandidate(host); host.onValidation?.(validation); return validation; }
+  try {
+    const validation = await validateSample(host.repo, host.context.sample, host.sampleRoot, host.configured, host.context.manifest, host.excludes, host.validationRuntime, group);
+    guardCandidate(host);
+    if (validation.outputDigest !== digestDirectory(path.join(host.repo, host.sampleRoot), host.excludes)) throw new SyncError("Validation returned a stale candidate digest");
+    host.onValidation?.(validation);
+    return validation;
+  }
   finally { activeValidation = false; }
 }
