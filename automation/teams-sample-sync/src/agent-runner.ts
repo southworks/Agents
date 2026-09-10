@@ -1,6 +1,7 @@
 import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
-import { CopilotClient, ToolSet, type CopilotSession, type PermissionRequest, type PermissionRequestResult, type SessionConfig, type Tool } from "@github/copilot-sdk";
+import { fileURLToPath } from "node:url";
+import { CopilotClient, RuntimeConnection, ToolSet, type CopilotSession, type PermissionRequest, type PermissionRequestResult, type SessionConfig, type Tool } from "@github/copilot-sdk";
 import { SyncError } from "./config.js";
 import type { CopilotConfiguration, ObservedModel } from "./types.js";
 
@@ -15,7 +16,8 @@ export function createCopilotLog(artifact: (value: string) => void) {
 }
 
 export async function defaultSdkFactory(): Promise<SdkClient> {
-  return new CopilotClient();
+  const executable = fileURLToPath(import.meta.resolve(`@github/copilot-${process.platform}-${process.arch}`));
+  return new CopilotClient({ connection: RuntimeConnection.forStdio({ path: executable }) });
 }
 
 export function permissionFor(repo: string, sampleRoot: string, writeEnabled: boolean, customTools: string[], request: PermissionRequest): PermissionRequestResult {
