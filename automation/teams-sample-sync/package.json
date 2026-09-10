@@ -13,14 +13,11 @@
     "test:sdk-smoke": "node --import tsx --test tests/integration/sdk-smoke.test.ts"
   },
   "dependencies": {
-    "@github/copilot-sdk": "1.0.7",
+    "@github/copilot-sdk": "1.0.13",
     "ajv": "8.20.0",
     "fast-xml-parser": "5.11.1",
     "minimatch": "10.2.6",
     "yaml": "2.9.0"
-  },
-  "overrides": {
-    "@github/copilot": "1.0.83"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

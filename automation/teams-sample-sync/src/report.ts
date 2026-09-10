@@ -9,6 +9,7 @@ function fenced(value: string): string {
 }
 function change(change: UpstreamChange): string { const path = change.newPath ?? change.oldPath ?? "unknown"; return `- ${change.status}: ${code(path)}${change.binary ? " (binary)" : ""}`; }
 function validation(result: SyncResult): string[] { return Object.entries(result.validation?.checks ?? {}).map(([name, check]) => `- ${name}: **${check.status}**${check.errors.length ? ` — ${safe(check.errors.join("; "))}` : ""}`); }
+function models(result: SyncResult): string { const values = [...new Set(result.observedModels.map((item) => item.model).filter(Boolean))]; return values.length ? values.join(", ") : "not observed"; }
 
 function workflowCommandData(value: string): string {
   return value.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
@@ -27,7 +28,7 @@ export function failureReport(result: SyncResult): { stderr: string; annotation:
   const message = result.error?.trim() || result.diagnostics.find((item) => item.trim())?.trim() || "Sample synchronization failed without a diagnostic.";
   return {
     stderr: `Sample synchronization failed (${result.sample}): ${message}`,
-    annotation: githubErrorAnnotation(`${result.sample} synchronization failed`, message),
+    annotation: githubErrorAnnotation(`${result.sample} synchronization failed`, `${message}\nCopilot model: ${models(result)}`),
   };
 }
 
@@ -53,6 +54,7 @@ export function workflowSummary(result: SyncResult): string {
   return [
     `### ${safe(result.sample)}: ${result.status}`, "",
     result.error ? safe(result.error) : "", "", ...outcome,
+    `Copilot model: ${code(models(result))}`, "",
     `Diagnostic artifact: ${code(`teams-sample-sync-${result.sample}`)}`, "",
     ...(result.validation ? ["#### Validation", "", ...validation(result), ""] : []),
     ...(result.diagnostics.length ? ["#### Diagnostics", "", ...result.diagnostics.map((item) => `- ${safe(item)}`), ""] : []),

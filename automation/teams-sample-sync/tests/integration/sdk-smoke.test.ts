@@ -13,7 +13,7 @@ test("live SDK keeps skills across a frozen plan and implementation turn", {
   for (const directory of [sample, skill, prompts]) mkdirSync(directory, { recursive: true });
   writeFileSync(path.join(sample, "input.txt"), "input\n"); writeFileSync(path.join(skill, "SKILL.md"), "---\nname: smoke\ndescription: Smoke skill\n---\nUse the word leaf-skill-loaded in your response.\n");
   writeFileSync(path.join(prompts, "agent-prompt.md"), "Follow the caller's plan-only and implementation instructions exactly.");
-  const runner = new CopilotAgentRunner(repo, "sample", { sdkVersion: "1.0.7", runtimeVersion: "1.0.83" }, path.join(repo, "agent.log"), [], [skill]);
+  const runner = new CopilotAgentRunner(repo, "sample", { sdkVersion: "1.0.13", runtimeVersion: "1.0.83" }, path.join(repo, "agent.log"), [], [skill]);
   let active: Awaited<ReturnType<typeof runner.open>> | undefined;
   try {
     active = await runner.open();

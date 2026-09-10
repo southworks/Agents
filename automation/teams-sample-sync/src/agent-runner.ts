@@ -1,7 +1,6 @@
 import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { CopilotClient, RuntimeConnection, ToolSet, type CopilotSession, type PermissionRequest, type PermissionRequestResult, type SessionConfig, type Tool } from "@github/copilot-sdk";
+import { CopilotClient, ToolSet, type CopilotSession, type PermissionRequest, type PermissionRequestResult, type SessionConfig, type Tool } from "@github/copilot-sdk";
 import { SyncError } from "./config.js";
 import type { CopilotConfiguration, ObservedModel } from "./types.js";
 
@@ -16,8 +15,7 @@ export function createCopilotLog(artifact: (value: string) => void) {
 }
 
 export async function defaultSdkFactory(): Promise<SdkClient> {
-  const executable = fileURLToPath(import.meta.resolve(`@github/copilot-${process.platform}-${process.arch}`));
-  return new CopilotClient({ connection: RuntimeConnection.forStdio({ path: executable }) });
+  return new CopilotClient();
 }
 
 export function permissionFor(repo: string, sampleRoot: string, writeEnabled: boolean, customTools: string[], request: PermissionRequest): PermissionRequestResult {
@@ -75,7 +73,7 @@ export class CopilotAgentRunner {
     const availableTools = new ToolSet().addBuiltIn(["view", "grep", "glob", "skill", "web_fetch", "edit", "apply_patch", "create", "str_replace_editor"]);
     for (const name of names) availableTools.addCustom(name);
     const raw = await this.client.createSession({
-      model: "auto", workingDirectory: this.repo, skillDirectories: this.skillDirectories, systemMessage: { mode: "append", content: prompt }, tools,
+      model: "auto", capi: { autoTier: "balance" }, workingDirectory: this.repo, skillDirectories: this.skillDirectories, systemMessage: { mode: "append", content: prompt }, tools,
       availableTools, excludedTools: ["shell", "bash", "terminal"], enableConfigDiscovery: false,
       hooks: { onPreToolUse: (input) => { this.guard(); if (this.isWriteTool(input.toolName) && !active?.canWrite()) return { permissionDecision: "deny", permissionDecisionReason: "The migration plan is being drafted; do not edit before it is frozen." }; return undefined; }, onPostToolUse: () => { this.guard(); } },
       onPermissionRequest: (request) => permissionFor(this.repo, this.sampleRoot, active?.canWrite() ?? false, names, request),

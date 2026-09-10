@@ -11,8 +11,9 @@ migrationSkill: agent-plugins/agents-for-net/skills/teams-sdk-to-agents-sdk-dotn
 manifestSkill: agent-plugins/agents-sdk-common/skills/teams-app-manifest
 
 copilot:
-  # 1.0.7 bundles a matching Copilot CLI runtime. Pin runtime compatibility, not a model catalog.
-  sdkVersion: "1.0.7"
+  # 1.0.13 supports balanced Auto routing and bundles a matching Copilot CLI runtime.
+  # Pin runtime compatibility and routing policy, not a model catalog.
+  sdkVersion: "1.0.13"
   runtimeVersion: "1.0.83"
 
 packagePolicy:

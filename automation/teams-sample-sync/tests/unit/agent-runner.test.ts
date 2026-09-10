@@ -18,15 +18,15 @@ test("plan-only permission denies writes and implementation permission confines 
   } finally { rmSync(repo, { recursive: true, force: true }); }
 });
 
-test("implementation sessions use Copilot Auto and one validation tool", async () => {
+test("implementation sessions use balanced Copilot Auto and one validation tool", async () => {
   const repo = mkdtempSync(path.join(os.tmpdir(), "teams-sync-runner-")); let config: SessionConfig | undefined;
   const session: SdkSession = { on: (() => () => {}) as SdkSession["on"], sendAndWait: async () => undefined, abort: async () => {}, disconnect: async () => {} };
   const client: SdkClient = { start: async () => {}, stop: async () => [], getStatus: async () => ({ version: "1.0.83", protocolVersion: 1 }), getAuthStatus: async () => ({ isAuthenticated: true }), createSession: async (value) => { config = value; return session; } };
   try {
     const prompts = path.join(repo, "automation/teams-sample-sync/prompts"); mkdirSync(prompts, { recursive: true }); writeFileSync(path.join(prompts, "agent-prompt.md"), "Task");
-    const runner = new CopilotAgentRunner(repo, "sample", { sdkVersion: "1.0.7", runtimeVersion: "1.0.83" }, path.join(repo, "agent.log"), [], [], async () => client);
+    const runner = new CopilotAgentRunner(repo, "sample", { sdkVersion: "1.0.13", runtimeVersion: "1.0.83" }, path.join(repo, "agent.log"), [], [], async () => client);
     const active = await runner.open([{ name: "validate_sample", description: "Validate", parameters: { type: "object" }, handler: async () => ({}) }]);
-    assert.equal(config?.model, "auto"); assert.equal(config?.tools?.length, 1); assert.equal(config?.tools?.[0]?.name, "validate_sample");
+    assert.equal(config?.model, "auto"); assert.equal(config?.capi?.autoTier, "balance"); assert.equal(config?.tools?.length, 1); assert.equal(config?.tools?.[0]?.name, "validate_sample");
     const availableTools = config?.availableTools as ToolSet;
     assert.equal(availableTools.toArray().includes("builtin:skill"), true);
     assert.equal(availableTools.toArray().includes("builtin:task"), false);
@@ -52,7 +52,7 @@ test("returns only the final assistant message while keeping the full transcript
   try {
     const prompts = path.join(repo, "automation/teams-sample-sync/prompts"); mkdirSync(prompts, { recursive: true }); writeFileSync(path.join(prompts, "agent-prompt.md"), "Task");
     const logFile = path.join(repo, "agent.log");
-    const runner = new CopilotAgentRunner(repo, "sample", { sdkVersion: "1.0.7", runtimeVersion: "1.0.83" }, logFile, [], [], async () => client, () => {}, (value) => status.push(value));
+    const runner = new CopilotAgentRunner(repo, "sample", { sdkVersion: "1.0.13", runtimeVersion: "1.0.83" }, logFile, [], [], async () => client, () => {}, (value) => status.push(value));
     const active = await runner.open();
 
     assert.equal(await active.send("Plan", "Planning migration"), "## Migration plan\n- Ready");
