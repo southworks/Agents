@@ -55,7 +55,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotMessageExtensions", "tea
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTaskModules", "teams\bot-task-modules\BotTaskModules.csproj", "{F663024D-F06C-4820-944A-F2AAA08A8D14}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeamsSampleSync.ContractTests", "..\..\tests\dotnet\teams-sample-sync\TeamsSampleSync.ContractTests.csproj", "{C148F8B4-6DCF-4C69-8305-905FED64040A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeamsSampleSync.ContractTests", "..\..\automation\teams-sample-sync\tests\contracts\TeamsSampleSync.ContractTests.csproj", "{C148F8B4-6DCF-4C69-8305-905FED64040A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
