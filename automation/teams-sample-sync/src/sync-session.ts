@@ -13,12 +13,25 @@ export interface MigrationSessionOptions {
 export type MigrationOutcome = "changed" | "no-changes";
 export interface MigrationSessionResult { plan: string; planHash: string; selfAudit: string; outcome: MigrationOutcome; validation: ValidationResult; repairPasses: number; }
 
+const RESPONSE_PREVIEW_LIMIT = 400;
+
+function responseTail(value: string): string {
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (!normalized) return JSON.stringify("<empty>");
+  const preview = normalized.length > RESPONSE_PREVIEW_LIMIT
+    ? `…${normalized.slice(-RESPONSE_PREVIEW_LIMIT)}`
+    : normalized;
+  return JSON.stringify(preview);
+}
+
 function outcomeFromSelfAudit(value: string): MigrationOutcome {
-  if (!/^##\s+self-audit\b/im.test(value)) throw new SyncError("Implementer did not produce a Markdown self-audit");
+  if (!/^##\s+self-audit\b/im.test(value)) {
+    throw new SyncError(`Implementer response is missing required heading "## Self-audit"; the next full validation pass was not run. Response ended with: ${responseTail(value)}`);
+  }
   const outcome = /^Outcome:\s*(changed|no changes required)\s*$/im.exec(value)?.[1]?.toLowerCase();
   if (outcome === "changed") return "changed";
   if (outcome === "no changes required") return "no-changes";
-  throw new SyncError("Implementer self-audit must declare Outcome: changed or Outcome: no changes required");
+  throw new SyncError(`Implementer self-audit is missing required line "Outcome: changed" or "Outcome: no changes required"; the next full validation pass was not run. Response ended with: ${responseTail(value)}`);
 }
 
 export function assertOutcomeMatchesSampleChanges(outcome: MigrationOutcome, changes: string[]): void {

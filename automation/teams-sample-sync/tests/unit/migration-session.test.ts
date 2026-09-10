@@ -40,11 +40,47 @@ test("freezes the plan before implementation and repairs validation once", async
 
 test("requires a self-audit after a successful implementation", async () => {
   const output = mkdtempSync(path.join(os.tmpdir(), "teams-sync-session-"));
+  let validationRan = false;
   try {
     await assert.rejects(
-      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["## Migration plan", "I'll begin the implementation now."]), validate: async () => validation(true, "ready") }),
-      /Markdown self-audit/,
+      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["## Migration plan", "I'll begin the implementation now."]), validate: async () => { validationRan = true; return validation(true, "ready"); } }),
+      /missing required heading "## Self-audit"; the next full validation pass was not run\. Response ended with: "I'll begin the implementation now\."/,
     );
+    assert.equal(validationRan, false);
+  } finally { rmSync(output, { recursive: true, force: true }); }
+});
+
+test("explains a missing self-audit outcome and previews the end of the response", async () => {
+  const output = mkdtempSync(path.join(os.tmpdir(), "teams-sync-session-"));
+  const response = `## Self-audit\n${"Earlier audit detail. ".repeat(30)}\nThe destination sample was already fully implemented.`;
+  try {
+    await assert.rejects(
+      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["## Migration plan", response]), validate: async () => validation(true, "ready") }),
+      (error: Error) => {
+        assert.match(error.message, /missing required line "Outcome: changed" or "Outcome: no changes required"; the next full validation pass was not run\./);
+        assert.match(error.message, /Response ended with: "….*The destination sample was already fully implemented\."/);
+        assert.ok(error.message.length < response.length);
+        return true;
+      },
+    );
+  } finally { rmSync(output, { recursive: true, force: true }); }
+});
+
+test("accurately reports a malformed self-audit after a failed validation pass", async () => {
+  const output = mkdtempSync(path.join(os.tmpdir(), "teams-sync-session-"));
+  let validationRuns = 0;
+  try {
+    await assert.rejects(
+      runMigrationSession({
+        sample: "sample-a",
+        contextFile: ".sync/context/sync-context.json",
+        output,
+        session: new FakeSession(["## Migration plan", "## Self-audit\nOutcome: changed", "Repair finished."]),
+        validate: async () => { validationRuns += 1; return validation(false, "failed"); },
+      }),
+      /missing required heading "## Self-audit"; the next full validation pass was not run\. Response ended with: "Repair finished\."/,
+    );
+    assert.equal(validationRuns, 1);
   } finally { rmSync(output, { recursive: true, force: true }); }
 });
 

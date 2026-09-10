@@ -6,7 +6,17 @@ on:
       sample:
         description: Selected sample or all
         required: true
+        type: choice
         default: all
+        options:
+          - all
+          - agent-targeted-messages
+          - bot-ai-messages
+          - bot-attachments
+          - bot-cards
+          - bot-meetings
+          - bot-message-extensions
+          - bot-task-modules
       createPr:
         description: Create draft pull requests
         type: boolean
