@@ -5,6 +5,10 @@ counterparts. It has three GitHub Actions jobs: plan, migrate, and publish. Migr
 access but no repository-write credential. Publishing has repository-write access but never starts
 Copilot or executes the candidate.
 
+The workflow runs every Sunday at 00:00 UTC for all configured samples and automatically creates
+draft pull requests for publishable results. Manual runs can select one sample or all samples and
+can enable or disable draft pull request creation.
+
 For each changed sample, one persistent Copilot implementation session first creates a Markdown
 migration plan without write permission. The coordinator saves and hashes that plan. The same
 session then uses the Teams-to-Agents and manifest skills to implement it, validate its work, and
