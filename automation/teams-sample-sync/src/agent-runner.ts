@@ -73,7 +73,8 @@ export class CopilotAgentRunner {
     const availableTools = new ToolSet().addBuiltIn(["view", "grep", "glob", "skill", "web_fetch", "edit", "apply_patch", "create", "str_replace_editor"]);
     for (const name of names) availableTools.addCustom(name);
     const raw = await this.client.createSession({
-      model: "auto", capi: { autoTier: "balance" }, workingDirectory: this.repo, skillDirectories: this.skillDirectories, systemMessage: { mode: "append", content: prompt }, tools,
+      // TODO: Set capi.autoTier to "balance" after https://github.com/github/copilot-sdk/issues/2559 is fixed.
+      model: "auto", workingDirectory: this.repo, skillDirectories: this.skillDirectories, systemMessage: { mode: "append", content: prompt }, tools,
       availableTools, excludedTools: ["shell", "bash", "terminal"], enableConfigDiscovery: false,
       hooks: { onPreToolUse: (input) => { this.guard(); if (this.isWriteTool(input.toolName) && !active?.canWrite()) return { permissionDecision: "deny", permissionDecisionReason: "The migration plan is being drafted; do not edit before it is frozen." }; return undefined; }, onPostToolUse: () => { this.guard(); } },
       onPermissionRequest: (request) => permissionFor(this.repo, this.sampleRoot, active?.canWrite() ?? false, names, request),

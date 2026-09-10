@@ -14,7 +14,7 @@ function result(overrides: Partial<SyncResult> = {}): SyncResult {
     upstreamCommit: "upstream",
     upstreamChanges: [],
     changedComponents: [],
-    copilot: { sdkVersion: "1.0.13", runtimeVersion: "1.0.83" },
+    copilot: { sdkVersion: "1.0.11", runtimeVersion: "1.0.83" },
     observedModels: [],
     sourceTree: "tree",
     sourceContextDigest: "context",
