@@ -31,8 +31,10 @@ test("freezes the plan before implementation and repairs validation once", async
     assert.equal(session.prompts.length, 3);
     assert.deepEqual(session.phases, ["Planning migration", "Implementing frozen migration plan", "Repairing validation failures"]);
     assert.match(session.prompts[0]!, /actual manifest JSON[\s\S]*bots\[\]\.commandLists/);
+    assert.match(session.prompts[0]!, /proceed autonomously; do not ask for confirmation/i);
     assert.match(session.prompts[1]!, /frozen migration plan/);
     assert.match(session.prompts[1]!, /schema validity alone is insufficient/);
+    assert.match(session.prompts[1]!, /proceed autonomously; do not ask for confirmation/i);
     assert.match(session.prompts[2]!, /Build failed/);
     assert.match(session.prompts[2]!, /do not explain away a semantic mismatch/);
     assert.equal(readFileSync(path.join(output, "migration-plan.md"), "utf8"), "## Migration plan\n- Program.Main\n");
@@ -44,7 +46,7 @@ test("requires a self-audit after a successful implementation", async () => {
   let validationRan = false;
   try {
     await assert.rejects(
-      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["## Migration plan", "I'll begin the implementation now.", "Still no self-audit."]), validate: async () => { validationRan = true; return validation(true, "ready"); } }),
+      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["## Migration plan", "I'll begin the implementation now.", "Still implementing.", "Still no self-audit."]), validate: async () => { validationRan = true; return validation(true, "ready"); } }),
       /missing required heading "## Self-audit"; the next full validation pass was not run\. Response ended with: "Still no self-audit\."/,
     );
     assert.equal(validationRan, false);
@@ -57,7 +59,7 @@ test("explains a missing self-audit outcome and previews the end of the response
   const retryResponse = `## Self-audit\n${"Earlier audit detail. ".repeat(30)}The destination sample was already fully implemented.`;
   try {
     await assert.rejects(
-      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["## Migration plan", response, retryResponse]), validate: async () => validation(true, "ready") }),
+      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["## Migration plan", response, "## Self-audit\nStill missing an outcome.", retryResponse]), validate: async () => validation(true, "ready") }),
       (error: Error) => {
         assert.match(error.message, /missing required line "Outcome: changed" or "Outcome: no changes required"; the next full validation pass was not run\./);
         assert.match(error.message, /Response ended with: "….*The destination sample was already fully implemented\."/);
@@ -77,7 +79,7 @@ test("accurately reports a malformed self-audit after a failed validation pass",
         sample: "sample-a",
         contextFile: ".sync/context/sync-context.json",
         output,
-        session: new FakeSession(["## Migration plan", "## Self-audit\nOutcome: changed", "Repair finished.", "Still missing the repair audit."]),
+        session: new FakeSession(["## Migration plan", "## Self-audit\nOutcome: changed", "Repair finished.", "Still repairing.", "Still missing the repair audit."]),
         validate: async () => { validationRuns += 1; return validation(false, "failed"); },
       }),
       /missing required heading "## Self-audit"; the next full validation pass was not run\. Response ended with: "Still missing the repair audit\."/,
@@ -90,7 +92,7 @@ test("rejects progress-only plans and contradictory outcomes", async () => {
   const output = mkdtempSync(path.join(os.tmpdir(), "teams-sync-session-"));
   try {
     await assert.rejects(
-      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["I'll begin by inspecting the sample.", "Still inspecting."]), validate: async () => validation(true, "ready") }),
+      runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session: new FakeSession(["I'll begin by inspecting the sample.", "May I proceed with the full planning analysis?", "Still inspecting."]), validate: async () => validation(true, "ready") }),
       /missing required heading "## Migration plan".*Response ended with: "Still inspecting\."/,
     );
     assert.throws(() => assertOutcomeMatchesSampleChanges("changed", []), /selected sample is unchanged/);
@@ -98,35 +100,55 @@ test("rejects progress-only plans and contradictory outcomes", async () => {
   } finally { rmSync(output, { recursive: true, force: true }); }
 });
 
-test("recovers from one malformed plan and self-audit response without allowing format-only edits", async () => {
+test("continues an unfinished plan autonomously instead of waiting for confirmation", async () => {
   const output = mkdtempSync(path.join(os.tmpdir(), "teams-sync-session-"));
   const session = new FakeSession([
-    "I'll begin by inspecting the sample.",
+    "I need to inspect the sample. May I proceed?",
     "## Migration plan\n- No changes expected",
-    "The sample is already synchronized.",
     "## Self-audit\nOutcome: no changes required\n- Plan verified",
   ]);
   try {
     const result = await runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session, validate: async () => validation(true, "ready") });
 
     assert.equal(result.outcome, "no-changes");
-    assert.deepEqual(session.phases, ["Planning migration", "Repairing migration plan format", "Implementing frozen migration plan", "Repairing self-audit format"]);
-    assert.deepEqual(session.writableStates, [false, false, true, false]);
+    assert.deepEqual(session.phases, ["Planning migration", "Continuing migration planning", "Implementing frozen migration plan"]);
+    assert.deepEqual(session.writableStates, [false, false, true]);
     assert.equal(session.writable, true);
-    assert.match(session.prompts[1]!, /format only/i);
-    assert.match(session.prompts[3]!, /format only/i);
+    assert.match(session.prompts[1]!, /continue autonomously/i);
+    assert.match(session.prompts[1]!, /do not ask for confirmation/i);
+  } finally { rmSync(output, { recursive: true, force: true }); }
+});
+
+test("formats completed continuation responses only after autonomous recovery", async () => {
+  const output = mkdtempSync(path.join(os.tmpdir(), "teams-sync-session-"));
+  const session = new FakeSession([
+    "I'll begin by inspecting the sample.",
+    "Analysis complete; no changes are needed.",
+    "## Migration plan\n- No changes expected",
+    "I need to finish checking the implementation.",
+    "Implementation and validation are complete.",
+    "## Self-audit\nOutcome: no changes required\n- Plan verified",
+  ]);
+  try {
+    const result = await runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session, validate: async () => validation(true, "ready") });
+
+    assert.equal(result.outcome, "no-changes");
+    assert.deepEqual(session.phases, ["Planning migration", "Continuing migration planning", "Repairing migration plan format", "Implementing frozen migration plan", "Continuing migration implementation", "Repairing self-audit format"]);
+    assert.deepEqual(session.writableStates, [false, false, false, true, true, false]);
+    assert.match(session.prompts[2]!, /format only/i);
+    assert.match(session.prompts[5]!, /format only/i);
   } finally { rmSync(output, { recursive: true, force: true }); }
 });
 
 test("keeps write access disabled when a self-audit format retry fails", async () => {
   const output = mkdtempSync(path.join(os.tmpdir(), "teams-sync-session-"));
-  const session = new FakeSession(["## Migration plan", "Implementation response without an audit.", new Error("Format retry failed")]);
+  const session = new FakeSession(["## Migration plan", "Implementation response without an audit.", "Implementation still incomplete.", new Error("Format retry failed")]);
   try {
     await assert.rejects(
       runMigrationSession({ sample: "sample-a", contextFile: ".sync/context/sync-context.json", output, session, validate: async () => validation(true, "ready") }),
       /Format retry failed/,
     );
     assert.equal(session.writable, false);
-    assert.deepEqual(session.writableStates, [false, true, false]);
+    assert.deepEqual(session.writableStates, [false, true, true, false]);
   } finally { rmSync(output, { recursive: true, force: true }); }
 });
