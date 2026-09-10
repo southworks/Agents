@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { failureReport } from "../../src/report.js";
+import { failureReport, workflowSummary } from "../../src/report.js";
 import type { SyncResult } from "../../src/types.js";
 
 function result(overrides: Partial<SyncResult> = {}): SyncResult {
@@ -46,4 +46,8 @@ test("falls back to diagnostics when a failed result has no primary error", () =
 
 test("does not render a failure report for a publishable result", () => {
   assert.equal(failureReport(result({ status: "updated", publishable: true })), undefined);
+});
+
+test("workflow summary identifies the uploaded diagnostic artifact", () => {
+  assert.match(workflowSummary(result()), /Diagnostic artifact: `teams-sample-sync-bot-message-extensions`/);
 });

@@ -53,6 +53,7 @@ export function workflowSummary(result: SyncResult): string {
   return [
     `### ${safe(result.sample)}: ${result.status}`, "",
     result.error ? safe(result.error) : "", "", ...outcome,
+    `Diagnostic artifact: ${code(`teams-sample-sync-${result.sample}`)}`, "",
     ...(result.validation ? ["#### Validation", "", ...validation(result), ""] : []),
     ...(result.diagnostics.length ? ["#### Diagnostics", "", ...result.diagnostics.map((item) => `- ${safe(item)}`), ""] : []),
   ].join("\n");

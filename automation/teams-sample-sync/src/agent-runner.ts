@@ -5,14 +5,14 @@ import { CopilotClient, RuntimeConnection, ToolSet, type CopilotSession, type Pe
 import { SyncError } from "./config.js";
 import type { CopilotConfiguration, ObservedModel } from "./types.js";
 
-export interface ImplementationSession { send(message: string): Promise<string>; setWriteAccess(enabled: boolean): void; close(): Promise<void>; abort(): Promise<void>; }
+export interface ImplementationSession { send(message: string, phase?: string): Promise<string>; setWriteAccess(enabled: boolean): void; close(): Promise<void>; abort(): Promise<void>; }
 export type SdkSession = Pick<CopilotSession, "sendAndWait" | "on" | "disconnect" | "abort">;
 export type SdkClient = Pick<CopilotClient, "start" | "stop" | "getStatus" | "getAuthStatus"> & { createSession(config: SessionConfig): Promise<SdkSession>; };
 export type SdkFactory = () => Promise<SdkClient>;
 
-export function createCopilotLog(artifact: (value: string) => void, console: (value: string) => void) {
-  let lineStart = true;
-  return { write(value: string): void { artifact(value); for (const part of value.split(/(?<=[\r\n])/)) { if (!part) continue; console((lineStart ? "[Copilot] " : "") + part); lineStart = /[\r\n]$/.test(part); } }, finish(): void { if (!lineStart) console("\n"); } };
+export function createCopilotLog(artifact: (value: string) => void) {
+  let hasMessage = false;
+  return { write(value: string): void { if (hasMessage) artifact("\n\n"); artifact(value); hasMessage = true; } };
 }
 
 export async function defaultSdkFactory(): Promise<SdkClient> {
@@ -43,28 +43,32 @@ export function permissionFor(repo: string, sampleRoot: string, writeEnabled: bo
 
 class PersistentImplementationSession implements ImplementationSession {
   private writable = false;
-  private currentTurn = "";
-  constructor(private readonly session: SdkSession, private readonly log: ReturnType<typeof createCopilotLog>, observed: ObservedModel[]) {
-    session.on("assistant.message", (event) => { const data = event as { data?: { content?: unknown } }; if (typeof data.data?.content === "string") { this.currentTurn += data.data.content; log.write(data.data.content); } });
+  constructor(private readonly session: SdkSession, log: ReturnType<typeof createCopilotLog>, observed: ObservedModel[], private readonly status: (value: string) => void) {
+    session.on("assistant.message", (event) => { const data = event as { data?: { content?: unknown } }; if (typeof data.data?.content === "string") log.write(data.data.content); });
     session.on("assistant.usage", (event) => { if (event.data.model) observed.push({ model: event.data.model, reasoningEffort: event.data.reasoningEffort ?? "unknown" }); });
   }
   setWriteAccess(enabled: boolean): void { this.writable = enabled; }
   canWrite(): boolean { return this.writable; }
-  async send(message: string): Promise<string> { this.currentTurn = ""; await this.session.sendAndWait({ prompt: message }, 30 * 60_000); return this.currentTurn.trim(); }
+  async send(message: string, phase?: string): Promise<string> {
+    if (phase) this.status(`[Copilot] ${phase}...\n`);
+    const response = await this.session.sendAndWait({ prompt: message }, 30 * 60_000);
+    if (phase) this.status(`[Copilot] ${phase} complete.\n`);
+    return typeof response?.data.content === "string" ? response.data.content.trim() : "";
+  }
   async abort(): Promise<void> { await this.session.abort(); }
-  async close(): Promise<void> { this.log.finish(); await this.session.disconnect(); }
+  async close(): Promise<void> { await this.session.disconnect(); }
 }
 
 export class CopilotAgentRunner {
   private client: SdkClient | undefined;
-  constructor(private readonly repo: string, private readonly sampleRoot: string, private readonly configuration: CopilotConfiguration, private readonly logFile: string, private readonly observed: ObservedModel[], private readonly skillDirectories: string[], private readonly factory: SdkFactory = defaultSdkFactory, private readonly guard: () => void = () => {}) {}
+  constructor(private readonly repo: string, private readonly sampleRoot: string, private readonly configuration: CopilotConfiguration, private readonly logFile: string, private readonly observed: ObservedModel[], private readonly skillDirectories: string[], private readonly factory: SdkFactory = defaultSdkFactory, private readonly guard: () => void = () => {}, private readonly status: (value: string) => void = (value) => process.stdout.write(value)) {}
   async open(tools: Tool[] = []): Promise<ImplementationSession> {
     if (!this.client) {
       const client = await this.factory();
       try { await client.start(); const status = await client.getStatus(); if (status.version !== this.configuration.runtimeVersion) throw new SyncError(`Copilot runtime version mismatch: expected ${this.configuration.runtimeVersion}, received ${status.version}`); if (!(await client.getAuthStatus()).isAuthenticated) throw new SyncError("Copilot runtime is not authenticated"); this.client = client; }
       catch (error) { await client.stop().catch(() => {}); throw error; }
     }
-    const log = createCopilotLog((value) => appendFileSync(this.logFile, value, "utf8"), (value) => process.stdout.write(value));
+    const log = createCopilotLog((value) => appendFileSync(this.logFile, value, "utf8"));
     const prompt = readFileSync(path.join(this.repo, "automation/teams-sample-sync/prompts/agent-prompt.md"), "utf8");
     let active: PersistentImplementationSession | undefined;
     const names = tools.map((tool) => tool.name);
@@ -76,7 +80,7 @@ export class CopilotAgentRunner {
       hooks: { onPreToolUse: (input) => { this.guard(); if (this.isWriteTool(input.toolName) && !active?.canWrite()) return { permissionDecision: "deny", permissionDecisionReason: "The migration plan is being drafted; do not edit before it is frozen." }; return undefined; }, onPostToolUse: () => { this.guard(); } },
       onPermissionRequest: (request) => permissionFor(this.repo, this.sampleRoot, active?.canWrite() ?? false, names, request),
     });
-    active = new PersistentImplementationSession(raw, log, this.observed);
+    active = new PersistentImplementationSession(raw, log, this.observed, this.status);
     return active;
   }
   private isWriteTool(name: string): boolean { return ["edit", "apply_patch", "create", "str_replace_editor"].includes(name); }
