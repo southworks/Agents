@@ -10,6 +10,27 @@ function fenced(value: string): string {
 function change(change: UpstreamChange): string { const path = change.newPath ?? change.oldPath ?? "unknown"; return `- ${change.status}: ${code(path)}${change.binary ? " (binary)" : ""}`; }
 function validation(result: SyncResult): string[] { return Object.entries(result.validation?.checks ?? {}).map(([name, check]) => `- ${name}: **${check.status}**${check.errors.length ? ` — ${safe(check.errors.join("; "))}` : ""}`); }
 
+function workflowCommandData(value: string): string {
+  return value.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
+}
+
+function workflowCommandProperty(value: string): string {
+  return workflowCommandData(value).replaceAll(":", "%3A").replaceAll(",", "%2C");
+}
+
+export function githubErrorAnnotation(title: string, message: string): string {
+  return `::error title=${workflowCommandProperty(title)}::${workflowCommandData(message)}`;
+}
+
+export function failureReport(result: SyncResult): { stderr: string; annotation: string } | undefined {
+  if (result.status !== "failed") return undefined;
+  const message = result.error?.trim() || result.diagnostics.find((item) => item.trim())?.trim() || "Sample synchronization failed without a diagnostic.";
+  return {
+    stderr: `Sample synchronization failed (${result.sample}): ${message}`,
+    annotation: githubErrorAnnotation(`${result.sample} synchronization failed`, message),
+  };
+}
+
 export function prBody(result: SyncResult): string {
   const outcome = result.status === "no-changes"
     ? ["### Outcome", "", "No sample changes were required. This patch records the verified synchronization state.", ""]

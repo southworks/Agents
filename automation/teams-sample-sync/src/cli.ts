@@ -9,7 +9,7 @@ import { protection, targets, SyncError } from "./config.js";
 import { guardCandidate, validateTool, type ToolHost } from "./agent-tools.js";
 import { changedPaths, digestDirectory, git, hash, matches, stable } from "./git.js";
 import { createPlan } from "./plan.js";
-import { prBody, workflowSummary } from "./report.js";
+import { failureReport, githubErrorAnnotation, prBody, workflowSummary } from "./report.js";
 import { createState, statePath, validateState } from "./state.js";
 import { prepareManifest, type ValidationRuntime } from "./validate.js";
 import { assertOutcomeMatchesSampleChanges, runMigrationSession } from "./sync-session.js";
@@ -21,6 +21,7 @@ function readJson<T>(file: string): T { try { return JSON.parse(readFileSync(fil
 function writeJson(file: string, value: unknown): void { mkdirSync(path.dirname(file), { recursive: true }); writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8"); }
 function resolveOption(value: string): string { return path.resolve(process.env.INIT_CWD ?? process.cwd(), value); }
 function tool(name: string, description: string, parameters: NonNullable<Tool["parameters"]>, handler: (value: unknown) => Promise<unknown>): Tool { return { name, description, parameters, handler, skipPermission: true }; }
+function emitFailure(report: { stderr: string; annotation: string }): void { process.stderr.write(`${report.stderr}\n`); if (process.env.GITHUB_ACTIONS === "true") process.stdout.write(`${report.annotation}\n`); }
 
 export async function migrateCandidate(repo: string, values: Record<string, string>, dependencies: { sdkFactory?: SdkFactory; validationRuntime?: ValidationRuntime } = {}): Promise<number> {
   const upstream = resolveOption(required(values, "upstream-root")); const plan = readJson<Plan>(resolveOption(required(values, "plan"))); const sample = required(values, "sample"); const output = resolveOption(required(values, "output-directory")); mkdirSync(output, { recursive: true });
@@ -51,7 +52,14 @@ export async function migrateCandidate(repo: string, values: Record<string, stri
       writeFileSync(path.join(output, "change.patch"), patch); result.status = migration.outcome === "changed" ? "updated" : "no-changes"; result.publishable = true; result.destinationChanges = changedPaths(repo, baseSha).filter((item) => item === path.relative(repo, lock).replaceAll("\\", "/") || item.startsWith(`${sampleRelative}/`)); result.state = state;
     } finally { await session.close(); }
   } catch (error) { result.error = error instanceof Error ? error.message : String(error); result.diagnostics.push(result.error); }
-  finally { await runner.close().catch((error) => { result.publishable = false; result.status = "failed"; result.error = `Runtime cleanup failed: ${String(error)}`; result.diagnostics.push(result.error); }); writeJson(path.join(output, "sync-result.json"), result); writeFileSync(path.join(output, "workflow-summary.md"), workflowSummary(result), "utf8"); if (result.publishable) writeFileSync(path.join(output, "pr-body.md"), prBody(result), "utf8"); }
+  finally {
+    await runner.close().catch((error) => { result.publishable = false; result.status = "failed"; result.error = `Runtime cleanup failed: ${String(error)}`; result.diagnostics.push(result.error); });
+    writeJson(path.join(output, "sync-result.json"), result);
+    writeFileSync(path.join(output, "workflow-summary.md"), workflowSummary(result), "utf8");
+    if (result.publishable) writeFileSync(path.join(output, "pr-body.md"), prBody(result), "utf8");
+    const failure = failureReport(result);
+    if (failure) emitFailure(failure);
+  }
   return result.publishable ? 0 : 1;
 }
 
@@ -74,5 +82,5 @@ function verifyPatch(repo: string, values: Record<string, string>): void {
   const state = readJson<State>(path.join(repo, stateRelative)); validateState(state, sample); if (stable(state) !== stable(result.state) || state.outputDigest !== result.outputDigest || state.upstreamCommit !== result.upstreamCommit || state.sourceTree !== result.sourceTree || state.inputDigest !== result.inputDigest || hash(stable(state.componentDigests)) !== hash(stable(result.componentDigests))) throw new SyncError("Applied state differs from validated result");
 }
 
-export async function main(argv = process.argv.slice(2)): Promise<number> { try { const [command, ...rest] = argv; if (command !== "plan" && command !== "migrate" && command !== "verify-patch") throw new SyncError("Expected command: plan, migrate, or verify-patch"); const values = parseArgs(rest); const repo = path.resolve(process.env.INIT_CWD ?? process.cwd(), values["repo-root"] ?? "."); if (command === "plan") { writeJson(resolveOption(required(values, "output")), createPlan(repo, resolveOption(required(values, "upstream-root")), values.sample)); return 0; } if (command === "migrate") return migrate(repo, values); verifyPatch(repo, values); return 0; } catch (error) { process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`); return 2; } }
+export async function main(argv = process.argv.slice(2)): Promise<number> { try { const [command, ...rest] = argv; if (command !== "plan" && command !== "migrate" && command !== "verify-patch") throw new SyncError("Expected command: plan, migrate, or verify-patch"); const values = parseArgs(rest); const repo = path.resolve(process.env.INIT_CWD ?? process.cwd(), values["repo-root"] ?? "."); if (command === "plan") { writeJson(resolveOption(required(values, "output")), createPlan(repo, resolveOption(required(values, "upstream-root")), values.sample)); return 0; } if (command === "migrate") return migrate(repo, values); verifyPatch(repo, values); return 0; } catch (error) { const message = error instanceof Error ? error.message : String(error); emitFailure({ stderr: message, annotation: githubErrorAnnotation("Teams sample synchronization failed", message) }); return 2; } }
 const entry = process.argv[1] ? path.resolve(process.argv[1]) : undefined; if (entry && import.meta.url === pathToFileURL(entry).href) process.exitCode = await main();
