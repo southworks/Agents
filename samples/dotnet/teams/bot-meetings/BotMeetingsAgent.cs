@@ -115,8 +115,6 @@ public partial class BotMeetingsAgent : AgentApplication
         string userId = meetingInfo?.Organizer?.AadObjectId ?? string.Empty;
         string? graphMeetingId = meetingInfo?.Details?.MSGraphResourceId;
 
-        await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
-
         string transcript = string.Empty;
         if (_graphClient is not null &&
             !string.IsNullOrEmpty(graphMeetingId) &&

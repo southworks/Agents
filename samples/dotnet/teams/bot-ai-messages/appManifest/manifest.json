@@ -22,14 +22,6 @@
     "full": "Demonstrates AI-generated content labels, citations, feedback buttons, and sensitivity labels in Microsoft Teams bot messages."
   },
   "accentColor": "#FFFFFF",
-  "copilotAgents": {
-    "customEngineAgents": [
-      {
-        "id": "${{AAD_APP_CLIENT_ID}}",
-        "type": "bot"
-      }
-    ]
-  },
   "bots": [
     {
       "botId": "${{AAD_APP_CLIENT_ID}}",
@@ -39,10 +31,6 @@
       "supportsFiles": false,
       "isNotificationOnly": false
     }
-  ],
-  "permissions": [
-    "identity",
-    "messageTeamMembers"
   ],
   "validDomains": [
     "<<BOT_DOMAIN>>"

@@ -135,7 +135,7 @@ public partial class AgentTargetedMessagesAgent(
         CancellationToken cancellationToken)
     {
         string reminderId = GetJsonString(data, "reminderId") ?? string.Empty;
-        if (!string.IsNullOrEmpty(reminderId) && reminderService.Cancel(reminderId))
+        if (TryCancelOwnedReminder(reminderId, turnContext.Activity.From?.Id))
         {
             return Task.FromResult(AdaptiveCardInvokeResponseFactory.Message("Reminder cancelled!"));
         }
@@ -151,12 +151,12 @@ public partial class AgentTargetedMessagesAgent(
         CancellationToken cancellationToken)
     {
         string reminderId = GetJsonString(data, "reminderId") ?? string.Empty;
-        if (!string.IsNullOrEmpty(reminderId))
+        if (TryCancelOwnedReminder(reminderId, turnContext.Activity.From?.Id))
         {
-            reminderService.Cancel(reminderId);
+            return Task.FromResult(AdaptiveCardInvokeResponseFactory.Message("Reminder dismissed!"));
         }
 
-        return Task.FromResult(AdaptiveCardInvokeResponseFactory.Message("Reminder dismissed!"));
+        return Task.FromResult(AdaptiveCardInvokeResponseFactory.Message("Reminder not found or already completed."));
     }
 
     [ActionExecuteRoute("snooze_reminder")]
@@ -312,9 +312,8 @@ public partial class AgentTargetedMessagesAgent(
         {
             message = $"Reminder **{reminderId}** not found or already completed.";
         }
-        else if (reminder.Creator.Id == userId || reminder.Target.Id == userId)
+        else if (TryCancelOwnedReminder(reminderId, userId))
         {
-            reminderService.Cancel(reminderId);
             message = $"Reminder **{reminderId}** has been cancelled.";
         }
         else
@@ -388,7 +387,7 @@ public partial class AgentTargetedMessagesAgent(
         await turnContext.Client.Conversations.Reactions.AddAsync(
             turnContext.Activity.Conversation.Id,
             turnContext.Activity.Id,
-            new ReactionType("1f44b_wavinghand"),
+            new ReactionType(reactionType),
             cancellationToken);
         await turnContext.SendActivityAsync(
             $"Added a **{reactionType}** reaction to your message!",
@@ -496,29 +495,43 @@ public partial class AgentTargetedMessagesAgent(
             return null;
         }
 
-        int value = int.Parse(match.Groups[1].Value);
+        if (!long.TryParse(match.Groups[1].Value, out long value) || value <= 0)
+        {
+            return null;
+        }
         string unit = match.Groups[2].Value.ToLowerInvariant();
+        long multiplier;
         if (unit.StartsWith("second", StringComparison.Ordinal) ||
             unit.StartsWith("sec", StringComparison.Ordinal) ||
             unit == "s")
         {
-            return (checked(value * 1000), $"{value} second{(value == 1 ? string.Empty : "s")}");
+            multiplier = 1000;
         }
         if (unit.StartsWith("minute", StringComparison.Ordinal) ||
             unit.StartsWith("min", StringComparison.Ordinal) ||
             unit == "m")
         {
-            return (checked(value * 60_000), $"{value} minute{(value == 1 ? string.Empty : "s")}");
+            multiplier = 60_000;
         }
         if (unit.StartsWith("hour", StringComparison.Ordinal) ||
             unit.StartsWith("hr", StringComparison.Ordinal) ||
             unit == "h")
         {
-            return (checked(value * 3_600_000), $"{value} hour{(value == 1 ? string.Empty : "s")}");
+            multiplier = 3_600_000;
         }
 
-        return null;
+        else return null;
+
+        if (value > int.MaxValue / multiplier) return null;
+        return ((int)(value * multiplier), $"{value} {unit}");
     }
+
+    private bool TryCancelOwnedReminder(string reminderId, string? userId) =>
+        !string.IsNullOrEmpty(userId) &&
+        reminderService.TryGet(reminderId, out ReminderInfo? reminder) &&
+        reminder is not null &&
+        (reminder.Creator.Id == userId || reminder.Target.Id == userId) &&
+        reminderService.Cancel(reminderId);
 
     private static AdaptiveCard CreateConfirmationCard(ReminderInfo reminder, int delayMs)
     {

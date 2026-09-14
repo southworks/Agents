@@ -37,7 +37,7 @@
   "composeExtensions": [
     {
       "botId": "${{BOT_ID}}",
-      "canUpdateConfiguration": true,
+      "canUpdateConfiguration": false,
       "commands": [
         {
           "id": "wikipediaSearch",
@@ -72,11 +72,5 @@
   ],
   "configurableTabs": [],
   "staticTabs": [],
-  "permissions": [
-    "identity",
-    "messageTeamMembers"
-  ],
-  "validDomains": [
-    "*.wikipedia.org"
-  ]
+  "validDomains": []
 }

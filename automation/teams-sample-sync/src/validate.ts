@@ -1,3 +1,9 @@
+/** For Copilot Agents only: deterministic publish-gate infrastructure. */
+/**
+ * Executes the deterministic validation gate for a migrated sample.
+ * It checks project/package policy, manifest schema and capabilities, README claims, contract tests, builds,
+ * and smoke tests; it returns machine-readable evidence that decides whether a generated patch can publish.
+ */
 import { spawn, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
@@ -71,7 +77,9 @@ export function checkProject (sampleRoot: string, configured: Targets): { projec
     }
   }
   const legacyPackages = [...packages.keys()].filter((name) =>
-    name.startsWith('Microsoft.Bot.') || name.startsWith('Microsoft.TeamsFx'))
+    name.startsWith('Microsoft.Bot.') || name.startsWith('Microsoft.TeamsFx') ||
+    name.startsWith('Microsoft.Teams.Plugins.') || name.startsWith('Microsoft.Teams.Apps') ||
+    name === 'Microsoft.Teams.Api')
   if (legacyPackages.length > 0) errors.push(`Legacy Teams or Bot SDK packages remain: ${legacyPackages.sort().join(', ')}`)
   const sources = allFiles(sampleRoot)
     .filter((file) => file.endsWith('.cs') && !['bin', 'obj', 'tests'].includes(path.relative(sampleRoot, file).split(path.sep)[0]!))

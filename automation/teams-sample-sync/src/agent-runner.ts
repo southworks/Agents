@@ -1,3 +1,9 @@
+/** For Copilot Agents only: autonomous migration runtime infrastructure. */
+/**
+ * Opens the persistent Copilot SDK session used for one selected sample.
+ * It exposes read/search/skill tools during planning, enables edits only after the plan is frozen,
+ * blocks shell tools, confines writes to the sample root, and records the full transcript as an artifact.
+ */
 import { appendFileSync, existsSync, readFileSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

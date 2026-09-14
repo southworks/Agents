@@ -5,6 +5,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using BotMessageExtensions;
 using Microsoft.Agents.Core.Models;
+using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http;
 using Newtonsoft.Json.Linq;
 using Xunit;
 
@@ -16,7 +18,8 @@ public partial class TeamsSampleContracts
     [Trait("Sample", "bot-message-extensions")]
     public async Task QueryLink_ReturnsCardPreviewContainingRequestedUrlAsync()
     {
-        await using var host = CreateHost(services => new BotMessageExtensionsAgent(CreateOptions(services)));
+        await using var host = CreateHost(services => new BotMessageExtensionsAgent(
+            CreateOptions(services), services.GetRequiredService<IHttpClientFactory>()));
         await host.CreateTestFlow()
             .Send(new Activity { Type = ActivityTypes.Invoke, Name = "composeExtension/queryLink",
                 Value = new { url = "https://example.test/article" } })

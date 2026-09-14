@@ -1,3 +1,9 @@
+/** For Copilot Agents only: migration handoff contracts. */
+/**
+ * Shared serializable contracts passed between the CLI, workflow artifacts, validators, and publish job.
+ * Keeping these objects explicit makes the plan/result handoff auditable and prevents a publish step from
+ * accepting an incomplete or differently configured migration result.
+ */
 export interface ManifestTarget { distribution: string; packageDirectory: string; placeholderConvention: string; }
 export interface Target { source: string; destination: string; manifest: ManifestTarget; }
 export interface CopilotConfiguration { sdkVersion: string; runtimeVersion: string; }

@@ -1,3 +1,9 @@
+/** For Copilot Agents only: migration planning infrastructure. */
+/**
+ * Creates the immutable plan consumed by the matrix workflow.
+ * It compares upstream trees, migration inputs, and the current destination digest with verified state; only
+ * changed or manually drifted samples enter the migration matrix, while new/upstream-removed samples are reported.
+ */
 import path from 'node:path'
 import { protection, SyncError, targets } from './config.js'
 import { digestDirectory, git, hash, stable, tree } from './git.js'
@@ -46,11 +52,17 @@ export function createPlan (repo: string, upstream: string, chosen?: string): Pl
         readFileSync(path.join(repo, 'automation/teams-sample-sync/package-lock.json'), 'utf8')])),
     }
     const inputDigest = hash(stable(componentDigests))
+    const destinationDigest = digestDirectory(
+      path.join(repo, configured.destinationRoot, target.destination),
+      owner.outputDigestExcludes
+    )
     const changedComponents = Object.entries(componentDigests)
       .filter(([key, value]) => previousState?.componentDigests[key] !== value)
       .map(([key]) => key)
       .sort()
-    const status = previousState?.inputDigest === inputDigest ? 'unchanged' : 'pending'
+    const status = previousState?.inputDigest === inputDigest && previousState.outputDigest === destinationDigest
+      ? 'unchanged'
+      : 'pending'
     const entry: PlanSample = {
       status,
       upstreamCommit: commit,

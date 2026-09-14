@@ -6,6 +6,7 @@ using AgentTargetedMessages;
 using Microsoft.Agents.Core.Models;
 using Microsoft.Agents.Extensions.MSTeams;
 using Microsoft.Agents.Extensions.MSTeams.App;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace TeamsSampleSync.ContractTests;
@@ -16,7 +17,7 @@ public partial class TeamsSampleContracts
     [Trait("Sample", "agent-targeted-messages")]
     public async Task ReminderHelp_TargetsTheRequestingUserAsync()
     {
-        using var reminders = new ReminderService();
+        using var reminders = new ReminderService(NullLogger<ReminderService>.Instance);
         await using var host = CreateHost(services => new AgentTargetedMessagesAgent(CreateOptions(services), reminders));
         await host.CreateTestFlow()
             .Send(new Activity { Type = ActivityTypes.Message, Text = "reminder-help",

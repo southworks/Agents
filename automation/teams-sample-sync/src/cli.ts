@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+/** For Copilot Agents only: workflow command-line entry point. */
+/**
+ * CLI entry point used by the GitHub Actions plan, migrate, and publish jobs.
+ * `plan` writes a deterministic matrix, `migrate` produces an isolated validated patch and artifacts,
+ * and `verify-patch` rejects anything whose context, digest, or changed paths no longer match that run.
+ */
 import type { Tool } from '@github/copilot-sdk'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'

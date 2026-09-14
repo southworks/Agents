@@ -1,3 +1,9 @@
+/** For Copilot Agents only: trusted migration-tool infrastructure. */
+/**
+ * Defines the trusted custom tools available to the Copilot session.
+ * Each tool rechecks the pinned upstream tree, frozen context, and selected-sample boundary before it
+ * returns data or validation results, so untrusted agent output cannot widen the migration scope.
+ */
 import { assertAgentChanges, assertContext, assertUpstream } from './guard.js'
 import { SyncError } from './config.js'
 import { digestDirectory } from './git.js'

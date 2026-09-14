@@ -1,3 +1,9 @@
+/** For Copilot Agents only: workflow reporting infrastructure. */
+/**
+ * Turns structured synchronization results into CI-facing output.
+ * It keeps workflow logs concise while producing failure annotations, a run summary, diagnostic references,
+ * and the draft pull-request body only after a sample has become publishable.
+ */
 import type { SyncResult, UpstreamChange } from './types.js'
 
 function safe (value: string): string { return value.replace(/[\r\n]+/g, ' ').replace(/([`*_[\]!|])/g, '\\$1').trim() }

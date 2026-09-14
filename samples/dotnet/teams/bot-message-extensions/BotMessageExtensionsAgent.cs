@@ -26,7 +26,9 @@ using AdaptiveCard = Microsoft.Teams.Cards.AdaptiveCard;
 namespace BotMessageExtensions;
 
 [TeamsExtension]
-public partial class BotMessageExtensionsAgent(AgentApplicationOptions options) : AgentApplication(options)
+public partial class BotMessageExtensionsAgent(
+    AgentApplicationOptions options,
+    IHttpClientFactory httpClientFactory) : AgentApplication(options)
 {
     [TeamsQueryRoute("wikipediaSearch")]
     public async Task<MsgExt.Response> OnWikipediaSearchAsync(
@@ -120,7 +122,7 @@ public partial class BotMessageExtensionsAgent(AgentApplicationOptions options) 
             ],
             Actions =
             [
-                new OpenUrlAction($"https://en.wikipedia.org/wiki/{title.Replace(' ', '_')}") { Title = "Read on Wikipedia" }
+                new OpenUrlAction($"https://en.wikipedia.org/wiki/{Uri.EscapeDataString(title.Replace(' ', '_'))}") { Title = "Read on Wikipedia" }
             ]
         };
     }
@@ -143,7 +145,7 @@ public partial class BotMessageExtensionsAgent(AgentApplicationOptions options) 
         };
     }
 
-    private static async Task<List<JToken>> SearchWikipediaAsync(string query, CancellationToken cancellationToken)
+    private async Task<List<JToken>> SearchWikipediaAsync(string query, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(query))
         {
@@ -152,7 +154,7 @@ public partial class BotMessageExtensionsAgent(AgentApplicationOptions options) 
 
         try
         {
-            using HttpClient httpClient = new();
+            HttpClient httpClient = httpClientFactory.CreateClient();
             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("BotMessageExtensions/1.0 (Teams Bot; +https://example.com)");
 
             Dictionary<string, string> parameters = new()

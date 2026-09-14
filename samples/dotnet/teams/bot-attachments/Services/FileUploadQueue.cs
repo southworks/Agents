@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -36,8 +37,8 @@ public sealed class FileUploadQueue(
 {
     private const string ContentTypeFileInfo = "application/vnd.microsoft.teams.card.file.info";
 
-    private readonly Channel<FileUploadWorkItem> _queue = Channel.CreateUnbounded<FileUploadWorkItem>(
-        new UnboundedChannelOptions { SingleReader = true });
+    private readonly Channel<FileUploadWorkItem> _queue = Channel.CreateBounded<FileUploadWorkItem>(
+        new BoundedChannelOptions(32) { SingleReader = true, FullMode = BoundedChannelFullMode.Wait });
 
     public bool TryQueue(FileUploadWorkItem workItem)
     {
@@ -52,7 +53,11 @@ public sealed class FileUploadQueue(
             {
                 await UploadAndNotifyAsync(workItem, stoppingToken);
             }
-            catch (HttpRequestException ex)
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
             {
                 logger.LogError(ex, "File upload failed for {FileName}.", workItem.FileName);
             }
@@ -88,7 +93,7 @@ public sealed class FileUploadQueue(
         };
 
         IActivity successMessage = CreateXmlMessage(
-            $"<b>{workItem.FileName}</b> has been successfully uploaded.");
+            $"<b>{EscapeXml(workItem.FileName)}</b> has been successfully uploaded.");
         successMessage.Attachments = [fileInfoAttachment];
 
         ConversationReference conversationReference = workItem.ConversationReference;
@@ -116,4 +121,6 @@ public sealed class FileUploadQueue(
         message.TextFormat = "xml";
         return message;
     }
+
+    private static string EscapeXml(string value) => SecurityElement.Escape(value) ?? string.Empty;
 }

@@ -15,6 +15,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.IO;
+using System.Security;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,6 +31,7 @@ public partial class BotAttachmentsAgent : AgentApplication
 {
     private const string ContentTypeFileDownload = "application/vnd.microsoft.teams.file.download.info";
     private const string ContentTypeFileConsent = "application/vnd.microsoft.teams.card.file.consent";
+    private const int MaximumDownloadBytes = 10 * 1024 * 1024;
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly PendingUploadStore _pendingUploads;
@@ -69,6 +72,11 @@ public partial class BotAttachmentsAgent : AgentApplication
             {
                 _logger.LogError(ex, "Failed to read attachment metadata for {FileName}.", attachment.Name);
             }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Cannot accept attachment {FileName} because capacity is exhausted.", attachment.Name);
+                await turnContext.SendActivityAsync("The attachment queue is full. Please try again shortly.", cancellationToken: cancellationToken);
+            }
 
             return;
         }
@@ -90,7 +98,7 @@ public partial class BotAttachmentsAgent : AgentApplication
         string fileId = GetContextValue(context, "file_id", string.Empty);
 
         await turnContext.SendActivityAsync(
-            CreateXmlMessage($"Accepted. Uploading <b>{fileName}</b>..."),
+            CreateXmlMessage($"Accepted. Uploading <b>{EscapeXml(fileName)}</b>..."),
             cancellationToken);
 
         if (!_pendingUploads.TryTake(fileId, out byte[] content))
@@ -134,7 +142,7 @@ public partial class BotAttachmentsAgent : AgentApplication
 
         _pendingUploads.Remove(fileId);
         await turnContext.SendActivityAsync(
-            CreateXmlMessage($"Declined. We won't upload file <b>{fileName}</b>."),
+            CreateXmlMessage($"Declined. We won't upload file <b>{EscapeXml(fileName)}</b>."),
             cancellationToken);
     }
 
@@ -153,16 +161,35 @@ public partial class BotAttachmentsAgent : AgentApplication
         HttpClient httpClient = _httpClientFactory.CreateClient();
         using HttpResponseMessage response = await httpClient.GetAsync(
             fileDownloadInfo.DownloadUrl,
+            HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
         response.EnsureSuccessStatusCode();
-        byte[] content = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        if (response.Content.Headers.ContentLength is long length && length > MaximumDownloadBytes)
+        {
+            _logger.LogWarning("Attachment exceeds the {MaximumDownloadBytes} byte limit.", MaximumDownloadBytes);
+            return;
+        }
+        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var buffer = new MemoryStream();
+        byte[] chunk = new byte[81920];
+        int read;
+        while ((read = await stream.ReadAsync(chunk, cancellationToken)) > 0)
+        {
+            if (buffer.Length + read > MaximumDownloadBytes)
+            {
+                _logger.LogWarning("Attachment exceeds the {MaximumDownloadBytes} byte limit.", MaximumDownloadBytes);
+                return;
+            }
+            buffer.Write(chunk, 0, read);
+        }
+        byte[] content = buffer.ToArray();
 
         string fileId = Guid.NewGuid().ToString();
         _pendingUploads.Add(fileId, content);
 
         string fileName = attachment.Name ?? $"image_{Guid.NewGuid()}.png";
         await turnContext.SendActivityAsync(
-            CreateXmlMessage($"Received <b>{fileName}</b>. Requesting permission to save to your OneDrive..."),
+            CreateXmlMessage($"Received <b>{EscapeXml(fileName)}</b>. Requesting permission to save to your OneDrive..."),
             cancellationToken);
         await SendFileConsentCardAsync(turnContext, fileName, fileId, content.Length, cancellationToken);
     }
@@ -232,4 +259,6 @@ public partial class BotAttachmentsAgent : AgentApplication
         message.TextFormat = "xml";
         return message;
     }
+
+    private static string EscapeXml(string value) => SecurityElement.Escape(value) ?? string.Empty;
 }

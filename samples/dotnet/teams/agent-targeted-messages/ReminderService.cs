@@ -11,12 +11,19 @@ using Microsoft.Agents.Builder;
 using Microsoft.Agents.Builder.App.Proactive;
 using Microsoft.Agents.Core.Models;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace AgentTargetedMessages;
 
 public sealed class ReminderService : BackgroundService
 {
     private readonly ConcurrentDictionary<string, ReminderInfo> _reminders = new();
+    private readonly ILogger<ReminderService> _logger;
+
+    public ReminderService(ILogger<ReminderService> logger)
+    {
+        _logger = logger;
+    }
 
     public async Task<ReminderInfo> AddAsync(
         string id,
@@ -66,7 +73,18 @@ public sealed class ReminderService : BackgroundService
             {
                 if (_reminders.TryRemove(reminder.Id, out _))
                 {
-                    await DeliverAsync(reminder, stoppingToken);
+                    try
+                    {
+                        await DeliverAsync(reminder, stoppingToken);
+                    }
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Reminder delivery failed for {ReminderId}.", reminder.Id);
+                    }
                 }
             }
         }

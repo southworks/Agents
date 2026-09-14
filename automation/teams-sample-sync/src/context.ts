@@ -1,3 +1,9 @@
+/** For Copilot Agents only: immutable migration-context infrastructure. */
+/**
+ * Materializes the exact upstream evidence given to one migration.
+ * It records the pinned commit, source changes, previous source snapshot, selected destination, and policy,
+ * then makes the context read-only so implementation cannot silently change the plan's input.
+ */
 import { chmodSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { protection, targets, SyncError } from './config.js'

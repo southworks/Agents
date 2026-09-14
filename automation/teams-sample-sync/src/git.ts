@@ -1,3 +1,9 @@
+/** For Copilot Agents only: deterministic repository-evidence infrastructure. */
+/**
+ * Provides deterministic Git, hashing, and tree-materialization primitives for the workflow.
+ * Planning uses these functions to pin source/configuration inputs; publishing uses the same digests and
+ * changed-path helpers to prove the applied patch is the one that was validated.
+ */
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'

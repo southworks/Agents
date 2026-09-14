@@ -1,3 +1,9 @@
+/** For Copilot Agents only: migration policy-loading infrastructure. */
+/**
+ * Loads the target and ownership YAML files into validated runtime configuration.
+ * This is the policy boundary for upstream locations, destination directories, SDK versions, and protected
+ * paths; it fails early on malformed values or paths that could escape the repository.
+ */
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { parse } from 'yaml'

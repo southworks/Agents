@@ -1,3 +1,9 @@
+/** For Copilot Agents only: migration containment infrastructure. */
+/**
+ * Enforces the migration containment rules before and after every agent tool operation.
+ * It rejects changes outside the selected sample, protected repository paths, mismatched upstream commits,
+ * and altered frozen context, preventing a migration job from becoming a general repository writer.
+ */
 import { existsSync } from 'node:fs'
 import { changedPaths, digestDirectory, git, matches, tree } from './git.js'
 import { SyncError } from './config.js'

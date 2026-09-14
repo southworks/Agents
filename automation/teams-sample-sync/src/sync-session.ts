@@ -1,3 +1,9 @@
+/** For Copilot Agents only: frozen-plan session infrastructure. */
+/**
+ * Runs the plan → implementation → validation conversation protocol for one sample.
+ * It freezes and hashes the migration plan before granting write access, requires a structured self-audit,
+ * allows one deterministic repair pass, and stops the session at the per-sample deadline.
+ */
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { SyncError } from './config.js'

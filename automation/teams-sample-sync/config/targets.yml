@@ -16,10 +16,10 @@ copilot:
   runtimeVersion: "1.0.83"
 
 packagePolicy:
-  targetFramework: net8.0
-  agentsSdkVersion: "1.7.*"
+  targetFramework: net10.0
+  agentsSdkVersion: "1.8.*"
 
-validatorVersion: "3"
+validatorVersion: "4"
 
 samples:
   agent-targeted-messages:

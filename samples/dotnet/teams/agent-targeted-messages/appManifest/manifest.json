@@ -22,14 +22,6 @@
     "full": "Sample demonstrating how to send targeted messages (visible only to specific users) in Microsoft Teams using the Microsoft 365 Agents SDK. Features reminder creation, listing, cancellation, and dismissal with Adaptive Cards."
   },
   "accentColor": "#FFFFFF",
-  "copilotAgents": {
-    "customEngineAgents": [
-      {
-        "id": "${{AAD_APP_CLIENT_ID}}",
-        "type": "bot"
-      }
-    ]
-  },
   "bots": [
     {
       "botId": "${{AAD_APP_CLIENT_ID}}",
@@ -40,7 +32,18 @@
       ],
       "supportsFiles": false,
       "isNotificationOnly": false,
-      "supportsTargetedMessages": true
+      "supportsTargetedMessages": true,
+      "commandLists": [
+        {
+          "scopes": ["personal", "team", "groupChat"],
+          "triggers": ["mention", "slash"],
+          "commands": [
+            { "title": "remind", "description": "Create a reminder." },
+            { "title": "my-reminders", "description": "List active reminders." },
+            { "title": "reminder-help", "description": "Show reminder help." }
+          ]
+        }
+      ]
     }
   ],
   "permissions": [

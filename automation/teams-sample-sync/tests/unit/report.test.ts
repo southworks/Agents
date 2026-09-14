@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { describe, it } from 'node:test'
 import { failureReport, workflowSummary } from '../../src/report.js'
 import type { SyncResult } from '../../src/types.js'
 
@@ -25,29 +25,31 @@ function result (overrides: Partial<SyncResult> = {}): SyncResult {
   }
 }
 
-test('renders a failed synchronization for stderr and GitHub annotations', () => {
-  const report = failureReport(result({
-    sample: 'bot:message,extensions',
-    error: 'Only released Teams manifest schema URLs are supported\n100% checked',
-  }))
+describe('synchronization reports', () => {
+  it('renders a failed synchronization for stderr and GitHub annotations', () => {
+    const report = failureReport(result({
+      sample: 'bot:message,extensions',
+      error: 'Only released Teams manifest schema URLs are supported\n100% checked',
+    }))
 
-  assert.deepEqual(report, {
-    stderr: 'Sample synchronization failed (bot:message,extensions): Only released Teams manifest schema URLs are supported\n100% checked',
-    annotation: '::error title=bot%3Amessage%2Cextensions synchronization failed::Only released Teams manifest schema URLs are supported%0A100%25 checked',
+    assert.deepEqual(report, {
+      stderr: 'Sample synchronization failed (bot:message,extensions): Only released Teams manifest schema URLs are supported\n100% checked',
+      annotation: '::error title=bot%3Amessage%2Cextensions synchronization failed::Only released Teams manifest schema URLs are supported%0A100%25 checked',
+    })
   })
-})
 
-test('falls back to diagnostics when a failed result has no primary error', () => {
-  assert.deepEqual(failureReport(result({ diagnostics: ['Validation failed'] })), {
-    stderr: 'Sample synchronization failed (bot-message-extensions): Validation failed',
-    annotation: '::error title=bot-message-extensions synchronization failed::Validation failed',
+  it('falls back to diagnostics when a failed result has no primary error', () => {
+    assert.deepEqual(failureReport(result({ diagnostics: ['Validation failed'] })), {
+      stderr: 'Sample synchronization failed (bot-message-extensions): Validation failed',
+      annotation: '::error title=bot-message-extensions synchronization failed::Validation failed',
+    })
   })
-})
 
-test('does not render a failure report for a publishable result', () => {
-  assert.equal(failureReport(result({ status: 'updated', publishable: true })), undefined)
-})
+  it('does not render a failure report for a publishable result', () => {
+    assert.equal(failureReport(result({ status: 'updated', publishable: true })), undefined)
+  })
 
-test('workflow summary identifies the uploaded diagnostic artifact', () => {
-  assert.match(workflowSummary(result()), /Diagnostic artifact: `teams-sample-sync-bot-message-extensions`/)
+  it('workflow summary identifies the uploaded diagnostic artifact', () => {
+    assert.match(workflowSummary(result()), /Diagnostic artifact: `teams-sample-sync-bot-message-extensions`/)
+  })
 })

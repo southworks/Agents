@@ -1,3 +1,9 @@
+/** For Copilot Agents only: verified migration-state infrastructure. */
+/**
+ * Defines the persisted verified-state contract for each destination sample.
+ * A state file records the accepted upstream tree, all input digests, and the validated output digest; malformed
+ * or incomplete state is rejected instead of being trusted for an incremental no-change decision.
+ */
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { SyncError } from './config.js'
