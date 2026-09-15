@@ -4,6 +4,7 @@
 import logging
 import os
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Callable
 
 import aiohttp
@@ -27,12 +28,18 @@ def _temperature(values: list[float], reducer: Callable[[list[float]], float]) -
     return f"{reducer(values):g}°F"
 
 
-def _distance_from_noon(item: dict[str, Any]) -> int:
+def _local_datetime(item: dict[str, Any], utc_offset_seconds: int) -> datetime | None:
     try:
-        hour = int(item["dt_txt"].split(" ")[1].split(":")[0])
-        return abs(hour - 12)
-    except (KeyError, IndexError, TypeError, ValueError):
-        return 24
+        timestamp = int(item["dt"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    local_timezone = timezone(timedelta(seconds=utc_offset_seconds))
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).astimezone(local_timezone)
+
+
+def _distance_from_noon(date_time: datetime) -> float:
+    return abs((date_time.time().hour * 60) + date_time.time().minute - (12 * 60))
 
 
 @tool(approval_mode="never_require")
@@ -103,25 +110,32 @@ async def get_weather_forecast(
     if not items:
         return "No forecast data available."
 
-    days: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    timezone_offset = data.get("city", {}).get("timezone", 0)
+    if not isinstance(timezone_offset, int):
+        timezone_offset = 0
+
+    days: dict[str, list[tuple[dict[str, Any], datetime]]] = defaultdict(list)
     for item in items:
-        date_time = item.get("dt_txt", "")
-        if date_time:
-            days[date_time.split(" ")[0]].append(item)
+        date_time = _local_datetime(item, timezone_offset)
+        if date_time is not None:
+            days[date_time.date().isoformat()].append((item, date_time))
 
     lines = [f"5-day forecast for {query}:\n"]
     for date, entries in sorted(days.items())[:5]:
         high_values = [
             value
-            for item in entries
+            for item, _ in entries
             if isinstance((value := item.get("main", {}).get("temp_max")), (int, float))
         ]
         low_values = [
             value
-            for item in entries
+            for item, _ in entries
             if isinstance((value := item.get("main", {}).get("temp_min")), (int, float))
         ]
-        representative = min(entries, key=_distance_from_noon)
+        representative, _ = min(
+            entries,
+            key=lambda entry: _distance_from_noon(entry[1]),
+        )
         weather = representative.get("weather", [{}])[0]
         lines.append(
             f"  {date}: High {_temperature(high_values, max)}, "

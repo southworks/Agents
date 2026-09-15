@@ -82,6 +82,15 @@ namespace AgentFrameworkWeather.Tools
             }
 
             await ReportProgressAsync($"Fetching Weather Forecast for {location}");
+            var currentWeather = await openWeather.GetWeatherAsync(
+                locationInfo.Latitude,
+                locationInfo.Longitude,
+                unit: OpenWeatherMapSharp.Models.Enums.Unit.Imperial);
+            if (!currentWeather.IsSuccess)
+            {
+                return null;
+            }
+
             var weather = await openWeather.GetForecastAsync(
                 locationInfo.Latitude,
                 locationInfo.Longitude,
@@ -92,20 +101,27 @@ namespace AgentFrameworkWeather.Tools
             }
 
             return weather.Response.Items
-                .GroupBy(item => item.Date.Date)
+                .Select(item => new
+                {
+                    Item = item,
+                    LocalDateTime = DateTimeOffset
+                        .FromUnixTimeSeconds(item.DateUnix)
+                        .ToOffset(TimeSpan.FromSeconds(currentWeather.Response.Timezone)),
+                })
+                .GroupBy(item => item.LocalDateTime.Date)
                 .OrderBy(group => group.Key)
                 .Take(5)
                 .Select(group =>
                 {
                     var representative = group
                         .OrderBy(item => Math.Abs(
-                            (item.Date.TimeOfDay - TimeSpan.FromHours(12)).TotalMinutes))
+                            (item.LocalDateTime.TimeOfDay - TimeSpan.FromHours(12)).TotalMinutes))
                         .First();
                     return new DailyForecast(
                         group.Key,
-                        group.Max(item => item.MainWeather.MaxTemperature),
-                        group.Min(item => item.MainWeather.MinTemperature),
-                        representative.WeatherInfos.FirstOrDefault()?.Description ?? "N/A");
+                        group.Max(item => item.Item.MainWeather.MaxTemperature),
+                        group.Min(item => item.Item.MainWeather.MinTemperature),
+                        representative.Item.WeatherInfos.FirstOrDefault()?.Description ?? "N/A");
                 })
                 .ToList();
         }

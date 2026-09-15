@@ -5,7 +5,13 @@ from os import environ
 import logging
 
 from dotenv import load_dotenv
-from agent_framework import Agent, AgentSession
+from agent_framework import (
+    Agent,
+    AgentSession,
+    CompactionProvider,
+    InMemoryHistoryProvider,
+    SlidingWindowStrategy,
+)
 from agent_framework.openai import OpenAIChatClient
 
 from microsoft_agents.hosting.aiohttp import CloudAdapter
@@ -63,6 +69,15 @@ You should use the get_date tool to get the current date and time.
 When responding, make sure to format the information in a way that is easy to read and understand, markdown is good, and always speak like a cat. Use emojis if it fits the response!
 """
 
+HISTORY = InMemoryHistoryProvider(skip_excluded=True)
+CONTEXT_COMPACTION = CompactionProvider(
+    before_strategy=SlidingWindowStrategy(
+        keep_last_groups=10,
+        preserve_system=True,
+    ),
+    history_source_id=HISTORY.source_id,
+)
+
 WEATHER_AGENT = Agent(
     client=OpenAIChatClient(
         azure_endpoint=azure_openai_endpoint,
@@ -72,6 +87,8 @@ WEATHER_AGENT = Agent(
     name="Purrfect Weather Agent",
     instructions=AGENT_INSTRUCTIONS,
     tools=[get_date, get_current_weather, get_weather_forecast],
+    context_providers=[HISTORY, CONTEXT_COMPACTION],
+    default_options={"store": False},
 )
 
 WELCOME_MESSAGE = (
@@ -85,12 +102,6 @@ def _restore_session(value: object) -> AgentSession:
     if isinstance(value, dict):
         return AgentSession.from_dict(value)
     return WEATHER_AGENT.create_session()
-
-
-def _trim_session_history(session: AgentSession, maximum_messages: int = 10) -> None:
-    messages = session.state.get("messages")
-    if isinstance(messages, list) and len(messages) > maximum_messages:
-        session.state["messages"] = messages[-maximum_messages:]
 
 
 @AGENT_APP.conversation_update("membersAdded")
@@ -135,7 +146,6 @@ async def on_message(context: TurnContext, state: TurnState):
         )
     finally:
         if session is not None:
-            _trim_session_history(session)
             state.set_value("ConversationState.agentSession", session.to_dict())
         await context.streaming_response.end_stream()
 

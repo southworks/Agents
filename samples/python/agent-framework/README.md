@@ -12,7 +12,7 @@ This sample demonstrates a **Microsoft 365 Agents SDK** agent that uses the **Mi
 | **Weather Data** | Live weather via OpenWeatherMap API (current conditions + 5-day forecast) |
 | **Tool / Function Use** | `get_current_weather`, `get_weather_forecast`, and `get_date` registered as `@tool` decorated functions |
 | **Streaming Responses** | Server-sent streaming back to the client using `StreamingResponse` |
-| **Conversation History** | Serializable per-conversation Agent Framework sessions capped at 10 messages |
+| **Conversation History** | Serializable local Agent Framework sessions with a 10-message-group sliding window |
 | **Host / Transport** | aiohttp with `/api/messages` endpoint; compatible with Microsoft Agents Playground and M365 Teams / Copilot |
 
 ---
