@@ -17,10 +17,13 @@ const requiredEnvironmentVariable = (name: string): string => {
 }
 
 const azureOpenAIEndpoint = requiredEnvironmentVariable('AZURE_OPENAI_ENDPOINT').replace(/\/+$/, '')
-const azureOpenAI = createAzure({
-  baseURL: azureOpenAIEndpoint.endsWith('/openai') ? azureOpenAIEndpoint : `${azureOpenAIEndpoint}/openai`,
-  apiKey: requiredEnvironmentVariable('AZURE_OPENAI_API_KEY'),
-  apiVersion: process.env.AZURE_OPENAI_API_VERSION || undefined
+const azureOpenAIHostname = new URL(azureOpenAIEndpoint).hostname
+const azureOpenAIBaseURL = azureOpenAIHostname.endsWith('.services.ai.azure.com')
+  ? `${azureOpenAIEndpoint}/openai/v1`
+  : `${azureOpenAIEndpoint}/openai`
+const azureOpenAIProvider = createAzure({
+  baseURL: azureOpenAIBaseURL,
+  apiKey: requiredEnvironmentVariable('AZURE_OPENAI_API_KEY')
 })
 const deploymentName = requiredEnvironmentVariable('AZURE_OPENAI_DEPLOYMENT_NAME')
 const agent = new AgentApplication<TurnState>()
@@ -70,7 +73,7 @@ agent.onActivity(ActivityTypes.Message, async (context: TurnContext) => {
 
   try {
     const { fullStream } = streamText({
-      model: azureOpenAI(deploymentName),
+      model: azureOpenAIProvider(deploymentName),
       system: `You are a creative assistant who has deeply studied Greek and Roman gods and the Percy Jackson series.
 You write poems about the Greek gods as they are depicted in the Percy Jackson books.
 You format the poems in a way that is easy to read and understand.

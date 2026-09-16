@@ -4,9 +4,10 @@
 import asyncio
 import logging
 from os import environ
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 from microsoft_agents.hosting.aiohttp import CloudAdapter
 from microsoft_agents.authentication.msal import MsalConnectionManager
@@ -28,6 +29,14 @@ from microsoft_agents.activity import (
 
 logger = logging.getLogger(__name__)
 
+
+def required_environment_variable(name: str) -> str:
+    value = environ.get(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
 load_dotenv()
 agents_sdk_config = load_configuration_from_env(environ)
 
@@ -40,14 +49,25 @@ AGENT_APP = AgentApplication[TurnState](
     storage=STORAGE, adapter=ADAPTER, authorization=AUTHORIZATION, **agents_sdk_config
 )
 
-CLIENT = AsyncAzureOpenAI(
-    api_version=environ["AZURE_OPENAI_API_VERSION"],
-    azure_endpoint=environ["AZURE_OPENAI_ENDPOINT"],
-    api_key=environ["AZURE_OPENAI_API_KEY"]
+AZURE_OPENAI_ENDPOINT = required_environment_variable(
+    "AZURE_OPENAI_ENDPOINT"
+).rstrip("/")
+AZURE_OPENAI_HOSTNAME = urlparse(AZURE_OPENAI_ENDPOINT).hostname or ""
+IS_AZURE_AI_FOUNDRY_ENDPOINT = AZURE_OPENAI_HOSTNAME.endswith(
+    ".services.ai.azure.com"
 )
-DEPLOYMENT_NAME = environ["AZURE_OPENAI_DEPLOYMENT_NAME"]
-if not DEPLOYMENT_NAME.strip():
-    raise ValueError("AZURE_OPENAI_DEPLOYMENT_NAME must be set to a non-empty value.")
+IS_AZURE_OPENAI_ENDPOINT = AZURE_OPENAI_HOSTNAME.endswith(".openai.azure.com")
+if not IS_AZURE_AI_FOUNDRY_ENDPOINT and not IS_AZURE_OPENAI_ENDPOINT:
+    raise RuntimeError(
+        "AZURE_OPENAI_ENDPOINT must use a .services.ai.azure.com or "
+        ".openai.azure.com host."
+    )
+
+CLIENT = AsyncOpenAI(
+    base_url=f"{AZURE_OPENAI_ENDPOINT}/openai/v1/",
+    api_key=required_environment_variable("AZURE_OPENAI_API_KEY"),
+)
+DEPLOYMENT_NAME = required_environment_variable("AZURE_OPENAI_DEPLOYMENT_NAME")
 
 
 @AGENT_APP.conversation_update("membersAdded")
@@ -100,27 +120,19 @@ async def on_message(context: TurnContext, _state: TurnState):
     )
 
     try:
-        streamed_response = await CLIENT.chat.completions.create(
+        streamed_response = await CLIENT.responses.create(
             model=DEPLOYMENT_NAME,
-            messages=[
-                {
-                    "role": "system",
-                    "content": """You are a creative assistant who has deeply studied Greek and Roman gods and the Percy Jackson series.
+            instructions="""You are a creative assistant who has deeply studied Greek and Roman gods and the Percy Jackson series.
 You write poems about the Greek gods as they are depicted in the Percy Jackson books.
 You format the poems in a way that is easy to read and understand.
 You break your poems into stanzas.
 You format your poems in Markdown using blank lines to separate stanzas.""",
-                },
-                {
-                    "role": "user",
-                    "content": "Write a poem of about 500 words about the Greek god Apollo as depicted in the Percy Jackson books.",
-                },
-            ],
+            input="Write a poem of about 500 words about the Greek god Apollo as depicted in the Percy Jackson books.",
             stream=True,
         )
-        async for chunk in streamed_response:
-            if chunk.choices and chunk.choices[0].delta.content:
-                context.streaming_response.queue_text_chunk(chunk.choices[0].delta.content)
+        async for event in streamed_response:
+            if event.type == "response.output_text.delta":
+                context.streaming_response.queue_text_chunk(event.delta)
     except asyncio.CancelledError:
         logger.info("Streaming was cancelled.")
         raise

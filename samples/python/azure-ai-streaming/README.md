@@ -14,12 +14,11 @@ Copy `env.TEMPLATE` to `.env` and set:
 
 ```env
 AZURE_OPENAI_ENDPOINT=https://<resource-name>.openai.azure.com/
-AZURE_OPENAI_API_VERSION=<api-version>
 AZURE_OPENAI_API_KEY=<api-key>
 AZURE_OPENAI_DEPLOYMENT_NAME=<deployment-name>
 ```
 
-Authentication settings for a connected Azure Bot are also documented in `env.TEMPLATE`. The sample validates the required Azure OpenAI settings at startup and exits with the missing setting's name when configuration is incomplete.
+`AZURE_OPENAI_ENDPOINT` must be the resource endpoint, without `/openai/v1` or a deployment path. Both classic `*.openai.azure.com` endpoints and Azure AI Foundry `*.services.ai.azure.com` endpoints are supported. Authentication settings for a connected Azure Bot are also documented in `env.TEMPLATE`. The sample validates the required Azure OpenAI settings at startup and exits with the missing setting's name when configuration is incomplete.
 
 ## Run locally with Agents Playground
 
