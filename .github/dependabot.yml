@@ -48,6 +48,7 @@ updates:
     directories:
       - "/samples/dotnet/Agent Framework"
       - "/samples/dotnet/auto-signin"
+      - "/samples/dotnet/cards"
       - "/samples/dotnet/azure-ai-streaming"
       - "/samples/dotnet/copilotstudio-client"
       - "/samples/dotnet/copilot-sdk"
