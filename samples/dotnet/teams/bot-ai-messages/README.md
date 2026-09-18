@@ -11,7 +11,7 @@ This sample demonstrates how to enhance AI-generated bot messages for Microsoft 
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - A Microsoft 365 tenant where you can upload custom Teams apps
 - An Azure Bot resource and Microsoft Entra app registration
 - [Dev Tunnels CLI](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started)

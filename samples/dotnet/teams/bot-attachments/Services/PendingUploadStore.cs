@@ -11,15 +11,19 @@ public sealed class PendingUploadStore
     private const int Capacity = 32;
     private static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(10);
     private readonly ConcurrentDictionary<string, PendingUpload> _uploads = new();
+    private readonly object _gate = new();
 
     public void Add(string fileId, byte[] content)
     {
-        RemoveExpired();
-        if (_uploads.Count >= Capacity)
+        lock (_gate)
         {
-            throw new InvalidOperationException("Too many pending file uploads.");
+            RemoveExpired();
+            if (_uploads.Count >= Capacity)
+            {
+                throw new InvalidOperationException("Too many pending file uploads.");
+            }
+            _uploads[fileId] = new PendingUpload(content, DateTimeOffset.UtcNow);
         }
-        _uploads[fileId] = new PendingUpload(content, DateTimeOffset.UtcNow);
     }
 
     public bool TryTake(string fileId, out byte[] content)

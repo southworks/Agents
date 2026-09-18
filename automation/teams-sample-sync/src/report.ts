@@ -6,7 +6,7 @@
  */
 import type { SyncResult, UpstreamChange } from './types.js'
 
-function safe (value: string): string { return value.replace(/[\r\n]+/g, ' ').replace(/([`*_[\]!|])/g, '\\$1').trim() }
+function safe (value: string): string { return value.replace(/[\r\n]+/g, ' ').replace(/([\\`*_[\]!|])/g, '\\$1').trim() }
 function code (value: string): string { return `\`${safe(value).replaceAll('`', '')}\`` }
 function fenced (value: string): string {
   const longest = Math.max(0, ...(value.match(/`+/g) ?? []).map((item) => item.length))

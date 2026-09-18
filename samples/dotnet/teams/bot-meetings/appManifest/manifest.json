@@ -6,6 +6,6 @@
   "name": { "short": "Bot Meetings" },
   "description": { "short": "Teams meeting events and transcript sample." },
   "accentColor": "#FFFFFF",
-  "bots": [{ "botId": "${{AAD_APP_CLIENT_ID}}", "scopes": ["team", "groupChat"], "supportsFiles": false, "isNotificationOnly": false }],
+  "bots": [{ "botId": "${{AAD_APP_CLIENT_ID}}", "scopes": ["personal", "team", "groupChat"], "supportsFiles": false, "isNotificationOnly": false }],
   "validDomains": ["<<BOT_DOMAIN>>"]
 }

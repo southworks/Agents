@@ -15,7 +15,7 @@ The sample responds to meeting events rather than chat commands.
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - Microsoft Teams and a Microsoft 365 account that can install custom apps
 - [Dev tunnels](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started) or another public HTTPS tunnel
 - A Teams-managed bot registration. Meeting event subscriptions aren't available to an Azure Bot resource.
@@ -124,7 +124,7 @@ dotnet run --launch-profile BotMeetings
 
 The agent listens on `http://localhost:3978`. Add the packaged app to a meeting, then start or end the meeting or have a participant join or leave to exercise the corresponding event.
 
-Meeting transcripts can take time to become available. The sample waits 30 seconds after the meeting-end event, retrieves the newest VTT transcript through Microsoft Graph, and displays parsed speaker lines in the meeting-end card.
+Meeting transcripts can take time to become available. The sample attempts to retrieve the newest VTT transcript through Microsoft Graph when it receives the meeting-end event and displays parsed speaker lines when the transcript is already available.
 
 ## Troubleshooting
 

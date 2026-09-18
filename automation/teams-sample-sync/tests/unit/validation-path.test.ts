@@ -105,8 +105,8 @@ describe('sample validation', () => {
         placeholderConvention: namePlaceholder,
       }, async () => ({ type: 'object' }))
       assert.deepEqual(triggerErrors.filter((error) => error.includes('triggers')), [
-        'README requires bot command "my-reminders" triggers [slash], but its commandLists entry has [mention]',
-        'README requires bot command "reminder-help" triggers [mention, slash], but its commandLists entry has [mention]',
+        'README requires bot command "my-reminders" triggers [slash], but its commandLists entries have [mention]',
+        'README requires bot command "reminder-help" triggers [mention, slash], but its commandLists entries have [mention]',
       ])
 
       manifest.bots = [{
@@ -152,6 +152,46 @@ describe('sample validation', () => {
         placeholderConvention: namePlaceholder,
       }, async () => ({ type: 'object' }))
       assert.deepEqual(errors, ['Manifest $schema does not match manifestVersion on developer.microsoft.com'])
+    } finally {
+      rmSync(sampleRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('requires compose command IDs, types, and link-handler domains to match message-extension routes', async () => {
+    const sampleRoot = mkdtempSync(path.join(os.tmpdir(), 'teams-sync-message-extension-'))
+    try {
+      const packageRoot = path.join(sampleRoot, 'appManifest')
+      mkdirSync(packageRoot)
+      writeFileSync(path.join(packageRoot, 'color.png'), 'icon')
+      writeFileSync(path.join(packageRoot, 'outline.png'), 'icon')
+      writeFileSync(path.join(sampleRoot, 'MessageExtensionAgent.cs'), `
+[TeamsQueryRoute("wikipediaSearch")]
+public Task Query() => Task.CompletedTask;
+[TeamsQueryLinkRoute]
+public Task QueryLink() => Task.CompletedTask;
+`)
+      writeFileSync(path.join(packageRoot, 'manifest.json'), JSON.stringify({
+        $schema: 'https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json',
+        manifestVersion: '1.22',
+        version: '1.0.0',
+        id: teamsAppIdPlaceholder,
+        name: { short: 'Extension' },
+        description: { short: 'Extension', full: 'Extension' },
+        icons: { color: 'color.png', outline: 'outline.png' },
+        composeExtensions: [{
+          commands: [{ id: 'wrong-id', type: 'action' }],
+          messageHandlers: [{ type: 'link', value: { domains: ['*.wikipedia.org'] } }],
+        }],
+      }))
+      const errors = await checkManifest(sampleRoot, {
+        distribution: 'zip',
+        packageDirectory: 'appManifest',
+        placeholderConvention: namePlaceholder,
+      }, async () => ({ type: 'object' }))
+      assert.deepEqual(errors.filter((error) => error.includes('TeamsQuery')), [
+        'TeamsQueryRoute "wikipediaSearch" requires exactly one composeExtensions command with type "query"',
+        'TeamsQueryLinkRoute link-handler domains must be exact domains, not wildcards',
+      ])
     } finally {
       rmSync(sampleRoot, { recursive: true, force: true })
     }

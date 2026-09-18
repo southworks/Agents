@@ -52,4 +52,9 @@ describe('synchronization reports', () => {
   it('workflow summary identifies the uploaded diagnostic artifact', () => {
     assert.match(workflowSummary(result()), /Diagnostic artifact: `teams-sample-sync-bot-message-extensions`/)
   })
+
+  it('escapes every backslash in Markdown-safe diagnostic output', () => {
+    const summary = workflowSummary(result({ diagnostics: ['first\\second\\third'] }))
+    assert.match(summary, /first\\\\second\\\\third/)
+  })
 })

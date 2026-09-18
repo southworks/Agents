@@ -507,13 +507,13 @@ public partial class AgentTargetedMessagesAgent(
         {
             multiplier = 1000;
         }
-        if (unit.StartsWith("minute", StringComparison.Ordinal) ||
+        else if (unit.StartsWith("minute", StringComparison.Ordinal) ||
             unit.StartsWith("min", StringComparison.Ordinal) ||
             unit == "m")
         {
             multiplier = 60_000;
         }
-        if (unit.StartsWith("hour", StringComparison.Ordinal) ||
+        else if (unit.StartsWith("hour", StringComparison.Ordinal) ||
             unit.StartsWith("hr", StringComparison.Ordinal) ||
             unit == "h")
         {

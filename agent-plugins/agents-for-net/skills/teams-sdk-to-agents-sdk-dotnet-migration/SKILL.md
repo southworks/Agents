@@ -32,10 +32,10 @@ handler methods on an `AgentApplication` subclass using `ITurnContext`.
 - After source migration is stable, use the standalone `teams-app-manifest` skill to generate, complete,
   or audit the Teams app manifest from source evidence and explicit product intent. Do not embed manifest
   feature rules in this migration skill.
-- **Use the latest release Agents SDK packages** The
+- **Use the configured release Agents SDK packages.** The
   base packages (`Microsoft.Agents.Hosting.AspNetCore`, `Microsoft.Agents.Authentication.Msal`, `Microsoft.Agents.Extensions.MSTeams`, and the
-  transitive `Microsoft.Agents.Core` / `Builder` / `Connector` / `Storage`) are on the **`1.7.x`** line —
-  use the repository's current shared version convention, currently `1.7.*` but use the latest non-beta version.
+  transitive `Microsoft.Agents.Core` / `Builder` / `Connector` / `Storage`) must use the repository's
+  current shared version convention, currently **`1.8.*`**.
 - If the project defines the `AgentApplication` during DI (typically in `Program.cs`), ask the customer
   whether to keep it inline or move it to an `AgentApplication` subclass with Teams route attributes.
   In the automated Teams sample sync, do not ask a user. Apply an applicable migration policy or return
@@ -43,7 +43,7 @@ handler methods on an `AgentApplication` subclass using `ITurnContext`.
 - If creating a subclass, always use `[TeamsExtension]`, mark it `partial`, use Teams route attributes,
   and take `ITeamsTurnContext` in route handlers.
 - After restoring packages, verify route attributes, handler delegate signatures, payload models, and
-  response types against the installed `1.7.*` XML documentation or current Agents SDK source. Do
+  response types against the installed configured-version XML documentation or current Agents SDK source. Do
   not infer an API shape from a similarly named Teams SDK API.
 - Preserve the original registration and `if`/`else` precedence. Use explicit route `rank` values
   whenever multiple text or invoke routes can match the same activity.
@@ -57,15 +57,15 @@ package with the Agents SDK packages, using the same repository version conventi
 
 | Remove (Teams SDK)                     | Add (Agents SDK)                                                          |
 |----------------------------------------|--------------------------------------------------------------------------|
-| `Microsoft.Teams.Plugins.AspNetCore`   | `Microsoft.Agents.Hosting.AspNetCore` (`1.7.*`) + `Microsoft.Agents.Authentication.Msal` (`1.7.*`) |
-| *(Teams routing surface)*              | `Microsoft.Agents.Extensions.MSTeams` (`1.7.*`) |
+| `Microsoft.Teams.Plugins.AspNetCore`   | `Microsoft.Agents.Hosting.AspNetCore` (`1.8.*`) + `Microsoft.Agents.Authentication.Msal` (`1.8.*`) |
+| *(Teams routing surface)*              | `Microsoft.Agents.Extensions.MSTeams` (`1.8.*`) |
 | `Microsoft.Teams.Cards` *(if used)*     | `Microsoft.Teams.Cards` *(kept — Agents MSTeams extension reuses it)*     |
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Microsoft.Agents.Hosting.AspNetCore" Version="1.7.*" />
-  <PackageReference Include="Microsoft.Agents.Authentication.Msal" Version="1.7.*" />
-  <PackageReference Include="Microsoft.Agents.Extensions.MSTeams" Version="1.7.*" />
+  <PackageReference Include="Microsoft.Agents.Hosting.AspNetCore" Version="1.8.*" />
+  <PackageReference Include="Microsoft.Agents.Authentication.Msal" Version="1.8.*" />
+  <PackageReference Include="Microsoft.Agents.Extensions.MSTeams" Version="1.8.*" />
 </ItemGroup>
 ```
 
@@ -74,8 +74,8 @@ package with the Agents SDK packages, using the same repository version conventi
 `[TeamsExtension]` source generator ships inside `Microsoft.Agents.Core` (analyzers folder), so NuGet
 consumers get it transitively — no explicit analyzer `PackageReference` is needed.
 
-**TargetFramework:** the Agents SDK targets `net8.0`. Set `<TargetFramework>net8.0</TargetFramework>`
-(Teams SDK samples often target `net10.0`). Set `<ImplicitUsings>disable</ImplicitUsings>` and add
+**TargetFramework:** use the repository's configured target framework, currently `net10.0`. Set
+`<TargetFramework>net10.0</TargetFramework>`. Set `<ImplicitUsings>disable</ImplicitUsings>` and add
 explicit `using` directives (matches Agents SDK sample convention).
 
 ---
@@ -99,7 +99,7 @@ explicit `using` directives (matches Agents SDK sample convention).
 
 Create `agentsdk-<name>/dotnet/agentsdk-<name>/` mirroring the customer's source layout. Files:
 
-- `<Project>.csproj` — SDK.Web, `net8.0`, PackageReferences above.
+- `<Project>.csproj` — SDK.Web, `net10.0`, PackageReferences above.
 - `Program.cs` — Agents SDK host (Step 3).
 - `<Name>Agent.cs` — the `AgentApplication` subclass (Step 4).
 - `AspNetExtensions.cs` — **required.** `AddAgentAspNetAuthentication()` is *not* in any NuGet package;

@@ -36,9 +36,16 @@
       "commandLists": [
         {
           "scopes": ["personal", "team", "groupChat"],
-          "triggers": ["mention", "slash"],
+          "triggers": ["mention"],
           "commands": [
             { "title": "remind", "description": "Create a reminder." },
+            { "title": "reminder-help", "description": "Show reminder help." }
+          ]
+        },
+        {
+          "scopes": ["personal", "team", "groupChat"],
+          "triggers": ["slash"],
+          "commands": [
             { "title": "my-reminders", "description": "List active reminders." },
             { "title": "reminder-help", "description": "Show reminder help." }
           ]

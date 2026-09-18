@@ -170,6 +170,44 @@ function manifestBotCommands (manifest: Record<string, unknown>): Map<string, st
   return commands
 }
 
+function sourceRouteIds (sources: string): string[] {
+  return [...sources.matchAll(/\[TeamsQueryRoute\s*\(\s*"([^"]+)"/g)]
+    .map((match) => match[1]!)
+}
+
+function manifestComposeCommands (manifest: Record<string, unknown>): Map<string, string[]> {
+  const commands = new Map<string, string[]>()
+  if (!Array.isArray(manifest.composeExtensions)) return commands
+  for (const extension of manifest.composeExtensions) {
+    if (!extension || typeof extension !== 'object') continue
+    const entries = (extension as Record<string, unknown>).commands
+    if (!Array.isArray(entries)) continue
+    for (const entry of entries) {
+      if (!entry || typeof entry !== 'object') continue
+      const command = entry as Record<string, unknown>
+      if (typeof command.id === 'string' && typeof command.type === 'string') {
+        commands.set(command.id, [...(commands.get(command.id) ?? []), command.type])
+      }
+    }
+  }
+  return commands
+}
+
+function manifestLinkDomains (manifest: Record<string, unknown>): string[] {
+  if (!Array.isArray(manifest.composeExtensions)) return []
+  return manifest.composeExtensions.flatMap((extension) => {
+    if (!extension || typeof extension !== 'object') return []
+    const handlers = (extension as Record<string, unknown>).messageHandlers
+    if (!Array.isArray(handlers)) return []
+    return handlers.flatMap((handler) => {
+      if (!handler || typeof handler !== 'object' || (handler as Record<string, unknown>).type !== 'link') return []
+      const value = (handler as Record<string, unknown>).value
+      const domains = value && typeof value === 'object' ? (value as Record<string, unknown>).domains : undefined
+      return Array.isArray(domains) ? domains.filter((domain): domain is string => typeof domain === 'string') : []
+    })
+  })
+}
+
 export async function fetchSchema (url: string): Promise<unknown> {
   const address = new URL(url)
   if (address.protocol !== 'https:' || address.hostname !== 'developer.microsoft.com' ||
@@ -240,15 +278,31 @@ export async function checkManifest (sampleRoot: string, manifestTarget: Manifes
       (!Array.isArray(manifest.composeExtensions) || manifest.composeExtensions.length === 0)) {
     errors.push('Manifest composeExtensions capability does not match message-extension routes')
   }
+  const composeCommands = manifestComposeCommands(manifest)
+  for (const routeId of sourceRouteIds(sources)) {
+    const declarations = composeCommands.get(routeId) ?? []
+    if (declarations.length !== 1 || declarations[0] !== 'query') {
+      errors.push(`TeamsQueryRoute "${routeId}" requires exactly one composeExtensions command with type "query"`)
+    }
+  }
+  if (/\[TeamsQueryLinkRoute(?:\]|\s)/.test(sources)) {
+    const declaredDomains = manifestLinkDomains(manifest).sort()
+    if (declaredDomains.length === 0) {
+      errors.push('TeamsQueryLinkRoute requires a composeExtensions link message handler with declared domains')
+    } else if (declaredDomains.some((domain) => domain.includes('*'))) {
+      errors.push('TeamsQueryLinkRoute link-handler domains must be exact domains, not wildcards')
+    }
+  }
   const declaredCommands = manifestBotCommands(manifest)
   for (const claim of readmeManifestCommandClaims(sampleRoot)) {
     const declarations = declaredCommands.get(claim.title) ?? []
     if (declarations.length === 0) {
       errors.push(`README says the app manifest declares bot command "${claim.title}", but bots[].commandLists does not contain it`)
-    } else if (declarations.length > 1) {
-      errors.push(`Bot command "${claim.title}" must appear in exactly one bots[].commandLists entry`)
-    } else if (declarations[0]!.join(',') !== claim.triggers.join(',')) {
-      errors.push(`README requires bot command "${claim.title}" triggers [${claim.triggers.join(', ')}], but its commandLists entry has [${declarations[0]!.join(', ')}]`)
+    } else {
+      const triggers = [...new Set(declarations.flat())].sort()
+      if (triggers.join(',') !== claim.triggers.join(',')) {
+        errors.push(`README requires bot command "${claim.title}" triggers [${claim.triggers.join(', ')}], but its commandLists entries have [${triggers.join(', ')}]`)
+      }
     }
   }
   const version = manifest.manifestVersion

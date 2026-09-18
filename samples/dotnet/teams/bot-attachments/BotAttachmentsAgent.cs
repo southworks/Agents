@@ -126,6 +126,9 @@ public partial class BotAttachmentsAgent : AgentApplication
         if (!_fileUploadQueue.TryQueue(workItem))
         {
             _logger.LogError("The file upload queue rejected {FileName}.", fileName);
+            await turnContext.SendActivityAsync(
+                CreateXmlMessage($"We couldn't queue <b>{EscapeXml(fileName)}</b> for upload. Please try again."),
+                cancellationToken);
         }
     }
 

@@ -14,7 +14,7 @@ This sample demonstrates targeted messaging in Microsoft Teams with the Microsof
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - A Microsoft 365 tenant where custom Teams apps can be uploaded
 - An Azure Bot or Teams Developer Portal bot
 - [Dev Tunnels](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started)

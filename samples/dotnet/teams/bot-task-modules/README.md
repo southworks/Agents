@@ -12,7 +12,7 @@ This sample demonstrates task modules (dialogs) in Microsoft Teams using a bot b
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Dev tunnels](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started)
 - An Azure Bot configured with the Microsoft Teams channel
 
@@ -60,7 +60,7 @@ The agent listens on `http://localhost:3978`. Send any message to receive the ca
 
 ## Testing in Teams
 
-Ensure the Azure Bot has the Microsoft Teams channel enabled, then upload a Teams app package whose bot ID is your client ID. The bot needs a `personal` scope, the `identity` and `messageTeamMembers` permissions, and your tunnel domain in `validDomains` so Teams can load the custom form.
+Ensure the Azure Bot has the Microsoft Teams channel enabled, then upload a Teams app package whose bot ID is your client ID. The bot needs a `personal` scope and your tunnel domain in `validDomains` so Teams can load the custom form.
 
 ## Further reading
 

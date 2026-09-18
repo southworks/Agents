@@ -14,7 +14,7 @@ The `wikipediaSearch` command ID, query parameter, result cards, matching behavi
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Dev tunnels](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started)
 - An Azure Bot configured with the Microsoft Teams channel
 - Access to a Microsoft 365 tenant where you can upload custom Teams apps
