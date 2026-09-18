@@ -15,6 +15,7 @@
 |Copilot SDK|Dungeon Scribe RPG agent powered by the GitHub Copilot SDK|[copilot-sdk](copilot-sdk/README.md)|
 |Entra Agent ID Sidecar|Simple agent using the Microsoft Entra Agent ID sidecar for Agents SDK authentication|[entra-agent-id-sidecar](entra-agent-id-sidecar/README.md)|
 |Build Genie Retrieval Agent|Retrieves SharePoint content with the signed-in user's delegated permissions.|[Build Genie Retrieval Agent](retrieval-agent/README.md)|
+|Proactive|Sends messages to existing conversations from in-code and HTTP triggers|[proactive](proactive/README.md)|
 
 ## Important Notice - Import Changes
 
