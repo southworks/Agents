@@ -87,7 +87,7 @@ const weatherForecastAgentTransportSchema = z.object({
   ])
 }).strict()
 
-function requiredSetting(name: string): string {
+function requiredSetting (name: string): string {
   const value = process.env[name]?.trim()
   if (!value) {
     throw new Error(`${name} environment variable is missing and required.`)
@@ -99,19 +99,19 @@ const useAzureOpenAI = (process.env.USE_AZURE_OPENAI ?? process.env.USE_AZURE_OP
 
 const agentModel = useAzureOpenAI
   ? new AzureChatOpenAI({
-      azureOpenAIApiKey: requiredSetting('AZURE_OPENAI_API_KEY'),
-      azureOpenAIApiInstanceName: requiredSetting('AZURE_OPENAI_API_INSTANCE_NAME'),
-      azureOpenAIApiDeploymentName: requiredSetting('AZURE_OPENAI_DEPLOYMENT_NAME'),
-      azureOpenAIApiVersion: requiredSetting('AZURE_OPENAI_API_VERSION'),
-      temperature: 0,
-      topP: 1
-    })
+    azureOpenAIApiKey: requiredSetting('AZURE_OPENAI_API_KEY'),
+    azureOpenAIApiInstanceName: requiredSetting('AZURE_OPENAI_API_INSTANCE_NAME'),
+    azureOpenAIApiDeploymentName: requiredSetting('AZURE_OPENAI_DEPLOYMENT_NAME'),
+    azureOpenAIApiVersion: requiredSetting('AZURE_OPENAI_API_VERSION'),
+    temperature: 0,
+    topP: 1
+  })
   : new ChatOpenAI({
-      apiKey: requiredSetting('OPENAI_API_KEY'),
-      model: requiredSetting('OPENAI_MODEL_ID'),
-      temperature: 0,
-      topP: 1
-    })
+    apiKey: requiredSetting('OPENAI_API_KEY'),
+    model: requiredSetting('OPENAI_MODEL_ID'),
+    temperature: 0,
+    topP: 1
+  })
 
 const weatherForecastAgent = createAgent({
   model: agentModel,
@@ -125,7 +125,7 @@ const weatherForecastAgent = createAgent({
   })
 })
 
-async function invokeWeatherForecastAgent(
+async function invokeWeatherForecastAgent (
   input: string,
   conversationId: string
 ): Promise<WeatherForecastAgentResponse> {
