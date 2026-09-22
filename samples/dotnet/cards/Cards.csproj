@@ -11,9 +11,4 @@
 		<PackageReference Include="Microsoft.Agents.Authentication.Msal" Version="1.8.*" />
 		<PackageReference Include="Microsoft.Agents.Hosting.AspNetCore" Version="1.8.*" />
 	</ItemGroup>
-
-	<ItemGroup>
-		<Content Update="Resources\adaptive_card.json" CopyToOutputDirectory="PreserveNewest" />
-	</ItemGroup>
-
 </Project>
