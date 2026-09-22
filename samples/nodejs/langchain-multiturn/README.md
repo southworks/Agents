@@ -17,7 +17,7 @@ The weather tool intentionally returns a random temperature. Replace it with a w
 
 ## Prerequisites
 
-- Node.js 20 or later
+- Node.js 22 or later
 - Microsoft Agents Playground
 - An Azure OpenAI deployment or OpenAI API key; `gpt-4o-mini` or later is recommended
 

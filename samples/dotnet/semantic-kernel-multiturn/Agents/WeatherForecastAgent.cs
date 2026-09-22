@@ -8,6 +8,7 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 using SemanticKernelMultiturn.Plugins;
 using System;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
@@ -70,18 +71,23 @@ public class WeatherForecastAgent
         ArgumentNullException.ThrowIfNull(chatHistory);
 
         chatHistory.Add(new ChatMessageContent(AuthorRole.User, input));
+        TrimHistory(chatHistory);
         AgentThread thread = new ChatHistoryAgentThread();
 
         for (int attempt = 0; attempt < MaximumFormatAttempts; attempt++)
         {
-            StringBuilder responseBuilder = new();
+            TrimHistory(chatHistory);
+            string responseText = string.Empty;
             await foreach (ChatMessageContent response in this._agent.InvokeAsync(chatHistory, thread: thread))
             {
                 chatHistory.Add(response);
-                responseBuilder.Append(response.Content);
+                if (!string.IsNullOrWhiteSpace(response.Content))
+                {
+                    responseText = response.Content;
+                }
             }
 
-            if (TryParseResponse(responseBuilder.ToString(), out WeatherForecastAgentResponse? result))
+            if (TryParseResponse(responseText, out WeatherForecastAgentResponse? result, out string validationFailure))
             {
                 TrimHistory(chatHistory);
                 return result!;
@@ -95,63 +101,213 @@ public class WeatherForecastAgent
             }
         }
 
+        TrimHistory(chatHistory);
         throw new InvalidOperationException("The model did not return a valid weather response.");
     }
 
-    private static bool TryParseResponse(string value, out WeatherForecastAgentResponse? response)
+    private static bool TryParseResponse(
+        string value,
+        out WeatherForecastAgentResponse? response,
+        out string validationFailure)
     {
         response = null;
+        validationFailure = string.Empty;
         try
         {
-            JsonObject? json = JsonNode.Parse(RemoveMarkdownFences(value))?.AsObject();
-            string? contentType = json?["contentType"]?.GetValue<string>();
-            JsonNode? content = json?["content"]?.DeepClone();
-            if (content == null || !Enum.TryParse(contentType, ignoreCase: true, out WeatherForecastAgentResponseContentType parsedType))
+            WeatherForecastAgentResponse? textResponse = null;
+            WeatherForecastAgentResponse? adaptiveCardResponse = null;
+            string? latestFailure = null;
+            int responseCount = 0;
+            Utf8JsonReader reader = new(Encoding.UTF8.GetBytes(RemoveMarkdownFences(value)));
+
+            while (reader.Read())
             {
+                using JsonDocument document = JsonDocument.ParseValue(ref reader);
+                responseCount++;
+                JsonObject? json = JsonNode.Parse(document.RootElement.GetRawText())?.AsObject();
+                if (!TryParseResponseObject(json, out WeatherForecastAgentResponse? candidate, out string candidateFailure))
+                {
+                    latestFailure = candidateFailure;
+                    continue;
+                }
+
+                if (candidate!.ContentType == WeatherForecastAgentResponseContentType.AdaptiveCard)
+                {
+                    adaptiveCardResponse = candidate;
+                }
+                else
+                {
+                    textResponse = candidate;
+                }
+            }
+
+            response = adaptiveCardResponse ?? textResponse;
+            if (response != null)
+            {
+                return true;
+            }
+
+            validationFailure = responseCount == 0
+                ? "The response did not contain a JSON value."
+                : latestFailure ?? "None of the JSON values matched the required response schema.";
+            return false;
+        }
+        catch (Exception exception)
+        {
+            validationFailure = $"The response could not be parsed: {exception.Message}";
+            return false;
+        }
+    }
+
+    private static bool TryParseResponseObject(
+        JsonObject? json,
+        out WeatherForecastAgentResponse? response,
+        out string validationFailure)
+    {
+        response = null;
+        validationFailure = string.Empty;
+        try
+        {
+            if (json == null)
+            {
+                validationFailure = "The response is not a JSON object.";
+                return false;
+            }
+
+            string? contentType = json["contentType"]?.GetValue<string>();
+            JsonNode? content = json?["content"]?.DeepClone();
+            WeatherForecastAgentResponseContentType? parsedType = contentType switch
+            {
+                "Text" => WeatherForecastAgentResponseContentType.Text,
+                "AdaptiveCard" => WeatherForecastAgentResponseContentType.AdaptiveCard,
+                _ => null
+            };
+            if (content == null || parsedType == null)
+            {
+                validationFailure = "The response must contain content and a contentType of Text or AdaptiveCard.";
                 return false;
             }
 
             if (parsedType == WeatherForecastAgentResponseContentType.Text
                 && (content is not JsonValue textValue || !textValue.TryGetValue(out string? _)))
             {
+                validationFailure = "A Text response must contain a string content value.";
                 return false;
             }
 
             JsonNode? normalizedContent = parsedType == WeatherForecastAgentResponseContentType.AdaptiveCard
-                ? NormalizeAdaptiveCard(content)
+                ? NormalizeAdaptiveCard(content, out validationFailure)
                 : content;
             if (normalizedContent == null)
             {
+                validationFailure = string.IsNullOrEmpty(validationFailure)
+                    ? "The AdaptiveCard content is invalid."
+                    : validationFailure;
                 return false;
             }
 
             response = new WeatherForecastAgentResponse
             {
-                ContentType = parsedType,
+                ContentType = parsedType.Value,
                 Content = normalizedContent
             };
             return true;
         }
-        catch
+        catch (Exception exception)
         {
+            validationFailure = $"The response could not be parsed: {exception.Message}";
             return false;
         }
     }
 
-    private static JsonNode? NormalizeAdaptiveCard(JsonNode content)
+    private static JsonNode? NormalizeAdaptiveCard(JsonNode content, out string validationFailure)
     {
+        validationFailure = string.Empty;
         JsonNode? card = content;
         if (content is JsonValue value && value.TryGetValue(out string? stringContent))
         {
             card = JsonNode.Parse(RemoveMarkdownFences(stringContent ?? string.Empty));
         }
 
-        return card is JsonObject cardObject
-            && cardObject["type"]?.GetValue<string>() == "AdaptiveCard"
-            && cardObject["version"]?.GetValue<string>() == "1.5"
-            && cardObject["body"] is JsonArray
-                ? card
-                : null;
+        if (card is not JsonObject cardObject
+            || cardObject["type"]?.GetValue<string>() != "AdaptiveCard"
+            || cardObject["version"]?.GetValue<string>() != "1.5"
+            || cardObject["$schema"]?.GetValue<string>() != "http://adaptivecards.io/schemas/adaptive-card.json"
+            || cardObject["body"] is not JsonArray body
+            || cardObject["actions"] is not JsonArray actions)
+        {
+            validationFailure = "The card must include AdaptiveCard type, version 1.5, $schema, body, and actions.";
+            return null;
+        }
+
+        bool hasWeatherHeading = false;
+        JsonArray? facts = null;
+        foreach (JsonNode? item in body)
+        {
+            if (item is not JsonObject bodyItem)
+            {
+                continue;
+            }
+
+            if (bodyItem["type"]?.GetValue<string>() == "TextBlock"
+                && bodyItem["text"]?.GetValue<string>() is string heading
+                && heading.StartsWith("Weather forecast for ", StringComparison.Ordinal)
+                && heading["Weather forecast for ".Length..].Trim().Length > 0)
+            {
+                hasWeatherHeading = true;
+            }
+
+            if (bodyItem["type"]?.GetValue<string>() == "FactSet"
+                && bodyItem["facts"] is JsonArray cardFacts)
+            {
+                facts = cardFacts;
+            }
+        }
+
+        bool hasDateFact = HasFact(facts, "Date");
+        bool hasTemperatureFact = HasFact(facts, "Temperature");
+        bool hasMsnAction = false;
+        foreach (JsonNode? item in actions)
+        {
+            if (item is JsonObject action
+                && action["type"]?.GetValue<string>() == "Action.OpenUrl"
+                && action["url"]?.GetValue<string>() is string url
+                && url.StartsWith("https://www.msn.com/en-us/weather/forecast/in-", StringComparison.Ordinal))
+            {
+                hasMsnAction = true;
+                break;
+            }
+        }
+
+        if (!hasWeatherHeading || !hasDateFact || !hasTemperatureFact || !hasMsnAction)
+        {
+            validationFailure =
+                $"The card is missing required content: weather heading={hasWeatherHeading}, date fact={hasDateFact}, temperature fact={hasTemperatureFact}, MSN action={hasMsnAction}.";
+            return null;
+        }
+
+        return card;
+    }
+
+    private static bool HasFact(JsonArray? facts, string title)
+    {
+        if (facts == null)
+        {
+            return false;
+        }
+
+        foreach (JsonNode? item in facts)
+        {
+            if (item is JsonObject fact
+                && fact["title"]?.GetValue<string>() == title
+                && fact["value"]?.GetValue<string>() is string value
+                && !string.IsNullOrWhiteSpace(value))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string RemoveMarkdownFences(string value) => value

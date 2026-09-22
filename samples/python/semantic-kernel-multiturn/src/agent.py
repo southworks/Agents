@@ -30,12 +30,63 @@ class AdaptiveCardWeatherForecastAgentResponse(BaseModel):
     @field_validator("content")
     @classmethod
     def validate_adaptive_card(cls, value: dict[str, Any]) -> dict[str, Any]:
+        body = value.get("body")
+        actions = value.get("actions")
         if (
             value.get("type") != "AdaptiveCard"
             or value.get("version") != "1.5"
-            or not isinstance(value.get("body"), list)
+            or value.get("$schema")
+            != "http://adaptivecards.io/schemas/adaptive-card.json"
+            or not isinstance(body, list)
+            or not isinstance(actions, list)
         ):
             raise ValueError("AdaptiveCard content must use Adaptive Card version 1.5.")
+
+        has_weather_heading = any(
+            isinstance(item, dict)
+            and item.get("type") == "TextBlock"
+            and isinstance(item.get("text"), str)
+            and item["text"].startswith("Weather forecast for ")
+            and bool(item["text"][len("Weather forecast for ") :].strip())
+            for item in body
+        )
+        fact_set = next(
+            (
+                item
+                for item in body
+                if isinstance(item, dict)
+                and item.get("type") == "FactSet"
+                and isinstance(item.get("facts"), list)
+            ),
+            None,
+        )
+        facts = fact_set["facts"] if fact_set else []
+
+        def has_fact(title: str) -> bool:
+            return any(
+                isinstance(fact, dict)
+                and fact.get("title") == title
+                and isinstance(fact.get("value"), str)
+                and bool(fact["value"].strip())
+                for fact in facts
+            )
+
+        has_msn_action = any(
+            isinstance(action, dict)
+            and action.get("type") == "Action.OpenUrl"
+            and isinstance(action.get("url"), str)
+            and action["url"].startswith(
+                "https://www.msn.com/en-us/weather/forecast/in-"
+            )
+            for action in actions
+        )
+        if not (
+            has_weather_heading
+            and has_fact("Date")
+            and has_fact("Temperature")
+            and has_msn_action
+        ):
+            raise ValueError("AdaptiveCard content must contain weather facts and an MSN Weather action.")
         return value
 
 
@@ -75,8 +126,10 @@ class WeatherForecastAgent:
         self, input: str, chat_history: ChatHistory
     ) -> WeatherForecastAgentResponse:
         chat_history.add_user_message(input)
+        _trim_history(chat_history)
 
         for attempt in range(MAXIMUM_FORMAT_ATTEMPTS):
+            _trim_history(chat_history)
             kernel = Kernel()
             kernel.add_plugin(plugin=DateTimePlugin(), plugin_name="dateTime")
             kernel.add_plugin(plugin=WeatherForecastPlugin(), plugin_name="weatherForecast")
@@ -110,6 +163,7 @@ class WeatherForecastAgent:
                         "Return only a valid response object."
                     )
 
+        _trim_history(chat_history)
         raise RuntimeError("The model did not return a valid weather response.")
 
 

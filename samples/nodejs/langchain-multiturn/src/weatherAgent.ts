@@ -4,9 +4,9 @@
 import { Activity, ActivityTypes } from '@microsoft/agents-activity'
 import { AgentApplicationBuilder, TurnContext } from '@microsoft/agents-hosting'
 import { AzureChatOpenAI, ChatOpenAI } from '@langchain/openai'
-import { MemorySaver } from '@langchain/langgraph'
-import { HumanMessage } from '@langchain/core/messages'
-import { createAgent, providerStrategy } from 'langchain'
+import { MemorySaver, REMOVE_ALL_MESSAGES } from '@langchain/langgraph'
+import { HumanMessage, RemoveMessage } from '@langchain/core/messages'
+import { createAgent, createMiddleware, providerStrategy } from 'langchain'
 import { z } from 'zod'
 import { adaptiveCardTool } from './tools/adaptiveCardTool.js'
 import { dateTimeTools } from './tools/dateTimeTool.js'
@@ -16,6 +16,7 @@ import { runWithTurnContext } from './tools/progressContext.js'
 const welcomeMessage = 'Hello and welcome! I\'m here to help with all your weather forecast needs!'
 const processingMessage = 'Working on a response for you'
 const failureMessage = 'Sorry, I couldn\'t get the weather forecast at the moment.'
+const maximumHistoryMessages = 20
 
 const agentInstructions = `
 You are a friendly assistant that helps people find a weather forecast for a given time and place.
@@ -76,6 +77,56 @@ const weatherForecastAgentResponseSchema = z.discriminatedUnion('contentType', [
 
 type WeatherForecastAgentResponse = z.infer<typeof weatherForecastAgentResponseSchema>
 
+function isWeatherAdaptiveCard (card: unknown): boolean {
+  if (typeof card !== 'object' || card === null) {
+    return false
+  }
+
+  const value = card as Record<string, unknown>
+  if (
+    value.type !== 'AdaptiveCard' ||
+    value.version !== '1.5' ||
+    value.$schema !== 'http://adaptivecards.io/schemas/adaptive-card.json' ||
+    !Array.isArray(value.body) ||
+    !Array.isArray(value.actions)
+  ) {
+    return false
+  }
+
+  const body = value.body.filter((item): item is Record<string, unknown> =>
+    typeof item === 'object' && item !== null
+  )
+  const heading = body.find(item => item.type === 'TextBlock')
+  const factSet = body.find(item => item.type === 'FactSet')
+  const facts = Array.isArray(factSet?.facts) ? factSet.facts : []
+  const hasFact = (title: string) => facts.some(fact => {
+    if (typeof fact !== 'object' || fact === null) {
+      return false
+    }
+
+    const weatherFact = fact as Record<string, unknown>
+    return weatherFact.title === title &&
+      typeof weatherFact.value === 'string' &&
+      weatherFact.value.trim().length > 0
+  })
+
+  const hasWeatherHeading = typeof heading?.text === 'string' &&
+    heading.text.startsWith('Weather forecast for ') &&
+    heading.text.slice('Weather forecast for '.length).trim().length > 0
+  const hasMsnAction = value.actions.some(action => {
+    if (typeof action !== 'object' || action === null) {
+      return false
+    }
+
+    const cardAction = action as Record<string, unknown>
+    return cardAction.type === 'Action.OpenUrl' &&
+      typeof cardAction.url === 'string' &&
+      cardAction.url.startsWith('https://www.msn.com/en-us/weather/forecast/in-')
+  })
+
+  return hasWeatherHeading && hasFact('Date') && hasFact('Temperature') && hasMsnAction
+}
+
 // Azure OpenAI strict structured output requires an object at the root of the JSON
 // schema. The discriminated union above is retained for local validation, but it
 // serializes to a root-level anyOf and is therefore not suitable for the request.
@@ -113,11 +164,28 @@ const agentModel = useAzureOpenAI
     topP: 1
   })
 
+const boundedHistoryMiddleware = createMiddleware({
+  name: 'BoundedHistory',
+  beforeModel: (state) => {
+    if (state.messages.length <= maximumHistoryMessages) {
+      return
+    }
+
+    return {
+      messages: [
+        new RemoveMessage({ id: REMOVE_ALL_MESSAGES }),
+        ...state.messages.slice(-maximumHistoryMessages)
+      ]
+    }
+  }
+})
+
 const weatherForecastAgent = createAgent({
   model: agentModel,
   name: 'WeatherForecastAgent',
   systemPrompt: agentInstructions,
   tools: [weatherForecastTool, adaptiveCardTool, ...dateTimeTools],
+  middleware: [boundedHistoryMiddleware],
   checkpointer: new MemorySaver(),
   responseFormat: providerStrategy({
     schema: weatherForecastAgentTransportSchema,
@@ -140,7 +208,11 @@ async function invokeWeatherForecastAgent (
         { messages: [new HumanMessage(message)] },
         { configurable: { thread_id: conversationId } }
       )
-      return weatherForecastAgentResponseSchema.parse(result.structuredResponse)
+      const response = weatherForecastAgentResponseSchema.parse(result.structuredResponse)
+      if (response.contentType === 'AdaptiveCard' && !isWeatherAdaptiveCard(response.content)) {
+        throw new Error('The agent response did not contain the required weather Adaptive Card content.')
+      }
+      return response
     } catch (error) {
       lastError = error
     }
@@ -152,7 +224,9 @@ async function invokeWeatherForecastAgent (
 export const weatherAgent = new AgentApplicationBuilder().build()
 
 weatherAgent.onConversationUpdate('membersAdded', async (context) => {
-  await context.sendActivity(welcomeMessage)
+  if (context.activity.membersAdded?.some(member => member.id !== context.activity.recipient?.id)) {
+    await context.sendActivity(welcomeMessage)
+  }
 })
 
 weatherAgent.onActivity(ActivityTypes.Message, async (context: TurnContext) => {
