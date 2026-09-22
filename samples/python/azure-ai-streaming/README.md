@@ -1,12 +1,12 @@
 # Azure AI Streaming Sample
 
-This sample hosts a Microsoft 365 Agent on Node.js and Express. Every message asks Azure OpenAI for an Apollo poem and streams the response to the client. The stream includes an informative update, an AI-generated label, a sensitivity label, and feedback controls.
+This sample hosts a Microsoft 365 Agent on Python and aiohttp. Every message asks Azure OpenAI for an Apollo poem and streams the response to the client. The stream includes an informative update, an AI-generated label, a sensitivity label, and feedback controls.
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) 20 or later
+- [Python](https://www.python.org/) 3.10 or later
 - An Azure OpenAI resource and model deployment
-- [Agents Playground](https://github.com/microsoft/m365-agents-toolkit) for local testing, or an Azure Bot resource for Web Chat
+- Agents Playground for local testing, or an Azure Bot resource for Web Chat
 
 ## Configure Azure OpenAI
 
@@ -18,21 +18,15 @@ AZURE_OPENAI_API_KEY=<api-key>
 AZURE_OPENAI_DEPLOYMENT_NAME=<deployment-name>
 ```
 
-`AZURE_OPENAI_ENDPOINT` must be the resource endpoint, without `/openai/v1` or a deployment path. Both classic `*.openai.azure.com` endpoints and Azure AI Foundry `*.services.ai.azure.com` endpoints are supported. Authentication settings for a connected Azure Bot are also documented in `env.TEMPLATE`.
-
-The sample validates the required Azure OpenAI settings at startup and exits with the missing setting's name when configuration is incomplete.
+`AZURE_OPENAI_ENDPOINT` must be the resource endpoint, without `/openai/v1` or a deployment path. Both classic `*.openai.azure.com` endpoints and Azure AI Foundry `*.services.ai.azure.com` endpoints are supported. Authentication settings for a connected Azure Bot are also documented in `env.TEMPLATE`. The sample validates the required Azure OpenAI settings at startup and exits with the missing setting's name when configuration is incomplete.
 
 ## Run locally with Agents Playground
 
-```bash
-npm install
-npm start
-```
-
-In another terminal, run:
+Create and activate a virtual environment, then run:
 
 ```bash
-npm run test-tool
+pip install -r requirements.txt
+python -m src.main
 ```
 
 Connect Agents Playground to `http://localhost:3978/api/messages`, then send any message. The agent welcomes new users with `Say anything and I'll recite poetry.` and streams the same Apollo poem behavior for every message.
@@ -48,7 +42,7 @@ Connect Agents Playground to `http://localhost:3978/api/messages`, then send any
    ```
 
 4. Set the Azure Bot messaging endpoint to `{tunnel-url}/api/messages`.
-5. Run `npm start`, then open **Test in Web Chat** in the Azure portal.
+5. Run `python -m src.main`, then open **Test in Web Chat** in the Azure portal.
 
 The root endpoint at `http://localhost:3978/` can be used as a basic health check.
 
