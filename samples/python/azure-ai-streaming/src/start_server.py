@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+
 from os import environ
 from microsoft_agents.hosting.core import AgentApplication, AgentAuthConfiguration
 from microsoft_agents.hosting.aiohttp import (
@@ -6,6 +9,7 @@ from microsoft_agents.hosting.aiohttp import (
     CloudAdapter,
 )
 from aiohttp.web import Request, Response, Application, run_app
+
 
 def start_server(
     agent_application: AgentApplication, auth_configuration: AgentAuthConfiguration
@@ -19,13 +23,17 @@ def start_server(
             adapter,
         )
 
+    async def health_check(_req: Request) -> Response:
+        return Response(text="Azure AI Streaming Sample")
+
     APP = Application(middlewares=[jwt_authorization_middleware])
+    APP.router.add_get("/", health_check)
     APP.router.add_post("/api/messages", entry_point)
     APP["agent_configuration"] = auth_configuration
     APP["agent_app"] = agent_application
     APP["adapter"] = agent_application.adapter
 
     try:
-        run_app(APP, host="localhost", port=environ.get("PORT", 3978))
+        run_app(APP, host="localhost", port=int(environ.get("PORT", "3978")))
     except Exception as error:
         raise error
