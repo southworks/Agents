@@ -81,6 +81,10 @@ namespace AgentFrameworkWeather.Agent
                 }
                 turnState.Conversation.SetValue("conversation.threadInfo", (await _agent.SerializeSessionAsync(thread)).ToString());
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception exception)
             {
                 System.Diagnostics.Trace.WriteLine($"Error during agent execution: {exception}");
