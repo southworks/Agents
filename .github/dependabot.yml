@@ -27,7 +27,7 @@ updates:
   - package-ecosystem: "pip"
     directories:
       - "/samples/python/auto-signin"
-      - "/samples/python/azureai-streaming"
+      - "/samples/python/azure-ai-streaming"
       - "/samples/python/cards"
       - "/samples/python/copilotstudio-client"
       - "/samples/python/copilot-sdk"
