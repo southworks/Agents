@@ -14,12 +14,12 @@
     "outline": "outline.png"
   },
   "name": {
-    "short": "SDK Weather .NET",
-    "full": "Agents SDK Semantic Kernel Weather Agent for .NET"
+    "short": "AgentSDK Cards",
+    "full": "AgentSDK Cards"
   },
   "description": {
-    "short": "A multi-turn weather agent built with the Agents SDK and Semantic Kernel",
-    "full": "A sample multi-turn weather agent built with the Microsoft 365 Agents SDK and Semantic Kernel."
+    "short": "Sample demonstrating AgentSDK + rich cards.",
+    "full": "This sample demonstrates how to use rich cards to enhance a conversation in AgentSDK"
   },
   "accentColor": "#FFFFFF",
   "copilotAgents": {
@@ -45,6 +45,11 @@
     "messageTeamMembers"
   ],
   "validDomains": [
+    "token.botframework.com",
     "<<BOT_DOMAIN>>"
-  ]
+  ],
+  "webApplicationInfo": {
+    "id": "${{AAD_APP_CLIENT_ID}}",
+    "resource": "api://botid-${{AAD_APP_CLIENT_ID}}"
+  }
 }
