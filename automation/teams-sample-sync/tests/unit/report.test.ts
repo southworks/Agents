@@ -27,14 +27,18 @@ function result (overrides: Partial<SyncResult> = {}): SyncResult {
 
 describe('synchronization reports', () => {
   it('renders a failed synchronization for stderr and GitHub annotations', () => {
-    const report = failureReport(result({
-      sample: 'bot:message,extensions',
-      error: 'Only released Teams manifest schema URLs are supported\n100% checked',
-    }))
+    const report = failureReport(
+      result({
+        sample: 'bot:message,extensions',
+        error: 'Only released Teams manifest schema URLs are supported\n100% checked',
+      })
+    )
 
     assert.deepEqual(report, {
-      stderr: 'Sample synchronization failed (bot:message,extensions): Only released Teams manifest schema URLs are supported\n100% checked',
-      annotation: '::error title=bot%3Amessage%2Cextensions synchronization failed::Only released Teams manifest schema URLs are supported%0A100%25 checked',
+      stderr:
+        'Sample synchronization failed (bot:message,extensions): Only released Teams manifest schema URLs are supported\n100% checked',
+      annotation:
+        '::error title=bot%3Amessage%2Cextensions synchronization failed::Only released Teams manifest schema URLs are supported%0A100%25 checked',
     })
   })
 

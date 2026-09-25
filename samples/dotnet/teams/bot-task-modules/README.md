@@ -1,8 +1,8 @@
-# Bot Task Modules Sample
+# Agent Task Modules Sample
 
-This sample demonstrates task modules (dialogs) in Microsoft Teams using a bot built with the Microsoft 365 Agents SDK and its Teams extension.
+This sample demonstrates task modules (dialogs) in Microsoft Teams using an agent built with the Microsoft 365 Agents SDK and its Teams extension.
 
-![Bot Task Modules](bot-task-modules.gif)
+![Agent Task Modules](bot-task-modules.gif)
 
 ## Features
 
@@ -18,7 +18,7 @@ This sample demonstrates task modules (dialogs) in Microsoft Teams using a bot b
 
 ## Configure the sample
 
-Update `appsettings.json` with the client ID, tenant ID, client secret, and public bot domain from your Azure Bot registration and dev tunnel:
+Create an ignored `appsettings.Development.json` with the client ID, tenant ID, client secret, and public agent domain from your Azure Bot registration and dev tunnel. It overrides the corresponding values in the checked-in `appsettings.json` when you run the Development launch profile:
 
 ```json
 {
@@ -60,7 +60,7 @@ The agent listens on `http://localhost:3978`. Send any message to receive the ca
 
 ## Testing in Teams
 
-Ensure the Azure Bot has the Microsoft Teams channel enabled, then upload a Teams app package whose bot ID is your client ID. The bot needs a `personal` scope and your tunnel domain in `validDomains` so Teams can load the custom form.
+Ensure the Azure Bot has the Microsoft Teams channel enabled, then upload a Teams app package whose bot ID is your client ID. The app needs a `personal` scope and your tunnel domain in `validDomains` so Teams can load the custom form.
 
 ## Further reading
 

@@ -1,8 +1,8 @@
-# Bot Meetings Sample
+# Agent Meetings Sample
 
-This sample demonstrates how to handle real-time Microsoft Teams meeting events and retrieve meeting transcripts with a bot built on the Microsoft 365 Agents SDK and its Teams extension.
+This sample demonstrates how to handle real-time Microsoft Teams meeting events and retrieve meeting transcripts with an agent built on the Microsoft 365 Agents SDK and its Teams extension.
 
-![Bot Meetings](Images/bot-meetings.gif)
+![Agent Meetings](Images/bot-meetings.gif)
 
 ## Features
 
@@ -34,10 +34,10 @@ Sign in and create a Teams-managed app with the bot endpoint set to your tunnel:
 
 ```bash
 teams login
-teams app create --name "Bot Meetings" --teams-managed --endpoint https://<your-tunnel-domain>/api/messages
+teams app create --name "Agent Meetings" --teams-managed --endpoint https://<your-tunnel-domain>/api/messages --color-icon manifest/color.png --outline-icon manifest/outline.png
 ```
 
-Update `appsettings.json` with the app registration values. The bot connection and the app-only Graph client use the same registration but remain independently configured:
+Create an ignored `appsettings.Development.json` with the app registration values. It overrides the corresponding values in the checked-in `appsettings.json` when you run the Development launch profile. The agent connection and the app-only Graph client use the same registration but remain independently configured:
 
 ```json
 {
@@ -71,7 +71,7 @@ In the [Microsoft Entra admin center](https://go.microsoft.com/fwlink/?linkid=20
 - `OnlineMeetings.Read.All`
 - `OnlineMeetingTranscript.Read.All`
 
-Configure an online meeting application access policy for the users whose meetings the bot accesses:
+Configure an online meeting application access policy for the users whose meetings the agent accesses:
 
 - [Configure an application access policy](https://learn.microsoft.com/graph/cloud-communication-online-meeting-application-access-policy)
 - [Manage Teams policies with PowerShell](https://learn.microsoft.com/microsoftteams/teams-powershell-managing-teams#manage-policies-via-powershell)
@@ -107,12 +107,14 @@ Ensure the app manifest's bot entry supports meetings:
 }
 ```
 
-Package and upload the Teams app:
+In `manifest/manifest.json`, set `id` to the Teams app ID, `bots[0].botId` to the client ID, and `validDomains` to your tunnel domain. Then upload the manifest to the existing app and download its package:
 
 ```bash
-teams app package
-teams app update <teams-app-id> --file appPackage/<package>.zip
+teams app manifest upload manifest/manifest.json <teams-app-id>
+teams app package download <teams-app-id> --output teams-app.zip
 ```
+
+Upload `teams-app.zip` as a custom app in Teams.
 
 ## Run the sample
 

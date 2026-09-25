@@ -2,7 +2,7 @@
   {
     "name": "officedev-microsoft-teams-samples-bot-task-modules-dotnet",
     "source": "officeDev",
-    "title": "Task Modules Bot using Teams SDK for dotnet",
+    "title": "Agent Task Modules using the Microsoft 365 Agents SDK for .NET",
     "shortDescription": "This sample app demonstrates how to use Task Modules",
     "url": "https://github.com/microsoft/Agents/tree/main/samples/dotnet/teams/bot-task-modules",
     "longDescription": [

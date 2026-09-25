@@ -2,11 +2,11 @@
   {
     "name": "officedev-microsoft-teams-samples-bot-ai-messages-dotnet",
     "source": "officeDev",
-    "title": "Bot AI Messages Sample",
-    "shortDescription": "This sample demonstrates how to enhance AI-generated bot messages for Microsoft Teams using .NET (C#).",
+    "title": "Agent AI Messages Sample",
+    "shortDescription": "This sample demonstrates how to enhance AI-generated agent messages for Microsoft Teams using .NET (C#).",
     "url": "https://github.com/microsoft/Agents/tree/main/samples/dotnet/teams/bot-ai-messages",
     "longDescription": [
-      "This sample demonstrates how to enhance AI-generated bot messages for Microsoft Teams, built with the Microsoft 365 Agents SDK. It showcases AI labels, citations, feedback buttons, and sensitivity labels."
+      "This sample demonstrates how to enhance AI-generated agent messages for Microsoft Teams, built with the Microsoft 365 Agents SDK. It showcases AI labels, citations, feedback buttons, and sensitivity labels."
     ],
     "creationDateTime": "2026-03-05",
     "updateDateTime": "2026-08-13",
@@ -36,7 +36,7 @@
         "type": "Image",
         "order": 100,
         "url": "https://raw.githubusercontent.com/microsoft/Agents/main/samples/dotnet/teams/bot-ai-messages/bot-ai-messages.gif",
-        "alt": "Solution UX showing AI bot message formatting features for Microsoft Teams"
+        "alt": "Solution UX showing AI agent message formatting features for Microsoft Teams"
       }
     ],
     "authors": [

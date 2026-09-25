@@ -15,6 +15,7 @@ using Microsoft.Agents.Core.Models;
 using Microsoft.Agents.Extensions.MSTeams;
 using Microsoft.Agents.Extensions.MSTeams.App;
 using Microsoft.Agents.Extensions.MSTeams.MessageExtensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Teams.Api;
 using Microsoft.Teams.Api.Cards;
 using Microsoft.Teams.Cards;
@@ -39,7 +40,7 @@ public partial class BotMessageExtensionsAgent(
     {
         string searchQuery = query.Parameters?.FirstOrDefault()?.Value?.ToString() ?? string.Empty;
 
-        Console.WriteLine($"Query: command=wikipediaSearch, query={searchQuery}");
+        Logger.LogInformation("Query: command=wikipediaSearch, query={SearchQuery}", searchQuery);
 
         List<MsgExt.Attachment> attachments = (await SearchWikipediaAsync(searchQuery, cancellationToken))
             .Select(result =>
@@ -90,10 +91,9 @@ public partial class BotMessageExtensionsAgent(
         CancellationToken cancellationToken)
     {
         await turnContext.SendActivityAsync(
-            MessageFactory.Text(
-                "Hi! I'm the Search Messaging Extension Bot!\n\n" +
-                "Use me in the compose area to search for Wikipedia articles\n"),
-            cancellationToken);
+            "Hi! I'm the Search Messaging Extension Agent!\n\n" +
+            "Use me in the compose area to search for Wikipedia articles\n",
+            cancellationToken: cancellationToken);
     }
 
     [TeamsMessageRoute]
@@ -103,8 +103,8 @@ public partial class BotMessageExtensionsAgent(
         CancellationToken cancellationToken)
     {
         await turnContext.SendActivityAsync(
-            MessageFactory.Text($"You said: {turnContext.Activity.Text}\n\nType 'help' to learn more."),
-            cancellationToken);
+            $"You said: {turnContext.Activity.Text}\n\nType 'help' to learn more.",
+            cancellationToken: cancellationToken);
     }
 
     private static AdaptiveCard CreateWikipediaCard(JToken result)
@@ -180,12 +180,12 @@ public partial class BotMessageExtensionsAgent(
         }
         catch (HttpRequestException exception)
         {
-            Console.WriteLine($"Wikipedia search error: {exception.Message}");
+            Logger.LogError(exception, "Wikipedia search failed");
             return [];
         }
         catch (JsonException exception)
         {
-            Console.WriteLine($"Wikipedia search error: {exception.Message}");
+            Logger.LogError(exception, "Wikipedia search response could not be parsed");
             return [];
         }
     }

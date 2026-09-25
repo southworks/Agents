@@ -10,7 +10,10 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 
 describe('workflow configuration', () => {
   it('manual workflow choices match the configured samples', () => {
-    const workflow = record(parse(readFileSync(path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8')), 'sync workflow')
+    const workflow = record(
+      parse(readFileSync(path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8')),
+      'sync workflow'
+    )
     const triggers = record(workflow.on, 'sync workflow on')
     const dispatch = record(triggers.workflow_dispatch, 'sync workflow workflow_dispatch')
     const inputs = record(dispatch.inputs, 'sync workflow inputs')
@@ -22,7 +25,10 @@ describe('workflow configuration', () => {
   })
 
   it('scheduled runs process all samples and publish draft pull requests', () => {
-    const workflow = record(parse(readFileSync(path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8')), 'sync workflow')
+    const workflow = record(
+      parse(readFileSync(path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8')),
+      'sync workflow'
+    )
     const triggers = record(workflow.on, 'sync workflow on')
     const schedule = triggers.schedule as Array<{ cron?: unknown }>
     const jobs = record(workflow.jobs, 'sync workflow jobs')

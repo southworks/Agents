@@ -28,14 +28,24 @@ handler methods on an `AgentApplication` subclass using `ITurnContext`.
 
 ## Core Rules
 
-- **Preserve behavior.** Keep the same commands, text matching, and responses. Only change what is required to run on the Agents SDK.
+- **Preserve behavior.** Keep the same commands, text matching, and responses except for user-facing references to the migrated runtime, which should say "agent" instead of "bot". Make other response changes only when required to run on the Agents SDK.
+- Describe the migrated runtime as an agent in README text, catalog descriptions, and user-facing messages. Keep platform terms such as Azure Bot, bot ID, and manifest `bots[]`, and preserve source-derived paths and identifiers unless the caller requests a rename.
 - After source migration is stable, use the standalone `teams-app-manifest` skill to generate, complete,
   or audit the Teams app manifest from source evidence and explicit product intent. Do not embed manifest
   feature rules in this migration skill.
-- **Use the configured release Agents SDK packages.** The
-  base packages (`Microsoft.Agents.Hosting.AspNetCore`, `Microsoft.Agents.Authentication.Msal`, `Microsoft.Agents.Extensions.MSTeams`, and the
-  transitive `Microsoft.Agents.Core` / `Builder` / `Connector` / `Storage`) must use the repository's
-  current shared version convention, currently **`1.8.*`**.
+- **Use stable Agents SDK packages.** A caller's minimum Agents SDK version is a floor, not the
+  version to copy into the project. In automated sample sync, use the `selectedAgentsSdkVersion`
+  in the frozen sync context. Respect a customer's explicitly selected release line. Otherwise,
+  read the [Agents SDK release history JSON](https://api.github.com/repos/microsoft/Agents-for-net/releases?per_page=100)
+  (follow later pages when needed) and select the newest stable release within the permitted major,
+  then confirm a common major.minor release line for `Microsoft.Agents.Hosting.AspNetCore`,
+  `Microsoft.Agents.Authentication.Msal`, and `Microsoft.Agents.Extensions.MSTeams` from the
+  [Hosting](https://api.nuget.org/v3-flatcontainer/microsoft.agents.hosting.aspnetcore/index.json),
+  [Authentication](https://api.nuget.org/v3-flatcontainer/microsoft.agents.authentication.msal/index.json),
+  and [MSTeams](https://api.nuget.org/v3-flatcontainer/microsoft.agents.extensions.msteams/index.json)
+  JSON version feeds.
+  Use the newest compatible stable line available for all three, without assuming their patch
+  numbers match. Do not select a prerelease or a new major version without explicit policy.
 - If the project defines the `AgentApplication` during DI (typically in `Program.cs`), ask the customer
   whether to keep it inline or move it to an `AgentApplication` subclass with Teams route attributes.
   In the automated Teams sample sync, do not ask a user. Apply an applicable migration policy or return
@@ -47,25 +57,29 @@ handler methods on an `AgentApplication` subclass using `ITurnContext`.
   not infer an API shape from a similarly named Teams SDK API.
 - Preserve the original registration and `if`/`else` precedence. Use explicit route `rank` values
   whenever multiple text or invoke routes can match the same activity.
+- Prefer `SendActivityAsync("text", cancellationToken: ct)` for plain text. When a reply needs entities, attachments, or other activity fields, build an activity with `Activity.CreateMessageActivity()` and fluent methods such as `.WithText(...)`, then set the extra fields. Keep a factory when it adds value for a structured response.
+- Use the agent's logger for diagnostics instead of `Console.WriteLine`; pass exceptions to structured logging rather than logging only their messages.
 
 ---
 
 ## Package Replacements
 
 Out-of-repo samples use **PackageReferences** (not ProjectReferences). Replace the single Teams SDK
-package with the Agents SDK packages, using the same repository version convention for all three:
+package with the Agents SDK packages, using the selected major.minor release line for all three.
+Replace `RESOLVED_VERSION` below with that line's floating version (for example, `major.minor.*`)
+before writing the project file:
 
 | Remove (Teams SDK)                     | Add (Agents SDK)                                                          |
 |----------------------------------------|--------------------------------------------------------------------------|
-| `Microsoft.Teams.Plugins.AspNetCore`   | `Microsoft.Agents.Hosting.AspNetCore` (`1.8.*`) + `Microsoft.Agents.Authentication.Msal` (`1.8.*`) |
-| *(Teams routing surface)*              | `Microsoft.Agents.Extensions.MSTeams` (`1.8.*`) |
+| `Microsoft.Teams.Plugins.AspNetCore`   | `Microsoft.Agents.Hosting.AspNetCore` + `Microsoft.Agents.Authentication.Msal` |
+| *(Teams routing surface)*              | `Microsoft.Agents.Extensions.MSTeams` |
 | `Microsoft.Teams.Cards` *(if used)*     | `Microsoft.Teams.Cards` *(kept — Agents MSTeams extension reuses it)*     |
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Microsoft.Agents.Hosting.AspNetCore" Version="1.8.*" />
-  <PackageReference Include="Microsoft.Agents.Authentication.Msal" Version="1.8.*" />
-  <PackageReference Include="Microsoft.Agents.Extensions.MSTeams" Version="1.8.*" />
+  <PackageReference Include="Microsoft.Agents.Hosting.AspNetCore" Version="RESOLVED_VERSION" />
+  <PackageReference Include="Microsoft.Agents.Authentication.Msal" Version="RESOLVED_VERSION" />
+  <PackageReference Include="Microsoft.Agents.Extensions.MSTeams" Version="RESOLVED_VERSION" />
 </ItemGroup>
 ```
 
@@ -105,7 +119,7 @@ Create `agentsdk-<name>/dotnet/agentsdk-<name>/` mirroring the customer's source
 - `AspNetExtensions.cs` — **required.** `AddAgentAspNetAuthentication()` is *not* in any NuGet package;
   copy it verbatim from an Agents SDK sample
   (`src/samples/EmptyAgent/AspNetExtensions.cs` in agents-for-net).
-- `appsettings.json` — Agents SDK config (Step 5).
+- `appsettings.json` — non-secret Agents SDK config (Step 5); keep local credentials in an ignored `appsettings.Development.json` or environment variables.
 - `Properties/launchSettings.json` — `applicationUrl: http://localhost:3978`.
 - `README.md` — explain the migrated Agents SDK application and its customer-specific setup.
 
@@ -175,7 +189,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Agents.Builder.App;
 using Microsoft.Agents.Builder.State;
-using Microsoft.Agents.Core.Models;              // MessageFactory, Mention, ActivityTypes
+using Microsoft.Agents.Core.Models;              // Activity, Mention, ActivityTypes
 using Microsoft.Agents.Extensions.MSTeams;       // [TeamsExtension], ITeamsTurnContext
 using Microsoft.Agents.Extensions.MSTeams.App;   // [TeamsMessageRoute], [TeamsMembersAddedRoute]
 
@@ -189,28 +203,31 @@ public partial class MyAgent(AgentApplicationOptions options) : AgentApplication
     {
         foreach (var member in turnContext.Activity.MembersAdded)
             if (member.Id == turnContext.Activity.Recipient.Id)
-                await turnContext.SendActivityAsync(MessageFactory.Text("Welcome!"), ct);
+                await turnContext.SendActivityAsync("Welcome!", cancellationToken: ct);
     }
 
     [TeamsMessageRoute(textRegex: "(?i)whoami", rank: 11)]
     public async Task WhoAmIAsync(ITeamsTurnContext turnContext, ITurnState turnState, CancellationToken ct)
-        => await turnContext.SendActivityAsync(MessageFactory.Text($"You are: {turnContext.Activity.From.Name}"), ct);
+        => await turnContext.SendActivityAsync($"You are: {turnContext.Activity.From.Name}", cancellationToken: ct);
 
     [TeamsMessageRoute]  // catch-all
     public async Task DefaultAsync(ITeamsTurnContext turnContext, ITurnState turnState, CancellationToken ct)
-        => await turnContext.SendActivityAsync(MessageFactory.Text("Welcome!"), ct);
+        => await turnContext.SendActivityAsync("Welcome!", cancellationToken: ct);
 }
 ```
 
 `AddAgentDefaults()` registers `MemoryStorage` and default options — no explicit `IStorage` needed for a
-basic bot. Inline `teamsApp.On*` lambdas move to route-attributed methods on the agent class.
+basic agent. Inline `teamsApp.On*` lambdas move to route-attributed methods on the agent class.
 
-### Step 5 — appsettings.json
+### Step 5 — application settings
 
 Teams SDK reads flat `Teams:ClientId/ClientSecret/TenantId` (or `CLIENT_ID`/`CLIENT_SECRET` env vars).
 Agents SDK uses `Connections` + `TokenValidation` (+ optional `AgentApplication`). Carry the values
 across using the customer's authentication type (default below is a SingleTenant Azure Bot with
-ClientSecret):
+ClientSecret). Keep the checked-in `appsettings.json` free of real credentials. Put local values in
+an ignored `appsettings.Development.json` or environment variables, and show that pattern in the
+README. A checked-in `appsettings.json` can use placeholders for identity values while keeping the
+secret unset:
 
 ```json
 {
@@ -234,7 +251,7 @@ ClientSecret):
         "AuthType": "ClientSecret",
         "AuthorityEndpoint": "https://login.microsoftonline.com/{{TenantId}}",
         "ClientId": "{{ClientId}}",
-        "ClientSecret": "{{ClientSecret}}",
+        "ClientSecret": null,
         "Scopes": [ "https://api.botframework.com/.default" ]
       }
     }
@@ -242,6 +259,13 @@ ClientSecret):
   "ConnectionsMap": [ { "ServiceUrl": "*", "Connection": "ServiceConnection" } ]
 }
 ```
+
+For local development, put the client ID, tenant ID, and client secret in
+`appsettings.Development.json` using the same nested keys. The file can contain only the values it
+overrides. Ensure it is ignored by Git and run with the `Development` environment. An environment
+override can set the secret with
+`Connections__ServiceConnection__Settings__ClientSecret`. Keep identity values consistent between
+`TokenValidation`, the service connection, and any separate Graph configuration.
 
 For other Azure Bot types (UserAssignedMSI, MultiTenant) see the `bf-to-agents-sdk-dotnet-migration`
 skill's appsettings cases and https://aka.ms/AgentsSDK-DotNetMSALAuth.
@@ -279,7 +303,7 @@ Also run the schema, package, evidence, and external-configuration checks requir
 | `context.Activity.From` / `.From.Name`                    | `turnContext.Activity.From` / `.From.Name`                      |
 | `context.Activity.Recipient?.Id`                          | `turnContext.Activity.Recipient.Id`                             |
 | `context.Activity.MembersAdded`                           | `turnContext.Activity.MembersAdded`                             |
-| `await context.Send("text")`                              | `await turnContext.SendActivityAsync(MessageFactory.Text("text"), ct)` |
+| `await context.Send("text")`                              | `await turnContext.SendActivityAsync("text", cancellationToken: ct)` |
 | `await context.Send(messageActivity)`                     | `await turnContext.SendActivityAsync(activity, ct)`            |
 | `await context.Send(adaptiveCard)`                        | `await turnContext.SendActivityAsync(MessageFactory.Attachment(new Attachment(ContentTypes.AdaptiveCard, card)), ct)` |
 | `new MessageActivity().WithText("t")`                     | `Activity.CreateMessageActivity().WithText("t")` |
@@ -459,7 +483,7 @@ try/catch on `ArgumentException` as a backstop).
 
 | Mistake | Fix |
 |---------|-----|
-| Used mismatched Agents package versions | Use the repository's shared version convention for Hosting, Authentication, and MSTeams (currently `1.7.*`) |
+| Used mismatched Agents package release lines | Resolve the newest compatible stable line shared by Hosting, Authentication, and MSTeams; respect the caller's minimum and frozen sync target |
 | Retained `Microsoft.Agents.Extensions.MSTeams` `1.0.43-beta` | Replace it with the same current version used by the other Agents SDK packages |
 | Used base `AgentApplication` + `OnActivity`/constructor routes instead of `[TeamsExtension]` + route attributes | Always mark the class `[TeamsExtension] partial` and use `[TeamsMessageRoute]` / `[TeamsMembersAddedRoute]` / etc. |
 | Used `ITurnContext` in an MSTeams route handler | Route attributes from `Microsoft.Agents.Extensions.MSTeams.App` require `ITeamsTurnContext`; base routes such as `[ActionExecuteRoute]` use their documented `ITurnContext` signature |

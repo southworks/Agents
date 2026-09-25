@@ -1,14 +1,14 @@
-# Bot Message Extensions Sample
+# Agent Message Extensions Sample
 
 This sample demonstrates a search-based messaging extension in Microsoft Teams using the Microsoft 365 Agents SDK and its Teams extension. It lets users search for Wikipedia articles from the compose area and creates rich previews for Wikipedia links.
 
-![Bot Message Extensions](bot-message-extensions.gif)
+![Agent Message Extensions](bot-message-extensions.gif)
 
 ## Features
 
 - **Wikipedia Search** - Searches Wikipedia from the Teams compose area and returns adaptive card results.
 - **Link Unfurling** - Generates an adaptive card preview when a Wikipedia URL is shared.
-- **Bot Messages** - Responds with help when a message contains `help` and echoes other messages.
+- **Agent Messages** - Responds with help when a message contains `help` and echoes other messages.
 
 The `wikipediaSearch` command ID, query parameter, result cards, matching behavior, and response text match the upstream Teams SDK sample.
 
@@ -21,7 +21,7 @@ The `wikipediaSearch` command ID, query parameter, result cards, matching behavi
 
 ## Configure the sample
 
-Update `appsettings.json` with the client ID, tenant ID, and client secret from your Azure Bot registration:
+Create an ignored `appsettings.Development.json` with the client ID, tenant ID, and client secret from your Azure Bot registration. It overrides the corresponding values in the checked-in `appsettings.json` when you run the Development launch profile:
 
 ```json
 {
@@ -40,34 +40,6 @@ Update `appsettings.json` with the client ID, tenant ID, and client secret from 
   }
 }
 ```
-
-For local development, replace the placeholders in `appsettings.json` while keeping the existing JSON structure:
-
-```json
-{
-  "TokenValidation": {
-    "Audiences": [
-      "<client-id>"
-    ],
-    "TenantId": "<tenant-id>"
-  },
-  "Connections": {
-    "ServiceConnection": {
-      "Settings": {
-        "AuthType": "ClientSecret",
-        "AuthorityEndpoint": "https://login.microsoftonline.com/<tenant-id>",
-        "ClientId": "<client-id>",
-        "ClientSecret": "<client-secret>",
-        "Scopes": [
-          "https://api.botframework.com/.default"
-        ]
-      }
-    }
-  }
-}
-```
-
-Do not commit an `appsettings.json` file containing real credentials.
 
 ## Run the sample
 
@@ -88,7 +60,7 @@ The agent listens on `http://localhost:3978`.
 
 ## Configure the Teams app package
 
-The `appPackage` directory contains the Teams manifest and icons. Replace `${{BOT_ID}}` with the Azure Bot client ID and `${{APP_NAME_SUFFIX}}` with an optional suffix, then package the three files in that directory into a ZIP archive.
+The `manifest` directory contains the Teams manifest and icons. Replace `${{BOT_ID}}` with the Azure Bot client ID and `${{APP_NAME_SUFFIX}}` with an optional suffix, then package the three files in that directory into a ZIP archive.
 
 The manifest preserves the upstream message extension configuration:
 

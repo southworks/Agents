@@ -2,7 +2,7 @@
   {
     "name": "officedev-microsoft-teams-samples-bot-cards-dotnet",
     "source": "officeDev",
-    "title": "Bot Cards Sample",
+    "title": "Agent Cards Sample",
     "shortDescription": "This sample demonstrates how to interact with cards in Microsoft Teams using .NET (C#).",
     "url": "https://github.com/microsoft/Agents/tree/main/samples/dotnet/teams/bot-cards",
     "longDescription": [
@@ -36,7 +36,7 @@
         "type": "image",
         "order": 100,
         "url": "https://raw.githubusercontent.com/microsoft/Agents/main/samples/dotnet/teams/bot-cards/bot-cards.gif",
-        "alt": "Solution UX showing bot cards with adaptive actions using the Microsoft 365 Agents SDK"
+        "alt": "Solution UX showing agent cards with adaptive actions using the Microsoft 365 Agents SDK"
       }
     ],
     "authors": [

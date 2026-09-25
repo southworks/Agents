@@ -21,7 +21,7 @@ This sample demonstrates targeted messaging in Microsoft Teams with the Microsof
 
 ## Configure the agent
 
-Create a single-tenant bot registration with a client secret. Update `appsettings.json` with the tenant ID, client ID, and client secret:
+Create a single-tenant Azure Bot registration with a client secret. Put the tenant ID, client ID, and client secret in an ignored `appsettings.Development.json`. It overrides the corresponding values in the checked-in `appsettings.json` when you run the Development launch profile:
 
 ```json
 {
@@ -69,8 +69,8 @@ Keep the service connection mapped for all channel service URLs:
    ```
 
 1. Configure the bot messaging endpoint as `https://<tunnel-host>/api/messages`.
-1. Replace `${{AAD_APP_CLIENT_ID}}` in `appManifest/manifest.json` with the bot client ID and `<<BOT_DOMAIN>>` with the tunnel host name.
-1. Zip the contents of `appManifest` and upload the package as a custom app in Teams.
+1. Replace `${{AAD_APP_CLIENT_ID}}` in `manifest/manifest.json` with the bot client ID and `<<BOT_DOMAIN>>` with the tunnel host name.
+1. Zip the contents of `manifest` and upload the package as a custom app in Teams.
 1. Run the sample:
 
    ```powershell

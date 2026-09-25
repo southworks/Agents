@@ -7,6 +7,9 @@ description: Create or audit a Microsoft Teams app manifest for an existing Micr
 
 Create the smallest released Teams app manifest that accurately declares the application's implemented and intended Teams capabilities. Keep evidence for capability decisions during the work, but report only user-relevant results. Stop instead of guessing security-sensitive or product-intent values.
 
+For new samples in this repository, place the manifest and its icons in `manifest/`. When completing an existing package, preserve its directory unless repository policy calls for a rename; keep documentation and package configuration aligned with the actual path.
+When documenting package creation or upload, verify the commands against the current CLI documentation. Do not assume a CLI command creates a ZIP in the manifest directory; a manually created package must place `manifest.json` and its referenced icons at the ZIP root.
+
 This is a standalone skill for Agents SDK source. Treat caller-provided requirements and repository policy as input, but derive manifest decisions only from the authority order and evidence rules in this skill.
 
 ## Execution and response contract

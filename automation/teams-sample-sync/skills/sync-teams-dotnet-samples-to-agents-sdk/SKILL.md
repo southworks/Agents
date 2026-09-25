@@ -8,6 +8,10 @@ description: CI instructions for a bounded Teams SDK .NET to Agents SDK sample s
 This CI caller uses one persistent implementation session. Preserve the source behavior with
 the smallest necessary changes inside the selected sample. Invoke the public migration skill
 before editing code and the manifest skill when updating the Teams app package.
+The sync context records `minimumAgentsSdkVersion` as a floor and `selectedAgentsSdkVersion`
+as this run's resolved release line. Plan and implement with the selected line; do not copy the
+minimum into project references. Keep the three required Agents SDK packages on one major.minor
+line, allowing their published patch versions to differ.
 
 The first turn is read-only planning. Before finalizing the plan, reconcile every user-facing
 capability across source handlers, README/help text, the destination implementation, and the

@@ -1,13 +1,13 @@
-# Bot AI Messages
+# Agent AI Messages
 
-This sample demonstrates how to enhance AI-generated bot messages for Microsoft Teams using the Microsoft 365 Agents SDK and its Teams extension.
+This sample demonstrates how to enhance AI-generated agent messages for Microsoft Teams using the Microsoft 365 Agents SDK and its Teams extension.
 
-- **AI labels** identify bot messages as AI-generated.
+- **AI labels** identify agent messages as AI-generated.
 - **Citations** provide source links, summaries, keywords, and an icon.
 - **Feedback buttons** collect thumbs-up or thumbs-down reactions and optional written feedback.
 - **Sensitivity labels** communicate confidentiality guidance.
 
-![Bot AI Messages](bot-ai-messages.gif)
+![Agent AI Messages](bot-ai-messages.gif)
 
 ## Prerequisites
 
@@ -23,13 +23,13 @@ Send a message containing one of these keywords:
 | Keyword | Result |
 | --- | --- |
 | `label` | Sends a message marked as AI-generated. |
-| `feedback` | Sends a message with Teams feedback buttons. Submitted feedback is echoed by the bot. |
+| `feedback` | Sends a message with Teams feedback buttons. Submitted feedback is echoed by the agent. |
 | `sensitivity` | Sends a message with a confidentiality label and sharing guidance. |
 | `citation` | Sends an AI response with a numbered Microsoft Word citation. |
 
 Matching is case-insensitive. If a message contains multiple keywords, the first match in the order shown above is used. Any other message returns usage guidance.
 
-## Configure the bot
+## Configure the agent
 
 Create a persistent tunnel for port 3978 with anonymous access:
 
@@ -41,7 +41,7 @@ devtunnel host bot-ai-messages
 
 Create an Azure Bot resource backed by a single-tenant Entra app, set its messaging endpoint to `https://<your-devtunnel-domain>/api/messages`, and enable the Microsoft Teams channel.
 
-Replace the placeholders in `appsettings.json` with the Entra app values. Keep credentials out of source control.
+Create an ignored `appsettings.Development.json` with the Entra app values. It overrides the corresponding values in the checked-in `appsettings.json` when you run the Development launch profile:
 
 ```json
 {
@@ -52,29 +52,21 @@ Replace the placeholders in `appsettings.json` with the Entra app values. Keep c
   "Connections": {
     "ServiceConnection": {
       "Settings": {
-        "AuthType": "ClientSecret",
         "AuthorityEndpoint": "https://login.microsoftonline.com/<tenant-id>",
         "ClientId": "<client-id>",
-        "ClientSecret": "<client-secret>",
-        "Scopes": [ "https://api.botframework.com/.default" ]
+        "ClientSecret": "<client-secret>"
       }
     }
-  },
-  "ConnectionsMap": [
-    {
-      "ServiceUrl": "*",
-      "Connection": "ServiceConnection"
-    }
-  ]
+  }
 }
 ```
 
-Update `appManifest/manifest.json`:
+Update `manifest/manifest.json`:
 
 - Replace `${{AAD_APP_CLIENT_ID}}` with the Entra app client ID.
 - Replace `<<BOT_DOMAIN>>` with the tunnel host name without `https://`.
 
-Zip the contents of `appManifest` so that `manifest.json`, `color.png`, and `outline.png` are at the root of the archive, then upload the package through **Apps > Manage your apps > Upload an app** in Teams.
+Zip the contents of `manifest` so that `manifest.json`, `color.png`, and `outline.png` are at the root of the archive, then upload the package through **Apps > Manage your apps > Upload an app** in Teams.
 
 ## Run the sample
 
@@ -86,7 +78,7 @@ The application listens on `http://localhost:3978` and exposes the bot endpoint 
 
 ## Troubleshooting
 
-- If Teams cannot reach the bot, verify the Dev Tunnels URL is active and the Azure Bot messaging endpoint ends in `/api/messages`.
+- If Teams cannot reach the agent, verify the Dev Tunnels URL is active and the Azure Bot messaging endpoint ends in `/api/messages`.
 - If requests return 401, verify the client ID and tenant ID in `TokenValidation` and the connection settings.
 - If outbound replies fail, verify the client secret and that the Teams channel is enabled on the Azure Bot resource.
 - Use the Azure Bot resource's Channels page to inspect endpoint errors.

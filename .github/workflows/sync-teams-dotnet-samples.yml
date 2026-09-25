@@ -60,6 +60,7 @@ jobs:
       - id: plan
         env:
           SYNC_SAMPLE: ${{ github.event_name == 'schedule' && 'all' || inputs.sample }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           sample_arg=(); [ "$SYNC_SAMPLE" = all ] || sample_arg=(--sample "$SYNC_SAMPLE")
           node "$SYNC_TOOL/dist/cli.js" plan --repo-root . --upstream-root .sync/upstream "${sample_arg[@]}" --output .sync/plan.json

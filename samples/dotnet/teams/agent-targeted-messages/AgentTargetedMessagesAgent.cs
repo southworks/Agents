@@ -90,7 +90,7 @@ public partial class AgentTargetedMessagesAgent(
         }
     }
 
-    [TeamsActivityRoute(ActivityTypes.Invoke, rank: RouteRank.Last)]
+    [TeamsActivityRoute(ActivityTypes.Invoke)]
     public async Task OnSuggestedActionSubmitAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
@@ -334,7 +334,7 @@ public partial class AgentTargetedMessagesAgent(
         CancellationToken cancellationToken)
     {
         const string helpText =
-            "**Personal Reminder Bot - Help**\n\n" +
+            "**Personal Reminder Agent - Help**\n\n" +
             "**Set a Reminder:**\n" +
             "- `remind me in 5 minutes to check email`\n" +
             "- `remind me in 1 hour meeting starts`\n" +
@@ -353,9 +353,9 @@ public partial class AgentTargetedMessagesAgent(
             "- Set reminders for yourself or mention others\n" +
             "- Dismiss or snooze reminders via card buttons\n\n" +
             "**Reactions:**\n" +
-            "- `add-reaction [type]` - Bot adds a reaction to your message\n" +
-            "- `remove-reaction [type]` - Bot removes a reaction from your message\n" +
-            "- React to any bot message and the bot will acknowledge it!";
+            "- `add-reaction [type]` - Agent adds a reaction to your message\n" +
+            "- `remove-reaction [type]` - Agent removes a reaction from your message\n" +
+            "- React to any agent message and the agent will acknowledge it!";
 
         IActivity response = CreateTextActivity(helpText);
         response.SuggestedActions = BuildSuggestedCommands(
@@ -685,7 +685,7 @@ public partial class AgentTargetedMessagesAgent(
         return activity;
     }
 
-    private static IActivity CreateTextActivity(string text) => MessageFactory.Text(text);
+    private static IActivity CreateTextActivity(string text) => Activity.CreateMessageActivity().WithText(text);
 
     private static ChannelAccount CopyAccount(ChannelAccount? account)
     {

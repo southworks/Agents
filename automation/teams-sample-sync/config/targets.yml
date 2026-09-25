@@ -17,7 +17,7 @@ copilot:
 
 packagePolicy:
   targetFramework: net10.0
-  agentsSdkVersion: "1.8.*"
+  minimumAgentsSdkVersion: "1.8"
 
 validatorVersion: "4"
 
@@ -27,7 +27,7 @@ samples:
     destination: agent-targeted-messages
     manifest:
       distribution: sample
-      packageDirectory: appManifest
+      packageDirectory: manifest
       placeholderConvention: double-braces
 
   bot-ai-messages:
@@ -35,7 +35,7 @@ samples:
     destination: bot-ai-messages
     manifest:
       distribution: sample
-      packageDirectory: appManifest
+      packageDirectory: manifest
       placeholderConvention: double-braces
 
   bot-attachments:
@@ -43,7 +43,7 @@ samples:
     destination: bot-attachments
     manifest:
       distribution: sample
-      packageDirectory: appManifest
+      packageDirectory: manifest
       placeholderConvention: double-braces
 
   bot-cards:
@@ -51,7 +51,7 @@ samples:
     destination: bot-cards
     manifest:
       distribution: sample
-      packageDirectory: appManifest
+      packageDirectory: manifest
       placeholderConvention: double-braces
 
   bot-meetings:
@@ -59,7 +59,7 @@ samples:
     destination: bot-meetings
     manifest:
       distribution: sample
-      packageDirectory: appManifest
+      packageDirectory: manifest
       placeholderConvention: double-braces
 
   bot-message-extensions:
@@ -67,7 +67,7 @@ samples:
     destination: bot-message-extensions
     manifest:
       distribution: sample
-      packageDirectory: appPackage
+      packageDirectory: manifest
       placeholderConvention: toolkit
 
   bot-task-modules:
@@ -75,5 +75,5 @@ samples:
     destination: bot-task-modules
     manifest:
       distribution: sample
-      packageDirectory: appManifest
+      packageDirectory: manifest
       placeholderConvention: double-braces

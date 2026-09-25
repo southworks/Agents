@@ -64,7 +64,7 @@ public partial class TeamsSampleContracts
 
         await host.CreateTestFlow()
             .Send("unknown")
-            .AssertReplyContains("Welcome to the AI bot")
+            .AssertReplyContains("Welcome to the AI agent")
             .AssertNoMoreReplies()
             .StartTestAsync();
     }

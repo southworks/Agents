@@ -111,8 +111,8 @@ public partial class BotTaskModulesAgent(
         string email = request.GetDataString("email");
 
         await turnContext.SendActivityAsync(
-            MessageFactory.Text($"Hi {name}, thanks for submitting! Your email is {email}"),
-            cancellationToken);
+            $"Hi {name}, thanks for submitting! Your email is {email}",
+            cancellationToken: cancellationToken);
 
         return new TaskResponse(new MessageTask("Multi-step form completed!"));
     }
@@ -128,8 +128,8 @@ public partial class BotTaskModulesAgent(
         string email = request.GetDataString("email");
 
         await turnContext.SendActivityAsync(
-            MessageFactory.Text($"Hi {name}, thanks for submitting! Your email is {email}"),
-            cancellationToken);
+            $"Hi {name}, thanks for submitting! Your email is {email}",
+            cancellationToken: cancellationToken);
 
         return new TaskResponse(new MessageTask("Form submitted successfully"));
     }
@@ -144,8 +144,8 @@ public partial class BotTaskModulesAgent(
         string userText = request.GetDataString("usertext");
 
         await turnContext.SendActivityAsync(
-            MessageFactory.Text($"You submitted: {userText}"),
-            cancellationToken);
+            $"You submitted: {userText}",
+            cancellationToken: cancellationToken);
 
         return new TaskResponse(new MessageTask("Thanks for submitting!"));
     }

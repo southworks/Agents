@@ -38,9 +38,8 @@ public partial class BotCardsAgent(AgentApplicationOptions options) : AgentAppli
         ITurnState turnState,
         CancellationToken cancellationToken)
         => turnContext.SendActivityAsync(
-            MessageFactory.Text(
-                "Welcome to the Cards Bot! To interact with me, send one of the following commands: 'card actions' or 'toggle visibility'"),
-            cancellationToken);
+            "Welcome to the Cards Agent! To interact with me, send one of the following commands: 'card actions' or 'toggle visibility'",
+            cancellationToken: cancellationToken);
 
     [ActionExecuteRoute("submit_name")]
     public Task<AdaptiveCardInvokeResponse> OnSubmitNameAsync(

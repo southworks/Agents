@@ -1,8 +1,8 @@
-# Bot Attachments Sample
+# Agent Attachments Sample
 
 This sample demonstrates how to receive file attachments in Microsoft Teams, request file consent, and upload accepted files to the user's OneDrive using the Microsoft 365 Agents SDK and its Teams extension.
 
-![Bot Attachments](bot-attachments.gif)
+![Agent Attachments](bot-attachments.gif)
 
 ## Features
 
@@ -20,7 +20,7 @@ This sample demonstrates how to receive file attachments in Microsoft Teams, req
 
 ## Configure the sample
 
-Update `appsettings.json` with the client ID, tenant ID, and client secret from your Azure Bot registration:
+Create an ignored `appsettings.Development.json` with the client ID, tenant ID, and client secret from your Azure Bot registration. It overrides the corresponding values in the checked-in `appsettings.json` when you run the Development launch profile:
 
 ```json
 {
@@ -65,7 +65,7 @@ The agent listens on `http://localhost:3978`.
 
 Ensure the Azure Bot has the Microsoft Teams channel enabled. Create or update a Teams app package whose bot ID is your client ID and whose bot scopes include `personal`, then upload the package as a custom app in Teams. No resource-specific consent or Graph permissions are required.
 
-Attach a file or image in a personal chat with the bot. The bot downloads the attachment and displays a file consent card. Accepting the card starts the OneDrive upload; declining it removes the pending file.
+Attach a file or image in a personal chat with the agent. The agent downloads the attachment and displays a file consent card. Accepting the card starts the OneDrive upload; declining it removes the pending file.
 
 ## Further reading
 

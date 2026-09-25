@@ -8,25 +8,52 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { SyncError } from './config.js'
 import type { PlanSample, State, ValidationResult } from './types.js'
-export const statePath = (repo: string, sample: string): string => path.join(repo, 'automation/teams-sample-sync/state', `${sample}.lock.json`)
+export const statePath = (repo: string, sample: string): string =>
+  path.join(repo, 'automation/teams-sample-sync/state', `${sample}.lock.json`)
 
-const REQUIRED_COMPONENT_DIGESTS = ['sourceTree', 'target', 'protection', 'migrationSkill', 'manifestSkill', 'canonicalSample', 'copilot', 'packagePolicy', 'validator', 'syncSkill']
+const REQUIRED_COMPONENT_DIGESTS = [
+  'sourceTree',
+  'target',
+  'protection',
+  'migrationSkill',
+  'manifestSkill',
+  'canonicalSample',
+  'copilot',
+  'packagePolicy',
+  'validator',
+  'syncSkill',
+]
 
 function validateStateEnvelope (value: State, sample: string): void {
-  if (value.version !== 2 || value.sample !== sample || value.status !== 'verified' ||
-      typeof value.upstreamCommit !== 'string' || typeof value.sourceTree !== 'string' ||
-      typeof value.inputDigest !== 'string' || typeof value.outputDigest !== 'string' ||
-      !value.componentDigests || typeof value.componentDigests !== 'object') {
+  if (
+    value.version !== 2 ||
+    value.sample !== sample ||
+    value.status !== 'verified' ||
+    typeof value.upstreamCommit !== 'string' ||
+    typeof value.sourceTree !== 'string' ||
+    typeof value.inputDigest !== 'string' ||
+    typeof value.outputDigest !== 'string' ||
+    !value.componentDigests ||
+    typeof value.componentDigests !== 'object'
+  ) {
     throw new SyncError('Invalid version-2 state')
   }
 }
 
 export function readState (repo: string, sample: string): State | undefined {
   const file = statePath(repo, sample)
-  if (!existsSync(file)) return undefined
+  if (!existsSync(file)) {
+    return undefined
+  }
   let value: unknown
-  try { value = JSON.parse(readFileSync(file, 'utf8')) } catch { throw new SyncError(`Invalid state JSON: ${file}`) }
-  if (!value || typeof value !== 'object' || (value as { version?: unknown }).version !== 2) return undefined
+  try {
+    value = JSON.parse(readFileSync(file, 'utf8'))
+  } catch {
+    throw new SyncError(`Invalid state JSON: ${file}`)
+  }
+  if (!value || typeof value !== 'object' || (value as { version?: unknown }).version !== 2) {
+    return undefined
+  }
   const candidate = value as State
   validateStateEnvelope(candidate, sample)
   validateState(candidate, sample)
@@ -35,13 +62,26 @@ export function readState (repo: string, sample: string): State | undefined {
 
 export function readPriorState (repo: string, sample: string): Pick<State, 'upstreamCommit' | 'sourceTree'> | undefined {
   const file = statePath(repo, sample)
-  if (!existsSync(file)) return undefined
+  if (!existsSync(file)) {
+    return undefined
+  }
   let value: unknown
-  try { value = JSON.parse(readFileSync(file, 'utf8')) } catch { throw new SyncError(`Invalid state JSON: ${file}`) }
-  if (!value || typeof value !== 'object') return undefined
+  try {
+    value = JSON.parse(readFileSync(file, 'utf8'))
+  } catch {
+    throw new SyncError(`Invalid state JSON: ${file}`)
+  }
+  if (!value || typeof value !== 'object') {
+    return undefined
+  }
   const candidate = value as Record<string, unknown>
-  if ((candidate.version !== 1 && candidate.version !== 2) ||
-      typeof candidate.upstreamCommit !== 'string' || typeof candidate.sourceTree !== 'string') return undefined
+  if (
+    (candidate.version !== 1 && candidate.version !== 2) ||
+    typeof candidate.upstreamCommit !== 'string' ||
+    typeof candidate.sourceTree !== 'string'
+  ) {
+    return undefined
+  }
   return { upstreamCommit: candidate.upstreamCommit, sourceTree: candidate.sourceTree }
 }
 

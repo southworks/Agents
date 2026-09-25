@@ -4,22 +4,21 @@
   "version": "1.0.0",
   "id": "${{AAD_APP_CLIENT_ID}}",
   "developer": {
-    "name": "Microsoft, Inc.",
-    "websiteUrl": "https://example.azurewebsites.net",
-    "privacyUrl": "https://example.azurewebsites.net/privacy",
-    "termsOfUseUrl": "https://example.azurewebsites.net/termsofuse"
+    "name": "Microsoft",
+    "websiteUrl": "https://example.com",
+    "privacyUrl": "https://example.com/privacy",
+    "termsOfUseUrl": "https://example.com/terms"
   },
   "icons": {
     "color": "color.png",
     "outline": "outline.png"
   },
   "name": {
-    "short": "Bot AI Messages",
-    "full": "Bot AI Messages"
+    "short": "Agent Attachments"
   },
   "description": {
-    "short": "Demonstrates AI labels, citations, feedback, and sensitivity labels.",
-    "full": "Demonstrates AI-generated content labels, citations, feedback buttons, and sensitivity labels in Microsoft Teams bot messages."
+    "short": "Teams file-consent and OneDrive upload sample.",
+    "full": "Demonstrates file consent cards and OneDrive uploads for attachments sent to a Microsoft Teams agent."
   },
   "accentColor": "#FFFFFF",
   "bots": [
@@ -28,7 +27,7 @@
       "scopes": [
         "personal"
       ],
-      "supportsFiles": false,
+      "supportsFiles": true,
       "isNotificationOnly": false
     }
   ],

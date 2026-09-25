@@ -1,15 +1,15 @@
-# Bot Cards Sample
+# Agent Cards Sample
 
-This sample demonstrates how to interact with adaptive cards in Microsoft Teams using a bot built with the Microsoft 365 Agents SDK and its Teams extension.
+This sample demonstrates how to interact with adaptive cards in Microsoft Teams using an agent built with the Microsoft 365 Agents SDK and its Teams extension.
 
-![Bot Cards](bot-cards.gif)
+![Agent Cards](bot-cards.gif)
 
 ## Features
 
 - **Card Actions** - Adaptive card with `Action.OpenUrl`, `Action.Execute`, and nested `Action.ShowCard` behaviors.
 - **Toggle Visibility** - Adaptive card with `Action.ToggleVisibility` to show or hide content.
 
-The bot responds to these commands:
+The agent responds to these commands:
 
 | Command | Description |
 |---|---|
@@ -24,7 +24,7 @@ The bot responds to these commands:
 
 ## Configure the sample
 
-Update `appsettings.json` with the client ID, tenant ID, and client secret from your Azure Bot registration:
+Create an ignored `appsettings.Development.json` with the client ID, tenant ID, and client secret from your Azure Bot registration. It overrides the corresponding values in the checked-in `appsettings.json` when you run the Development launch profile:
 
 ```json
 {

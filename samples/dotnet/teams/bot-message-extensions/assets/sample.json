@@ -2,7 +2,7 @@
   {
     "name": "officedev-microsoft-teams-samples-bot-message-extensions-dotnet",
     "source": "officeDev",
-    "title": "Bot Message Extensions - Search Based Messaging Extension",
+    "title": "Agent Message Extensions - Search Based Messaging Extension",
     "shortDescription": "This dotnet sample demonstrates how to create a search-based messaging extension in Microsoft Teams that allows users to perform searches and retrieve results.",
     "url": "https://github.com/microsoft/Agents/tree/main/samples/dotnet/teams/bot-message-extensions",
     "longDescription": [

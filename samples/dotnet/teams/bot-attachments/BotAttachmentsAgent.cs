@@ -82,8 +82,8 @@ public partial class BotAttachmentsAgent : AgentApplication
         }
 
         await turnContext.SendActivityAsync(
-            MessageFactory.Text("Welcome to the Bot Attachments sample! Please attach a file or image to save to your OneDrive!"),
-            cancellationToken);
+            "Welcome to the Agent Attachments sample! Please attach a file or image to save to your OneDrive!",
+            cancellationToken: cancellationToken);
     }
 
     [TeamsFileConsentAcceptRoute]
