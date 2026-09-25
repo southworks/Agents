@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.4.11702.344
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StreamingMessageAgent", "azure-ai-streaming\StreamingMessageAgent.csproj", "{6547D985-7762-488D-9ADC-1BC3FD62AF66}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AzureAIStreaming", "azure-ai-streaming\AzureAIStreaming.csproj", "{6547D985-7762-488D-9ADC-1BC3FD62AF66}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CopilotStudioClient", "copilotstudio-client\CopilotStudioClient.csproj", "{355B8CA0-6C85-4C42-B68A-2736624D0B2F}"
 EndProject
@@ -56,6 +56,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTaskModules", "teams\bot-task-modules\BotTaskModules.csproj", "{F663024D-F06C-4820-944A-F2AAA08A8D14}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeamsSampleSync.ContractTests", "..\..\automation\teams-sample-sync\tests\contracts\TeamsSampleSync.ContractTests.csproj", "{C148F8B4-6DCF-4C69-8305-905FED64040A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cards", "cards\Cards.csproj", "{980A9439-C322-473A-9664-FF45FED029A5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -163,6 +165,10 @@ Global
 		{C148F8B4-6DCF-4C69-8305-905FED64040A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C148F8B4-6DCF-4C69-8305-905FED64040A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C148F8B4-6DCF-4C69-8305-905FED64040A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{980A9439-C322-473A-9664-FF45FED029A5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{980A9439-C322-473A-9664-FF45FED029A5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{980A9439-C322-473A-9664-FF45FED029A5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{980A9439-C322-473A-9664-FF45FED029A5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
