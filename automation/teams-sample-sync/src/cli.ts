@@ -403,6 +403,7 @@ export async function main (argv = process.argv.slice(2)): Promise<number> {
     if (command === 'publish-pr') {
       const sample = required(values, 'sample')
       const pullRequest = publishDraftPr(
+        repo,
         required(values, 'branch'),
         `Sync Teams SDK sample: ${sample}`,
         resolveOption(required(values, 'body-file')),

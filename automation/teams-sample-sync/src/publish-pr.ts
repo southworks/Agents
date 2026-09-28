@@ -9,10 +9,10 @@ export interface PullRequest {
   url: string
 }
 
-export type GitHubCommand = (arguments_: string[]) => string
+export type GitHubCommand = (arguments_: string[], repo: string) => string
 
-function openPullRequests (branch: string, gh: GitHubCommand): PullRequest[] {
-  const response = gh(['pr', 'list', '--head', branch, '--state', 'open', '--json', 'number,headRefName,headRefOid,url'])
+function openPullRequests (repo: string, branch: string, gh: GitHubCommand): PullRequest[] {
+  const response = gh(['pr', 'list', '--head', branch, '--state', 'open', '--json', 'number,headRefName,headRefOid,url'], repo)
   const parsed: unknown = JSON.parse(response)
   if (!Array.isArray(parsed)) {
     throw new SyncError('GitHub returned an invalid pull request list')
@@ -21,22 +21,23 @@ function openPullRequests (branch: string, gh: GitHubCommand): PullRequest[] {
 }
 
 export function publishDraftPr (
+  repo: string,
   branch: string,
   title: string,
   bodyFile: string,
   expectedHead: string,
-  gh: GitHubCommand = (arguments_) => execFileSync('gh', arguments_, { encoding: 'utf8' })
+  gh: GitHubCommand = (arguments_, cwd) => execFileSync('gh', arguments_, { cwd, encoding: 'utf8' })
 ): PullRequest {
-  const existing = openPullRequests(branch, gh)
+  const existing = openPullRequests(repo, branch, gh)
   if (existing.length > 1) {
     throw new SyncError(`Multiple open pull requests found for ${branch}`)
   }
   if (existing.length === 0) {
-    gh(['pr', 'create', '--draft', '--head', branch, '--title', title, '--body-file', bodyFile])
+    gh(['pr', 'create', '--draft', '--head', branch, '--title', title, '--body-file', bodyFile], repo)
   } else {
-    gh(['pr', 'edit', String(existing[0]!.number), '--title', title, '--body-file', bodyFile])
+    gh(['pr', 'edit', String(existing[0]!.number), '--title', title, '--body-file', bodyFile], repo)
   }
-  const published = openPullRequests(branch, gh)
+  const published = openPullRequests(repo, branch, gh)
   if (
     published.length !== 1 ||
     published[0]?.headRefName !== branch ||
