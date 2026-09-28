@@ -188,5 +188,4 @@ jobs:
           git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git fetch origin "$branch:refs/remotes/origin/$branch" || true; git checkout -B "$branch"
           git commit -m "Sync Teams SDK sample: $SYNC_SAMPLE"; git push --force-with-lease origin "$branch"
-          number="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number')"
-          if [ "$number" = null ]; then gh pr create --draft --head "$branch" --title "Sync Teams SDK sample: $SYNC_SAMPLE" --body-file .sync/result/pr-body.md; else gh pr edit "$number" --title "Sync Teams SDK sample: $SYNC_SAMPLE" --body-file .sync/result/pr-body.md; fi
+          node "$SYNC_TOOL/dist/cli.js" publish-pr --repo-root . --sample "$SYNC_SAMPLE" --branch "$branch" --head-sha "$(git rev-parse HEAD)" --body-file .sync/result/pr-body.md

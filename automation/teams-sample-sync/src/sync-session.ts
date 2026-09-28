@@ -18,6 +18,7 @@ export interface MigrationSessionOptions {
   output: string
   session: ImplementationSession
   validate: () => Promise<ValidationResult>
+  sampleChanges?: () => string[]
   deadlineMs?: number
 }
 export type MigrationOutcome = 'changed' | 'no-changes'
@@ -226,31 +227,63 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
     selfAudit = formatted.selfAudit
     let outcome = formatted.outcome
     let validation = await bounded(options.validate())
-    if (validation.passed) {
-      assertFullValidation(validation, options.sample)
-      return { plan, planHash, selfAudit, outcome, validation, repairPasses: 0 }
-    }
-    if (!validation.repairable) {
-      throw new SyncError(`Validation infrastructure failure: ${validation.errors.join('\n')}`)
-    }
-    selfAudit = await bounded(
-      options.session.send(
-        [
-          `The frozen plan ${planHash} remains unchanged. Proceed autonomously; do not ask for confirmation.`,
-          'Repair these deterministic validation failures in the selected sample; do not explain away a semantic mismatch.',
-          'Re-open the affected files, make the required correction, run full validation, then return a terminal',
-          'Markdown response headed "## Self-audit" with "Outcome: changed" or "Outcome: no changes required"',
-          `on its own next line, without revising the plan: ${JSON.stringify(validation.errors)}`,
-        ].join(' '),
-        'Repairing validation failures'
+    let repairPasses = 0
+    if (!validation.passed) {
+      if (!validation.repairable) {
+        throw new SyncError(`Validation infrastructure failure: ${validation.errors.join('\n')}`)
+      }
+      selfAudit = await bounded(
+        options.session.send(
+          [
+            `The frozen plan ${planHash} remains unchanged. Proceed autonomously; do not ask for confirmation.`,
+            'Repair these deterministic validation failures in the selected sample; do not explain away a semantic mismatch.',
+            'Re-open the affected files, make the required correction, run full validation, then return a terminal',
+            'Markdown response headed "## Self-audit" with "Outcome: changed" or "Outcome: no changes required"',
+            `on its own next line, without revising the plan: ${JSON.stringify(validation.errors)}`,
+          ].join(' '),
+          'Repairing validation failures'
+        )
       )
-    )
-    formatted = await completedSelfAudit(selfAudit)
-    selfAudit = formatted.selfAudit
-    outcome = formatted.outcome
-    validation = await bounded(options.validate())
+      formatted = await completedSelfAudit(selfAudit)
+      selfAudit = formatted.selfAudit
+      outcome = formatted.outcome
+      validation = await bounded(options.validate())
+      repairPasses = 1
+    }
     assertFullValidation(validation, options.sample)
-    return { plan, planHash, selfAudit, outcome, validation, repairPasses: 1 }
+    if (options.sampleChanges) {
+      const changes = options.sampleChanges()
+      const mismatch = (outcome === 'changed') !== (changes.length > 0)
+      if (mismatch) {
+        selfAudit = await bounded(
+          options.session.send(
+            [
+              `The frozen plan ${planHash} remains unchanged.`,
+              `Your self-audit says "${outcome}", but the selected sample's actual changed files are: ${JSON.stringify(changes)}.`,
+              'Reconcile the frozen plan with the final files. If a required edit is missing, make that edit in the',
+              'selected sample. If no edit is required, correct the self-audit. Do not claim an edit that has no diff.',
+              'Run full validation and return "## Self-audit" with the accurate Outcome line and plan reconciliation.',
+            ].join(' '),
+            'Reconciling migration outcome'
+          )
+        )
+        formatted = await completedSelfAudit(selfAudit)
+        selfAudit = formatted.selfAudit
+        outcome = formatted.outcome
+        validation = await bounded(options.validate())
+        assertFullValidation(validation, options.sample)
+        repairPasses += 1
+      }
+      const finalChanges = options.sampleChanges()
+      try {
+        assertOutcomeMatchesSampleChanges(outcome, finalChanges)
+      } catch {
+        throw new SyncError(
+          `Implementer outcome "${outcome}" disagrees with selected-sample changed files: ${JSON.stringify(finalChanges)}`
+        )
+      }
+    }
+    return { plan, planHash, selfAudit, outcome, validation, repairPasses }
   } finally {
     clearTimeout(timer)
     if (expired) {
