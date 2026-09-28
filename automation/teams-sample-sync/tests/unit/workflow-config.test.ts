@@ -38,5 +38,6 @@ describe('workflow configuration', () => {
     assert.deepEqual(schedule, [{ cron: '0 0 * * 0' }])
     assert.match(JSON.stringify(plan), /github\.event_name == 'schedule' && 'all' \|\| inputs\.sample/)
     assert.match(String(publish.if), /github\.event_name == 'schedule' \|\| inputs\.createPr/)
+    assert.match(JSON.stringify(publish), /publish-pr --repo-root \. --sample/)
   })
 })

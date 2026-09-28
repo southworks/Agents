@@ -14,8 +14,15 @@ migration plan without write permission. The coordinator saves and hashes that p
 session then uses the Teams-to-Agents and manifest skills to implement it, validate its work, and
 self-audit the final files against the frozen plan. The workflow independently runs the full
 validator, allows one repair turn for deterministic failures, and publishes only a verified patch.
+If the implementer's reported outcome disagrees with the selected sample's actual changed files,
+the session gets one reconciliation turn and another full validation pass. A continuing mismatch fails
+the sample.
 When verification finds that no selected-sample file needs a change, the published patch contains
 only synchronization state and is explicitly reported as **no changes required**.
+
+Publishing creates a draft PR when the branch has no open PR, including when an older PR for that
+branch is closed. It edits an existing open PR by number and checks that an open PR points to the
+pushed commit before the job succeeds. Each publish job adds the verified PR link to its run summary.
 
 Copilot uses Auto routing. The workflow records the observed model for diagnosis but does not
 select a model, enumerate a model catalog, or force a reasoning effort.
