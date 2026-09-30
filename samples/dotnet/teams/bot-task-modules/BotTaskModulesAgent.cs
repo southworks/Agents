@@ -54,9 +54,9 @@ public partial class BotTaskModulesAgent(
             ],
             Actions =
             [
-                CreateTaskFetchAction("Adaptive Card", "AdaptiveCard"),
-                CreateTaskFetchAction("Custom Form", "CustomForm"),
-                CreateTaskFetchAction("Multi-step Form", "MultiStep")
+                CreateTaskFetchAction("Adaptive Card", "adaptive_card"),
+                CreateTaskFetchAction("Custom Form", "custom_form"),
+                CreateTaskFetchAction("Multi-step Form", "multi_step_form")
             ]
         };
 
@@ -65,7 +65,7 @@ public partial class BotTaskModulesAgent(
             cancellationToken);
     }
 
-    [TeamsTaskFetchRoute("AdaptiveCard", key: "data")]
+    [TeamsTaskFetchRoute("adaptive_card", key: "opendialogtype")]
     public Task<TaskResponse> OnAdaptiveCardFetchAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
@@ -73,7 +73,15 @@ public partial class BotTaskModulesAgent(
         CancellationToken cancellationToken)
         => Task.FromResult(CreateAdaptiveCardTask());
 
-    [TeamsTaskFetchRoute("CustomForm", key: "data")]
+    [TeamsTaskFetchRoute("AdaptiveCard", key: "data", rank: 50)]
+    public Task<TaskResponse> OnAdaptiveCardFetchDataKeyAsync(
+        ITeamsTurnContext turnContext,
+        ITurnState turnState,
+        Request request,
+        CancellationToken cancellationToken)
+        => Task.FromResult(CreateAdaptiveCardTask());
+
+    [TeamsTaskFetchRoute("custom_form", key: "opendialogtype")]
     public Task<TaskResponse> OnCustomFormFetchAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
@@ -81,7 +89,15 @@ public partial class BotTaskModulesAgent(
         CancellationToken cancellationToken)
         => Task.FromResult(CreateCustomFormTask());
 
-    [TeamsTaskFetchRoute("MultiStep", key: "data")]
+    [TeamsTaskFetchRoute("CustomForm", key: "data", rank: 50)]
+    public Task<TaskResponse> OnCustomFormFetchDataKeyAsync(
+        ITeamsTurnContext turnContext,
+        ITurnState turnState,
+        Request request,
+        CancellationToken cancellationToken)
+        => Task.FromResult(CreateCustomFormTask());
+
+    [TeamsTaskFetchRoute("multi_step_form", key: "opendialogtype")]
     public Task<TaskResponse> OnMultiStepFetchAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
@@ -89,7 +105,15 @@ public partial class BotTaskModulesAgent(
         CancellationToken cancellationToken)
         => Task.FromResult(CreateMultiStepOneTask());
 
-    [TeamsTaskSubmitRoute("multi_step_1", key: "submissiontype", rank: 10)]
+    [TeamsTaskFetchRoute("MultiStep", key: "data", rank: 50)]
+    public Task<TaskResponse> OnMultiStepFetchDataKeyAsync(
+        ITeamsTurnContext turnContext,
+        ITurnState turnState,
+        Request request,
+        CancellationToken cancellationToken)
+        => Task.FromResult(CreateMultiStepOneTask());
+
+    [TeamsTaskSubmitRoute("multi_step_1", key: "submissiondialogtype", rank: 10)]
     public Task<TaskResponse> OnMultiStepOneSubmitAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
@@ -100,7 +124,7 @@ public partial class BotTaskModulesAgent(
         return Task.FromResult(CreateMultiStepTwoTask(name));
     }
 
-    [TeamsTaskSubmitRoute("multi_step_2", key: "submissiontype", rank: 20)]
+    [TeamsTaskSubmitRoute("multi_step_2", key: "submissiondialogtype", rank: 20)]
     public async Task<TaskResponse> OnMultiStepTwoSubmitAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
@@ -117,7 +141,7 @@ public partial class BotTaskModulesAgent(
         return new TaskResponse(new MessageTask("Multi-step form completed!"));
     }
 
-    [TeamsTaskSubmitRoute("custom_form", key: "submissiontype", rank: 30)]
+    [TeamsTaskSubmitRoute("custom_form", key: "submissiondialogtype", rank: 30)]
     public async Task<TaskResponse> OnCustomFormSubmitAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
@@ -211,7 +235,7 @@ public partial class BotTaskModulesAgent(
             [
                 new SubmitAction()
                     .WithTitle("Next")
-                    .WithData(CreateSubmitData(("submissiontype", "multi_step_1")))
+                    .WithData(CreateSubmitData(("submissiondialogtype", "multi_step_1")))
             ]
         };
 
@@ -246,7 +270,7 @@ public partial class BotTaskModulesAgent(
                 new SubmitAction()
                     .WithTitle("Submit")
                     .WithData(CreateSubmitData(
-                        ("submissiontype", "multi_step_2"),
+                        ("submissiondialogtype", "multi_step_2"),
                         ("name", name)))
             ]
         };
@@ -276,7 +300,7 @@ public partial class BotTaskModulesAgent(
             .WithTitle(title)
             .WithData(CreateSubmitData(
                 ("msteams", new TaskFetchSubmitActionData()),
-                ("data", value)));
+                ("opendialogtype", value)));
 
     private static TaskResponse ContinueWith(
         string title,
