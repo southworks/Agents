@@ -89,7 +89,7 @@ public partial class BotTaskModulesAgent(
         CancellationToken cancellationToken)
         => Task.FromResult(CreateMultiStepOneTask());
 
-    [TeamsTaskSubmitRoute("multi_step_1", key: "submissiontype", rank: 10)]
+    [TeamsTaskSubmitRoute("multi_step_1", key: "submissiondialogtype", rank: 10)]
     public Task<TaskResponse> OnMultiStepOneSubmitAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
@@ -100,7 +100,7 @@ public partial class BotTaskModulesAgent(
         return Task.FromResult(CreateMultiStepTwoTask(name));
     }
 
-    [TeamsTaskSubmitRoute("multi_step_2", key: "submissiontype", rank: 20)]
+    [TeamsTaskSubmitRoute("multi_step_2", key: "submissiondialogtype", rank: 20)]
     public async Task<TaskResponse> OnMultiStepTwoSubmitAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
@@ -117,7 +117,7 @@ public partial class BotTaskModulesAgent(
         return new TaskResponse(new MessageTask("Multi-step form completed!"));
     }
 
-    [TeamsTaskSubmitRoute("custom_form", key: "submissiontype", rank: 30)]
+    [TeamsTaskSubmitRoute("custom_form", key: "submissiondialogtype", rank: 30)]
     public async Task<TaskResponse> OnCustomFormSubmitAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
@@ -211,7 +211,7 @@ public partial class BotTaskModulesAgent(
             [
                 new SubmitAction()
                     .WithTitle("Next")
-                    .WithData(CreateSubmitData(("submissiontype", "multi_step_1")))
+                    .WithData(CreateSubmitData(("submissiondialogtype", "multi_step_1")))
             ]
         };
 
@@ -246,7 +246,7 @@ public partial class BotTaskModulesAgent(
                 new SubmitAction()
                     .WithTitle("Submit")
                     .WithData(CreateSubmitData(
-                        ("submissiontype", "multi_step_2"),
+                        ("submissiondialogtype", "multi_step_2"),
                         ("name", name)))
             ]
         };
