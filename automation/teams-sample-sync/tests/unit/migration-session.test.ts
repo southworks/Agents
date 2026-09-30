@@ -79,6 +79,51 @@ describe('migration session', () => {
     }
   })
 
+  it('accepts a long Markdown summary without shortening it', async () => {
+    const output = mkdtempSync(path.join(os.tmpdir(), 'teams-sync-session-'))
+    const longSummary = 'Removed redundant storage registration and added example launch profiles; verified the meeting event handlers, manifest, configuration, and documentation against the Agents SDK migration plan. The sample also passed project, restore, build, manifest, HTTP smoke, and contract checks.'
+    const session = new FakeSession([
+      '## Migration plan\n- Update meeting setup',
+      `## Self-audit\nOutcome: changed\n**Summary:** ${longSummary}`,
+    ])
+    try {
+      const result = await runMigrationSession({
+        sample: 'sample-a',
+        contextFile: '.sync/context/sync-context.json',
+        output,
+        session,
+        validate: async () => validation(true, 'ready'),
+      })
+      assert.equal(result.summary, longSummary)
+      assert.equal(session.phases.length, 2)
+    } finally {
+      rmSync(output, { recursive: true, force: true })
+    }
+  })
+
+  it('uses a safe fallback when the summary-only retry is malformed', async () => {
+    const output = mkdtempSync(path.join(os.tmpdir(), 'teams-sync-session-'))
+    const session = new FakeSession([
+      '## Migration plan\n- Update meeting setup',
+      '## Self-audit\nOutcome: changed\n- Meeting setup updated',
+      'Here is the completed migration summary without the requested label.',
+    ])
+    try {
+      const result = await runMigrationSession({
+        sample: 'sample-a',
+        contextFile: '.sync/context/sync-context.json',
+        output,
+        session,
+        validate: async () => validation(true, 'ready'),
+      })
+      assert.equal(result.summary, 'Updated sample-a and passed automated validation.')
+      assert.equal(session.phases[2], 'Summarizing verified migration')
+      assert.equal(session.writableStates[2], false)
+    } finally {
+      rmSync(output, { recursive: true, force: true })
+    }
+  })
+
   it('freezes the plan before implementation and repairs validation once', async () => {
     const output = mkdtempSync(path.join(os.tmpdir(), 'teams-sync-session-'))
     const session = new FakeSession([

@@ -94,12 +94,23 @@ describe('coordinated publication gate', () => {
     }
   })
 
-  it('does not publish a changed sample without a concise summary', () => {
+  it('does not publish a changed sample without a summary', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'teams-sync-results-'))
     try {
       writeResult(directory, result(samples[0]!))
       writeResult(directory, result(samples[1]!, { summary: '' }))
       assert.throws(() => publishableResults(plan, directory, baseSha), /not publishable for bot-meetings/)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('accepts a validated sample with a longer summary', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'teams-sync-results-'))
+    try {
+      writeResult(directory, result(samples[0]!))
+      writeResult(directory, result(samples[1]!, { summary: 'Verified meeting behavior. '.repeat(12) }))
+      assert.equal(publishableResults(plan, directory, baseSha).length, 2)
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }

@@ -62,7 +62,7 @@ describe('synchronization reports', () => {
     assert.match(summary, /first\\\\second\\\\third/)
   })
 
-  it('keeps the PR description short and links to detailed evidence', () => {
+  it('renders full sample summaries and links to detailed evidence', () => {
     const first = result({
       sample: 'bot-cards',
       status: 'updated',
@@ -102,6 +102,15 @@ describe('synchronization reports', () => {
     assert.match(body, /artifacts\/789/)
     assert.match(body, /workflow summary and validation results/)
     assert.doesNotMatch(body, /self-audit\n|Teams sign-in|Frozen migration plan/)
+
+    const longSummary = 'Updated the card action and verified its manifest. '.repeat(10).trim()
+    const longBody = combinedPrBody(
+      [{ ...first, summary: longSummary }],
+      runUrl,
+      artifactUrls
+    )
+    const sampleLine = longBody.split('\n').find((line) => line.startsWith('- **bot-cards:** '))
+    assert.equal(sampleLine, `- **bot-cards:** ${longSummary}`)
 
     const issue = handoffIssueBody(
       [first, second],

@@ -77,8 +77,12 @@ function summaryFromSelfAudit (value: string, outcome: MigrationOutcome): string
   if (outcome === 'no-changes') {
     return 'Verified that no sample code changes were required; synchronization state was updated.'
   }
-  const summary = /^Summary:[ \t]*(.+)$/im.exec(value)?.[1]?.replace(/\s+/g, ' ').trim()
-  return summary && summary.length <= 220 ? summary : undefined
+  const summaries = Array.from(
+    value.matchAll(/^(?:\*\*)?Summary:(?:\*\*)?[ \t]*(.+)$/gim),
+    (match) => match[1]!.replace(/\s+/g, ' ').trim()
+  )
+  const summary = summaries.filter(Boolean).at(-1)
+  return summary || undefined
 }
 
 export function assertOutcomeMatchesSampleChanges (outcome: MigrationOutcome, changes: string[]): void {
@@ -312,7 +316,7 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
         options.session.send(
           [
             'Format only: based on your completed, validated self-audit, return exactly one line beginning',
-            '"Summary:" followed by a concrete, plain-language sentence (at most 220 characters) explaining',
+            '"Summary:" followed by a concrete, plain-language sentence (aim for about 200 characters) explaining',
             'what changed in this sample. Do not inspect files, invoke tools, or edit files.',
           ].join(' '),
           'Summarizing verified migration'
@@ -320,7 +324,7 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
       )
       summary = summaryFromSelfAudit(response, outcome)
       if (!summary) {
-        throw new SyncError('Implementer did not provide a concise sample summary')
+        summary = `Updated ${options.sample} and passed automated validation.`
       }
     }
     return { plan, planHash, selfAudit, summary, outcome, validation, repairPasses }
