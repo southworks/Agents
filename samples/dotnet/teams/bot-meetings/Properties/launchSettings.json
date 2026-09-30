@@ -1,5 +1,15 @@
 {
   "profiles": {
+    "localhost": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:3978",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "AzureAd__DangerouslyAllowUnauthenticatedRequests": "true"
+      }
+    },
     "BotMeetings": {
       "commandName": "Project",
       "launchBrowser": true,
