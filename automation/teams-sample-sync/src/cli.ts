@@ -229,6 +229,7 @@ export async function migrateCandidate (
         session,
         validate: () => validateTool(host, 'all'),
         sampleChanges: () => changedPaths(repo, baseSha).filter((item) => item.startsWith(`${sampleRelative}/`)),
+        sampleDiff: () => git(repo, ['diff', '--no-ext-diff', '--unified=3', baseSha, '--', sampleRelative]) as string,
       })
       result.validation = migration.validation
       result.outputDigest = migration.validation.outputDigest

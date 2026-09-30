@@ -19,6 +19,7 @@ export interface MigrationSessionOptions {
   session: ImplementationSession
   validate: () => Promise<ValidationResult>
   sampleChanges?: () => string[]
+  sampleDiff?: () => string
   deadlineMs?: number
 }
 export type MigrationOutcome = 'changed' | 'no-changes'
@@ -268,13 +269,20 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
       const changes = options.sampleChanges()
       const mismatch = (outcome === 'changed') !== (changes.length > 0)
       if (mismatch) {
+        const diff = options.sampleDiff?.() ?? ''
+        const diffLimit = 16_000
+        const diffEvidence = diff
+          ? `${diff.slice(0, diffLimit)}${diff.length > diffLimit ? '\n[Diff truncated; inspect remaining changes before deciding.]' : ''}`
+          : '[No tracked diff available; inspect the listed files, including any untracked files.]'
         selfAudit = await bounded(
           options.session.send(
             [
               `The frozen plan ${planHash} remains unchanged.`,
               `Your self-audit says "${outcome}", but the selected sample's actual changed files are: ${JSON.stringify(changes)}.`,
-              'Reconcile the frozen plan with the final files. If a required edit is missing, make that edit in the',
-              'selected sample. If no edit is required, correct the self-audit. Do not claim an edit that has no diff.',
+              `Actual Git diff against the base commit:\n${diffEvidence}`,
+              'Reconcile the frozen plan with the base commit and final files. If an edit is valid, retain it and',
+              'report "Outcome: changed". If no edit is required, restore the exact base content and report',
+              '"Outcome: no changes required". Do not claim a file was reverted while it still differs from the base.',
               'Run full validation and return "## Self-audit" with the accurate Outcome line, a one-sentence',
               '"Summary:" of concrete changes, and plan reconciliation.',
             ].join(' '),

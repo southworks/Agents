@@ -329,6 +329,34 @@ describe('migration session', () => {
     }
   })
 
+  it('shows the base diff when reconciling an unreported edit', async () => {
+    const output = mkdtempSync(path.join(os.tmpdir(), 'teams-sync-session-'))
+    const session = new FakeSession([
+      '## Migration plan\n- Correct README domain',
+      '## Self-audit\nOutcome: no changes required\nREADME already matches',
+      '## Self-audit\nOutcome: changed\nSummary: Corrected the documented link-unfurling domain.',
+    ])
+    const readme = 'samples/dotnet/teams/sample-a/README.md'
+    try {
+      const result = await runMigrationSession({
+        sample: 'sample-a',
+        contextFile: '.sync/context/sync-context.json',
+        output,
+        session,
+        validate: async () => validation(true, 'ready'),
+        sampleChanges: () => [readme],
+        sampleDiff: () => '- Link-unfurling domain: `*.wikipedia.org`\n+ Link-unfurling domain: `en.wikipedia.org`',
+      })
+      assert.equal(result.outcome, 'changed')
+      assert.match(session.prompts[2]!, /- Link-unfurling domain: `\*\.wikipedia\.org`/)
+      assert.match(session.prompts[2]!, /\+ Link-unfurling domain: `en\.wikipedia\.org`/)
+      assert.match(session.prompts[2]!, /retain it and report "Outcome: changed"/)
+      assert.match(session.prompts[2]!, /restore the exact base content/)
+    } finally {
+      rmSync(output, { recursive: true, force: true })
+    }
+  })
+
   it('continues an unfinished plan autonomously instead of waiting for confirmation', async () => {
     const output = mkdtempSync(path.join(os.tmpdir(), 'teams-sync-session-'))
     const session = new FakeSession([
