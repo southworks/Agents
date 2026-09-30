@@ -21,8 +21,10 @@ When verification finds that no selected-sample file needs a change, the publish
 only synchronization state and is explicitly reported as **no changes required**.
 
 Publishing verifies every patch against the planned base, then creates one branch with one commit per
-sample. It writes a consolidated PR description and opens one handoff issue containing the branch and
-description. The workflow does not create a PR. The issue is left for a maintainer because assigning
+sample. Copilot is asked for a one-line change summary during each migration. The publish job combines those
+summaries into a short PR description, with links to validation and the per-sample evidence artifacts.
+The handoff issue links to that description and gives the branch and PR instructions. The workflow does
+not create a PR. The issue is left for a maintainer because assigning
 it to Copilot creates a new branch and a PR against Copilot's selected starting branch; that behavior
 does not yet provide a verified way to open the intended PR from the generated branch into the default
 branch. Failed runs retain their per-sample diagnostic artifacts and can be rerun manually.

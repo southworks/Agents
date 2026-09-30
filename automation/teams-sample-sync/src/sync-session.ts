@@ -26,6 +26,7 @@ export interface MigrationSessionResult {
   plan: string
   planHash: string
   selfAudit: string
+  summary: string
   outcome: MigrationOutcome
   validation: ValidationResult
   repairPasses: number
@@ -71,6 +72,14 @@ function outcomeFromSelfAudit (value: string): MigrationOutcome {
   )
 }
 
+function summaryFromSelfAudit (value: string, outcome: MigrationOutcome): string | undefined {
+  if (outcome === 'no-changes') {
+    return 'Verified that no sample code changes were required; synchronization state was updated.'
+  }
+  const summary = /^Summary:[ \t]*(.+)$/im.exec(value)?.[1]?.replace(/\s+/g, ' ').trim()
+  return summary && summary.length <= 220 ? summary : undefined
+}
+
 export function assertOutcomeMatchesSampleChanges (outcome: MigrationOutcome, changes: string[]): void {
   if (outcome === 'changed' && changes.length === 0) {
     throw new SyncError('Implementer reported changes but the selected sample is unchanged')
@@ -108,7 +117,8 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
             'If implementation or verification remains, finish it now using the frozen plan and the available skills',
             'and validation tool; if it is already complete, do not alter files.',
             'Return the terminal Markdown response headed exactly "## Self-audit", followed by "Outcome: changed"',
-            'or "Outcome: no changes required" on its own line, the plan reconciliation, and validation status.',
+            'or "Outcome: no changes required" on its own line, a one-sentence "Summary:" of concrete',
+            'changes, the plan reconciliation, and validation status.',
           ].join(' '),
           'Continuing migration implementation'
         )
@@ -127,7 +137,8 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
           'Format only: reissue your previous completed implementation result as a terminal Markdown response',
           'headed exactly "## Self-audit". On its own next line write exactly either "Outcome: changed" or',
           '"Outcome: no changes required", then preserve the audit details and validation status from your',
-          'previous response. Do not inspect files, invoke tools, edit files, or perform additional work.',
+          'previous response. Include a one-sentence "Summary:" of concrete changes. Do not inspect files,',
+          'invoke tools, edit files, or perform additional work.',
         ].join(' '),
         'Repairing self-audit format'
       )
@@ -217,7 +228,8 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
           [
             'When finished, re-read the source context, frozen plan, and final changed files. Return a terminal',
             'Markdown response headed "## Self-audit". On its own next line write exactly either "Outcome: changed"',
-            'or "Outcome: no changes required", then account for every plan item and state the validation run.',
+            'or "Outcome: no changes required". Add a one-sentence "Summary:" of concrete changes,',
+            'then account for every plan item and state the validation run.',
           ].join(' '),
         ].join('\n'),
         'Implementing frozen migration plan'
@@ -239,7 +251,8 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
             'Repair these deterministic validation failures in the selected sample; do not explain away a semantic mismatch.',
             'Re-open the affected files, make the required correction, run full validation, then return a terminal',
             'Markdown response headed "## Self-audit" with "Outcome: changed" or "Outcome: no changes required"',
-            `on its own next line, without revising the plan: ${JSON.stringify(validation.errors)}`,
+            'on its own next line, plus a one-sentence "Summary:" of concrete changes,',
+            `without revising the plan: ${JSON.stringify(validation.errors)}`,
           ].join(' '),
           'Repairing validation failures'
         )
@@ -262,7 +275,8 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
               `Your self-audit says "${outcome}", but the selected sample's actual changed files are: ${JSON.stringify(changes)}.`,
               'Reconcile the frozen plan with the final files. If a required edit is missing, make that edit in the',
               'selected sample. If no edit is required, correct the self-audit. Do not claim an edit that has no diff.',
-              'Run full validation and return "## Self-audit" with the accurate Outcome line and plan reconciliation.',
+              'Run full validation and return "## Self-audit" with the accurate Outcome line, a one-sentence',
+              '"Summary:" of concrete changes, and plan reconciliation.',
             ].join(' '),
             'Reconciling migration outcome'
           )
@@ -283,7 +297,25 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
         )
       }
     }
-    return { plan, planHash, selfAudit, outcome, validation, repairPasses }
+    let summary = summaryFromSelfAudit(selfAudit, outcome)
+    if (!summary) {
+      options.session.setWriteAccess(false)
+      const response = await bounded(
+        options.session.send(
+          [
+            'Format only: based on your completed, validated self-audit, return exactly one line beginning',
+            '"Summary:" followed by a concrete, plain-language sentence (at most 220 characters) explaining',
+            'what changed in this sample. Do not inspect files, invoke tools, or edit files.',
+          ].join(' '),
+          'Summarizing verified migration'
+        )
+      )
+      summary = summaryFromSelfAudit(response, outcome)
+      if (!summary) {
+        throw new SyncError('Implementer did not provide a concise sample summary')
+      }
+    }
+    return { plan, planHash, selfAudit, summary, outcome, validation, repairPasses }
   } finally {
     clearTimeout(timer)
     if (expired) {

@@ -36,6 +36,7 @@ function result (sample: string, overrides: Partial<SyncResult> = {}): SyncResul
     inputDigest: 'input',
     componentDigests: {},
     diagnostics: [],
+    summary: 'Updated the card action and its manifest.',
     validation: {
       version: 2,
       id: 'validation',
@@ -87,6 +88,17 @@ describe('coordinated publication gate', () => {
     try {
       writeResult(directory, result(samples[0]!))
       writeResult(directory, result(samples[1]!, { baseSha: 'c'.repeat(40) }))
+      assert.throws(() => publishableResults(plan, directory, baseSha), /not publishable for bot-meetings/)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('does not publish a changed sample without a concise summary', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'teams-sync-results-'))
+    try {
+      writeResult(directory, result(samples[0]!))
+      writeResult(directory, result(samples[1]!, { summary: '' }))
       assert.throws(() => publishableResults(plan, directory, baseSha), /not publishable for bot-meetings/)
     } finally {
       rmSync(directory, { recursive: true, force: true })

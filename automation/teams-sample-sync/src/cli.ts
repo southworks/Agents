@@ -4,7 +4,7 @@
  * CLI entry point used by the GitHub Actions plan, migrate, and publish jobs.
  * `plan` writes a deterministic matrix, `migrate` produces an isolated validated patch and artifacts,
  * `verify-patch` rejects anything whose context, digest, or changed paths no longer match that run,
- * and `prepare-handoff` produces one issue and PR description for a verified run.
+ * and the handoff commands produce one concise PR description and issue for a verified run.
  */
 import type { Tool } from '@github/copilot-sdk'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -17,7 +17,7 @@ import { guardCandidate, validateTool, type ToolHost } from './agent-tools.js'
 import { changedPaths, digestDirectory, git, hash, matches, stable } from './git.js'
 import { createPlan } from './plan.js'
 import { publishableResults } from './publish-bundle.js'
-import { combinedPrBody, failureReport, githubErrorAnnotation, handoffIssueBody, prBody, workflowSummary } from './report.js'
+import { combinedPrBody, failureReport, githubErrorAnnotation, handoffIssueBody, issueTitle, prTitle, workflowSummary } from './report.js'
 import { createState, statePath, validateState } from './state.js'
 import { prepareManifest, type ValidationRuntime } from './validate.js'
 import { assertAgentsSdkVersionSelection, resolveAgentsSdkVersion } from './versions.js'
@@ -48,6 +48,8 @@ function parseArgs (items: string[]): Record<string, string> {
         'repository',
         'results-directory',
         'run-url',
+        'artifact-urls',
+        'handoff-url',
       ].includes(key)
     ) {
       throw new SyncError(`Unknown option: ${option}`)
@@ -232,6 +234,7 @@ export async function migrateCandidate (
       result.outputDigest = migration.validation.outputDigest
       result.planHash = migration.planHash
       result.selfAudit = migration.selfAudit
+      result.summary = migration.summary
       writeFileSync(path.join(output, 'self-audit.md'), `${migration.selfAudit}\n`, 'utf8')
       const sampleChanges = changedPaths(repo, baseSha).filter((item) => item.startsWith(`${sampleRelative}/`))
       assertOutcomeMatchesSampleChanges(migration.outcome, sampleChanges)
@@ -269,9 +272,6 @@ export async function migrateCandidate (
     })
     writeJson(path.join(output, 'sync-result.json'), result)
     writeFileSync(path.join(output, 'workflow-summary.md'), workflowSummary(result), 'utf8')
-    if (result.publishable) {
-      writeFileSync(path.join(output, 'pr-body.md'), prBody(result), 'utf8')
-    }
     const failure = failureReport(result)
     if (failure) {
       emitFailure(failure)
@@ -388,8 +388,8 @@ function verifyPatch (repo: string, values: Record<string, string>): void {
 export async function main (argv = process.argv.slice(2)): Promise<number> {
   try {
     const [command, ...rest] = argv
-    if (command !== 'plan' && command !== 'migrate' && command !== 'verify-patch' && command !== 'prepare-handoff') {
-      throw new SyncError('Expected command: plan, migrate, verify-patch, or prepare-handoff')
+    if (!['plan', 'migrate', 'verify-patch', 'prepare-handoff', 'prepare-issue'].includes(String(command))) {
+      throw new SyncError('Expected command: plan, migrate, verify-patch, prepare-handoff, or prepare-issue')
     }
     const values = parseArgs(rest)
     const repo = path.resolve(process.env.INIT_CWD ?? process.cwd(), values['repo-root'] ?? '.')
@@ -403,12 +403,22 @@ export async function main (argv = process.argv.slice(2)): Promise<number> {
     if (command === 'migrate') {
       return migrate(repo, values)
     }
-    if (command === 'prepare-handoff') {
+    if (command === 'prepare-handoff' || command === 'prepare-issue') {
       const plan = readJson<Plan>(resolveOption(required(values, 'plan')))
       const results = publishableResults(plan, resolveOption(required(values, 'results-directory')), required(values, 'base-sha'))
       const output = resolveOption(required(values, 'output-directory'))
       mkdirSync(output, { recursive: true })
-      writeFileSync(path.join(output, 'pr-body.md'), combinedPrBody(results), 'utf8')
+      if (command === 'prepare-handoff') {
+        const artifactUrls = readJson<Record<string, string>>(resolveOption(required(values, 'artifact-urls')))
+        for (const result of results) {
+          if (!artifactUrls[`teams-sample-sync-${result.sample}`]) {
+            throw new SyncError(`Missing evidence artifact URL for ${result.sample}`)
+          }
+        }
+        writeFileSync(path.join(output, 'pr-body.md'), combinedPrBody(results, required(values, 'run-url'), artifactUrls), 'utf8')
+        writeFileSync(path.join(output, 'pr-title.txt'), `${prTitle(results)}\n`, 'utf8')
+        return 0
+      }
       writeFileSync(
         path.join(output, 'issue-body.md'),
         handoffIssueBody(
@@ -416,10 +426,12 @@ export async function main (argv = process.argv.slice(2)): Promise<number> {
           required(values, 'branch'),
           required(values, 'base-branch'),
           required(values, 'repository'),
-          required(values, 'run-url')
+          required(values, 'run-url'),
+          required(values, 'handoff-url')
         ),
         'utf8'
       )
+      writeFileSync(path.join(output, 'issue-title.txt'), `${issueTitle(results)}\n`, 'utf8')
       return 0
     }
     verifyPatch(repo, values)

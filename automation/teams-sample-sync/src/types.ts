@@ -148,6 +148,7 @@ export interface SyncResult {
   state?: State
   validation?: ValidationResult
   selfAudit?: string
+  summary?: string
   error?: string
   diagnostics: string[]
 }

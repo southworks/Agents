@@ -146,8 +146,10 @@ jobs:
     permissions:
       contents: write
       issues: write
+      actions: read
     env:
       GH_TOKEN: ${{ github.token }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
     concurrency:
       group: teams-sample-sync-publish
       cancel-in-progress: false
@@ -202,17 +204,35 @@ jobs:
       - name: Prepare consolidated handoff
         env:
           BASE_SHA: ${{ needs.plan.outputs.baseSha }}
-          BASE_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          node "$SYNC_TOOL/dist/cli.js" prepare-handoff --repo-root . --plan .sync/plan.json --results-directory .sync/results --base-sha "$BASE_SHA" --branch "$SYNC_BRANCH" --base-branch "$BASE_BRANCH" --repository "$GITHUB_REPOSITORY" --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT" --output-directory .sync/handoff
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" > .sync/artifacts.json
+          jq -s --arg base "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts/" \
+            '[.[].artifacts[]] | sort_by(.id) | map({key: .name, value: ($base + (.id | tostring))}) | from_entries' \
+            .sync/artifacts.json > .sync/artifact-urls.json
+          node "$SYNC_TOOL/dist/cli.js" prepare-handoff \
+            --repo-root . --plan .sync/plan.json --results-directory .sync/results \
+            --base-sha "$BASE_SHA" --run-url "$RUN_URL" \
+            --artifact-urls .sync/artifact-urls.json --output-directory .sync/handoff
+      - id: handoff
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: teams-sample-sync-handoff-${{ github.run_id }}-${{ github.run_attempt }}
           path: .sync/handoff
+      - name: Prepare handoff issue
+        env:
+          BASE_SHA: ${{ needs.plan.outputs.baseSha }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          HANDOFF_URL: ${{ steps.handoff.outputs.artifact-url }}
+        run: |
+          node "$SYNC_TOOL/dist/cli.js" prepare-issue \
+            --repo-root . --plan .sync/plan.json --results-directory .sync/results \
+            --base-sha "$BASE_SHA" --branch "$SYNC_BRANCH" --base-branch "$BASE_BRANCH" \
+            --repository "$GITHUB_REPOSITORY" --run-url "$RUN_URL" \
+            --handoff-url "$HANDOFF_URL" --output-directory .sync/handoff
       - name: Push branch and create handoff issue
         run: |
           git push origin "HEAD:refs/heads/$SYNC_BRANCH"
-          if ! issue_url="$(gh issue create --title "Sync Teams SDK samples (run $GITHUB_RUN_ID attempt $GITHUB_RUN_ATTEMPT)" --body-file .sync/handoff/issue-body.md)"; then
+          if ! issue_url="$(gh issue create --title "$(cat .sync/handoff/issue-title.txt)" --body-file .sync/handoff/issue-body.md)"; then
             git push origin --delete "$SYNC_BRANCH"
             exit 1
           fi

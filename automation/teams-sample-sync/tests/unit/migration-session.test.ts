@@ -56,12 +56,35 @@ class FakeSession implements ImplementationSession {
 }
 
 describe('migration session', () => {
+  it('requests a concrete summary with write access disabled when the audit omits it', async () => {
+    const output = mkdtempSync(path.join(os.tmpdir(), 'teams-sync-session-'))
+    const session = new FakeSession([
+      '## Migration plan\n- Update the card action',
+      '## Self-audit\nOutcome: changed\n- Card action updated',
+      'Summary: Added the new card action and matching manifest command.',
+    ])
+    try {
+      const result = await runMigrationSession({
+        sample: 'sample-a',
+        contextFile: '.sync/context/sync-context.json',
+        output,
+        session,
+        validate: async () => validation(true, 'ready'),
+      })
+      assert.equal(result.summary, 'Added the new card action and matching manifest command.')
+      assert.equal(session.phases[2], 'Summarizing verified migration')
+      assert.equal(session.writableStates[2], false)
+    } finally {
+      rmSync(output, { recursive: true, force: true })
+    }
+  })
+
   it('freezes the plan before implementation and repairs validation once', async () => {
     const output = mkdtempSync(path.join(os.tmpdir(), 'teams-sync-session-'))
     const session = new FakeSession([
       '## Migration plan\n- Program.Main',
       '## Self-audit\nOutcome: changed\n- Program.Main done',
-      '## Self-audit\nOutcome: changed\n- Program.Main fixed',
+      '## Self-audit\nOutcome: changed\nSummary: Fixed the Program.Main sample flow.\n- Program.Main fixed',
     ])
     const results = [validation(false, 'first'), validation(true, 'second')]
     try {
@@ -281,7 +304,7 @@ describe('migration session', () => {
     const session = new FakeSession([
       '## Migration plan\n- Update README',
       '## Self-audit\nOutcome: changed\nUpdated README',
-      '## Self-audit\nOutcome: changed\nREADME now updated',
+      '## Self-audit\nOutcome: changed\nSummary: Clarified the README setup steps.\nREADME now updated',
     ])
     let checks = 0
     try {
@@ -298,6 +321,7 @@ describe('migration session', () => {
           session.phases.includes('Reconciling migration outcome') ? ['samples/dotnet/teams/sample-a/README.md'] : [],
       })
       assert.equal(result.outcome, 'changed')
+      assert.equal(result.summary, 'Clarified the README setup steps.')
       assert.equal(result.repairPasses, 1)
       assert.equal(checks, 2)
     } finally {

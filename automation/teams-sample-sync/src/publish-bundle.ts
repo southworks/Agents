@@ -31,6 +31,8 @@ export function publishableResults (plan: Plan, directory: string, baseSha: stri
       result.upstreamCommit !== upstreamCommit ||
       !result.publishable ||
       !['updated', 'no-changes'].includes(result.status) ||
+      !result.summary?.trim() ||
+      result.summary.length > 220 ||
       !result.validation?.passed
     ) {
       throw new SyncError(`Migration result is not publishable for ${sample}`)
