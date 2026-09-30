@@ -100,6 +100,67 @@ export function prBody (result: SyncResult): string {
   ].join('\n')
 }
 
+export function combinedPrBody (results: SyncResult[]): string {
+  const externalValidation = [...new Set(results.flatMap((result) => result.validation?.externalValidationRequired ?? []))]
+  return [
+    '## Teams SDK sample synchronization',
+    '',
+    `Updated samples: ${results.map((result) => code(result.sample)).join(', ')}`,
+    '',
+    ...results.flatMap((result) => [
+      `### ${safe(result.sample)}`,
+      '',
+      `Outcome: ${result.status === 'no-changes' ? 'No sample changes required; synchronization state updated.' : 'Updated.'}`,
+      `Teams commit: ${code(result.upstreamCommit)}`,
+      `Frozen migration plan: ${code(result.planHash ?? 'not recorded')}`,
+      '',
+      '#### Source changes',
+      '',
+      ...(result.upstreamChanges.length ? result.upstreamChanges.map(change) : ['- Initial tracked synchronization.']),
+      '',
+      '#### Validation',
+      '',
+      ...validation(result),
+      '',
+      '#### Implementer self-audit',
+      '',
+      result.selfAudit?.trim() ? fenced(result.selfAudit) : 'No self-audit was captured.',
+      '',
+    ]),
+    '### External validation',
+    '',
+    ...(externalValidation.length
+      ? externalValidation.map((item) => `- ${safe(item)}`)
+      : ['- Credentialed Teams, Entra, Graph, Azure Bot, and portal behavior.']),
+    '',
+    'Review the sample behavior and external setup before merge.',
+    '',
+  ].join('\n')
+}
+
+export function handoffIssueBody (
+  results: SyncResult[],
+  branch: string,
+  baseBranch: string,
+  repository: string,
+  runUrl: string
+): string {
+  const compareUrl = `https://github.com/${repository}/compare/${encodeURIComponent(baseBranch)}...${encodeURIComponent(branch)}?expand=1`
+  return [
+    '## Copilot handoff',
+    '',
+    `Create one draft PR from ${code(branch)} into ${code(baseBranch)}. Use the prepared description below.`,
+    'The commits already contain the validated migrations; do not redo them.',
+    '',
+    `Branch comparison: [open the comparison](${compareUrl})`,
+    `Workflow run: ${runUrl}`,
+    '',
+    '## Prepared PR description',
+    '',
+    combinedPrBody(results),
+  ].join('\n')
+}
+
 export function workflowSummary (result: SyncResult): string {
   const outcome =
     result.status === 'no-changes'

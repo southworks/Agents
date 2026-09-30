@@ -20,8 +20,8 @@ on:
           - bot-meetings
           - bot-message-extensions
           - bot-task-modules
-      createPr:
-        description: Create draft pull requests
+      publish:
+        description: Publish one branch and handoff issue after all migrations pass
         type: boolean
         default: false
 
@@ -66,7 +66,12 @@ jobs:
           node "$SYNC_TOOL/dist/cli.js" plan --repo-root . --upstream-root .sync/upstream "${sample_arg[@]}" --output .sync/plan.json
           echo "matrix=$(jq -c .matrix .sync/plan.json)" >> "$GITHUB_OUTPUT"
           jq -r '.samples | to_entries[] | "- \(.key): \(.value.status)"' .sync/plan.json >> "$GITHUB_STEP_SUMMARY"
+          if ! jq -e '[.samples[] | select(.status == "upstream-removed")] | length == 0' .sync/plan.json; then
+            echo "::error::A configured sample was removed upstream; coordinated publication is blocked."
+            exit 1
+          fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
         with:
           name: teams-sample-sync-plan
           path: .sync/plan.json
@@ -134,21 +139,17 @@ jobs:
           if-no-files-found: warn
 
   publish:
-    name: publish · ${{ matrix.sample }}
+    name: publish coordinated sync
     needs: [plan, migrate]
-    if: always() && (github.event_name == 'schedule' || inputs.createPr) && needs.plan.result == 'success' && needs.plan.outputs.matrix != '[]'
+    if: (github.event_name == 'schedule' || inputs.publish) && needs.plan.result == 'success' && needs.migrate.result == 'success' && needs.plan.outputs.matrix != '[]'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
+      issues: write
     env:
       GH_TOKEN: ${{ github.token }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     concurrency:
-      group: teams-sample-sync-${{ matrix.sample }}
+      group: teams-sample-sync-publish
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -161,31 +162,60 @@ jobs:
           cache: npm
           cache-dependency-path: automation/teams-sample-sync/package-lock.json
       - run: npm ci --prefix "$SYNC_TOOL" && npm run build --prefix "$SYNC_TOOL"
-      - id: download
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        continue-on-error: true
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: teams-sample-sync-${{ matrix.sample }}
-          path: .sync/result
-      - id: ready
-        run: |
-          ready=false
-          if [ "${{ steps.download.outcome }}" = success ] && [ -f .sync/result/sync-result.json ] && [ "$(jq -r .publishable .sync/result/sync-result.json)" = true ]; then ready=true; fi
-          echo "ready=$ready" >> "$GITHUB_OUTPUT"
-      - name: Apply verified patch
-        if: steps.ready.outputs.ready == 'true'
+          name: teams-sample-sync-plan
+          path: .sync
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: teams-sample-sync-*
+          path: .sync/results
+      - name: Check every verified patch against the planned base
         env:
-          SYNC_SAMPLE: ${{ matrix.sample }}
+          BASE_SHA: ${{ needs.plan.outputs.baseSha }}
         run: |
-          git apply --index --binary .sync/result/change.patch
-          node "$SYNC_TOOL/dist/cli.js" verify-patch --repo-root . --sample "$SYNC_SAMPLE" --result .sync/result/sync-result.json
-      - name: Push branch and publish PR
-        if: steps.ready.outputs.ready == 'true'
+          repo_root="$PWD"
+          while IFS= read -r sample; do
+            result="$repo_root/.sync/results/teams-sample-sync-$sample"
+            test -f "$result/sync-result.json"
+            test "$(jq -r .publishable "$result/sync-result.json")" = true
+            test "$(jq -r .baseSha "$result/sync-result.json")" = "$BASE_SHA"
+            verify="$repo_root/.sync/verify/$sample"
+            git worktree add --detach "$verify" "$BASE_SHA"
+            git -C "$verify" apply --index --binary "$result/change.patch"
+            node "$repo_root/$SYNC_TOOL/dist/cli.js" verify-patch --repo-root "$verify" --sample "$sample" --result "$result/sync-result.json"
+            git worktree remove --force "$verify"
+          done < <(jq -r '.matrix[].sample' .sync/plan.json)
+      - name: Create one branch with a commit per sample
         env:
-          SYNC_SAMPLE: ${{ matrix.sample }}
+          BASE_SHA: ${{ needs.plan.outputs.baseSha }}
         run: |
-          branch="automation/teams-sample-sync/$SYNC_SAMPLE"
-          git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git fetch origin "$branch:refs/remotes/origin/$branch" || true; git checkout -B "$branch"
-          git commit -m "Sync Teams SDK sample: $SYNC_SAMPLE"; git push --force-with-lease origin "$branch"
-          node "$SYNC_TOOL/dist/cli.js" publish-pr --repo-root . --sample "$SYNC_SAMPLE" --branch "$branch" --head-sha "$(git rev-parse HEAD)" --body-file .sync/result/pr-body.md
+          branch="automation/teams-sample-sync/run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git checkout -b "$branch" "$BASE_SHA"
+          while IFS= read -r sample; do
+            git apply --index --binary ".sync/results/teams-sample-sync-$sample/change.patch"
+            git commit -m "Sync Teams SDK sample: $sample"
+          done < <(jq -r '.matrix[].sample' .sync/plan.json)
+          echo "SYNC_BRANCH=$branch" >> "$GITHUB_ENV"
+      - name: Prepare consolidated handoff
+        env:
+          BASE_SHA: ${{ needs.plan.outputs.baseSha }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          node "$SYNC_TOOL/dist/cli.js" prepare-handoff --repo-root . --plan .sync/plan.json --results-directory .sync/results --base-sha "$BASE_SHA" --branch "$SYNC_BRANCH" --base-branch "$BASE_BRANCH" --repository "$GITHUB_REPOSITORY" --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT" --output-directory .sync/handoff
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: teams-sample-sync-handoff-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .sync/handoff
+      - name: Push branch and create handoff issue
+        run: |
+          git push origin "HEAD:refs/heads/$SYNC_BRANCH"
+          if ! issue_url="$(gh issue create --title "Sync Teams SDK samples (run $GITHUB_RUN_ID attempt $GITHUB_RUN_ATTEMPT)" --body-file .sync/handoff/issue-body.md)"; then
+            git push origin --delete "$SYNC_BRANCH"
+            exit 1
+          fi
+          echo "### Coordinated sync published" >> "$GITHUB_STEP_SUMMARY"
+          echo "Branch: \`$SYNC_BRANCH\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Handoff issue: $issue_url" >> "$GITHUB_STEP_SUMMARY"

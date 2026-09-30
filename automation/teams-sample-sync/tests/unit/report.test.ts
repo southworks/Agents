@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { failureReport, workflowSummary } from '../../src/report.js'
+import { combinedPrBody, failureReport, handoffIssueBody, workflowSummary } from '../../src/report.js'
 import type { SyncResult } from '../../src/types.js'
 
 function result (overrides: Partial<SyncResult> = {}): SyncResult {
@@ -60,5 +60,47 @@ describe('synchronization reports', () => {
   it('escapes every backslash in Markdown-safe diagnostic output', () => {
     const summary = workflowSummary(result({ diagnostics: ['first\\second\\third'] }))
     assert.match(summary, /first\\\\second\\\\third/)
+  })
+
+  it('combines sample reports and lists shared external validation once', () => {
+    const first = result({
+      sample: 'bot-cards',
+      status: 'updated',
+      publishable: true,
+      validation: {
+        version: 2,
+        id: 'first',
+        sample: 'bot-cards',
+        passed: true,
+        repairable: false,
+        outputDigest: 'first',
+        group: 'all',
+        checks: { build: { status: 'passed', errors: [] } },
+        errors: [],
+        externalValidationRequired: ['Teams sign-in'],
+      },
+    })
+    const second = result({
+      ...first,
+      sample: 'bot-meetings',
+      status: 'no-changes',
+    })
+    const body = combinedPrBody([first, second])
+    assert.match(body, /### bot-cards/)
+    assert.match(body, /### bot-meetings/)
+    assert.match(body, /No sample changes required/)
+    assert.equal(body.match(/Teams sign-in/g)?.length, 1)
+    assert.equal(body.match(/## Teams SDK sample synchronization/g)?.length, 1)
+
+    const issue = handoffIssueBody(
+      [first, second],
+      'automation/teams-sample-sync/run-123-1',
+      'main',
+      'example/Agents',
+      'https://github.com/example/Agents/actions/runs/123'
+    )
+    assert.match(issue, /Create one draft PR from/)
+    assert.match(issue, /do not redo them/)
+    assert.match(issue, /compare\/main\.\.\.automation%2Fteams-sample-sync%2Frun-123-1/)
   })
 })

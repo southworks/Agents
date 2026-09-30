@@ -4,10 +4,10 @@
  * CLI entry point used by the GitHub Actions plan, migrate, and publish jobs.
  * `plan` writes a deterministic matrix, `migrate` produces an isolated validated patch and artifacts,
  * `verify-patch` rejects anything whose context, digest, or changed paths no longer match that run,
- * and `publish-pr` requires an open pull request for the pushed commit.
+ * and `prepare-handoff` produces one issue and PR description for a verified run.
  */
 import type { Tool } from '@github/copilot-sdk'
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { CopilotAgentRunner, type SdkFactory } from './agent-runner.js'
@@ -16,8 +16,8 @@ import { protection, targets, SyncError } from './config.js'
 import { guardCandidate, validateTool, type ToolHost } from './agent-tools.js'
 import { changedPaths, digestDirectory, git, hash, matches, stable } from './git.js'
 import { createPlan } from './plan.js'
-import { publishDraftPr, publishedPrSummary } from './publish-pr.js'
-import { failureReport, githubErrorAnnotation, prBody, workflowSummary } from './report.js'
+import { publishableResults } from './publish-bundle.js'
+import { combinedPrBody, failureReport, githubErrorAnnotation, handoffIssueBody, prBody, workflowSummary } from './report.js'
 import { createState, statePath, validateState } from './state.js'
 import { prepareManifest, type ValidationRuntime } from './validate.js'
 import { assertAgentsSdkVersionSelection, resolveAgentsSdkVersion } from './versions.js'
@@ -43,8 +43,11 @@ function parseArgs (items: string[]): Record<string, string> {
         'output',
         'result',
         'branch',
-        'head-sha',
-        'body-file',
+        'base-sha',
+        'base-branch',
+        'repository',
+        'results-directory',
+        'run-url',
       ].includes(key)
     ) {
       throw new SyncError(`Unknown option: ${option}`)
@@ -385,8 +388,8 @@ function verifyPatch (repo: string, values: Record<string, string>): void {
 export async function main (argv = process.argv.slice(2)): Promise<number> {
   try {
     const [command, ...rest] = argv
-    if (command !== 'plan' && command !== 'migrate' && command !== 'verify-patch' && command !== 'publish-pr') {
-      throw new SyncError('Expected command: plan, migrate, verify-patch, or publish-pr')
+    if (command !== 'plan' && command !== 'migrate' && command !== 'verify-patch' && command !== 'prepare-handoff') {
+      throw new SyncError('Expected command: plan, migrate, verify-patch, or prepare-handoff')
     }
     const values = parseArgs(rest)
     const repo = path.resolve(process.env.INIT_CWD ?? process.cwd(), values['repo-root'] ?? '.')
@@ -400,19 +403,23 @@ export async function main (argv = process.argv.slice(2)): Promise<number> {
     if (command === 'migrate') {
       return migrate(repo, values)
     }
-    if (command === 'publish-pr') {
-      const sample = required(values, 'sample')
-      const pullRequest = publishDraftPr(
-        repo,
-        required(values, 'branch'),
-        `Sync Teams SDK sample: ${sample}`,
-        resolveOption(required(values, 'body-file')),
-        required(values, 'head-sha')
+    if (command === 'prepare-handoff') {
+      const plan = readJson<Plan>(resolveOption(required(values, 'plan')))
+      const results = publishableResults(plan, resolveOption(required(values, 'results-directory')), required(values, 'base-sha'))
+      const output = resolveOption(required(values, 'output-directory'))
+      mkdirSync(output, { recursive: true })
+      writeFileSync(path.join(output, 'pr-body.md'), combinedPrBody(results), 'utf8')
+      writeFileSync(
+        path.join(output, 'issue-body.md'),
+        handoffIssueBody(
+          results,
+          required(values, 'branch'),
+          required(values, 'base-branch'),
+          required(values, 'repository'),
+          required(values, 'run-url')
+        ),
+        'utf8'
       )
-      process.stdout.write(`Open pull request: ${pullRequest.url}\n`)
-      if (process.env.GITHUB_STEP_SUMMARY) {
-        appendFileSync(process.env.GITHUB_STEP_SUMMARY, publishedPrSummary(sample, pullRequest), 'utf8')
-      }
       return 0
     }
     verifyPatch(repo, values)

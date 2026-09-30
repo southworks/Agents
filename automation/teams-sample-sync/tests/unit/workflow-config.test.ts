@@ -24,7 +24,7 @@ describe('workflow configuration', () => {
     assert.deepEqual(sample.options, expected)
   })
 
-  it('scheduled runs process all samples and publish draft pull requests', () => {
+  it('scheduled runs publish one coordinated branch and issue only after every migration succeeds', () => {
     const workflow = record(
       parse(readFileSync(path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8')),
       'sync workflow'
@@ -37,7 +37,13 @@ describe('workflow configuration', () => {
 
     assert.deepEqual(schedule, [{ cron: '0 0 * * 0' }])
     assert.match(JSON.stringify(plan), /github\.event_name == 'schedule' && 'all' \|\| inputs\.sample/)
-    assert.match(String(publish.if), /github\.event_name == 'schedule' \|\| inputs\.createPr/)
-    assert.match(JSON.stringify(publish), /publish-pr --repo-root \. --sample/)
+    assert.match(JSON.stringify(plan), /upstream-removed/)
+    assert.match(String(publish.if), /github\.event_name == 'schedule' \|\| inputs\.publish/)
+    assert.match(String(publish.if), /needs\.migrate\.result == 'success'/)
+    assert.equal(publish.strategy, undefined)
+    assert.match(JSON.stringify(publish), /prepare-handoff --repo-root/)
+    assert.match(JSON.stringify(publish), /gh issue create/)
+    assert.match(JSON.stringify(publish), /git push origin --delete/)
+    assert.doesNotMatch(JSON.stringify(publish), /gh pr |publish-pr/)
   })
 })

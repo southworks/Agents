@@ -5,9 +5,9 @@ counterparts. It has three GitHub Actions jobs: plan, migrate, and publish. Migr
 access but no repository-write credential. Publishing has repository-write access but never starts
 Copilot or executes the candidate.
 
-The workflow runs every Sunday at 00:00 UTC for all configured samples and automatically creates
-draft pull requests for publishable results. Manual runs can select one sample or all samples and
-can enable or disable draft pull request creation.
+The workflow runs every Sunday at 00:00 UTC for all configured samples. Manual runs can select one
+sample or all samples and can enable or disable publication. Migrations run independently, but the
+selected samples publish as one coordinated set: if any migration fails, no branch or issue is created.
 
 For each changed sample, one persistent Copilot implementation session first creates a Markdown
 migration plan without write permission. The coordinator saves and hashes that plan. The same
@@ -20,9 +20,12 @@ the sample.
 When verification finds that no selected-sample file needs a change, the published patch contains
 only synchronization state and is explicitly reported as **no changes required**.
 
-Publishing creates a draft PR when the branch has no open PR, including when an older PR for that
-branch is closed. It edits an existing open PR by number and checks that an open PR points to the
-pushed commit before the job succeeds. Each publish job adds the verified PR link to its run summary.
+Publishing verifies every patch against the planned base, then creates one branch with one commit per
+sample. It writes a consolidated PR description and opens one handoff issue containing the branch and
+description. The workflow does not create a PR. The issue is left for a maintainer because assigning
+it to Copilot creates a new branch and a PR against Copilot's selected starting branch; that behavior
+does not yet provide a verified way to open the intended PR from the generated branch into the default
+branch. Failed runs retain their per-sample diagnostic artifacts and can be rerun manually.
 
 Copilot uses Auto routing. The workflow records the observed model for diagnosis but does not
 select a model, enumerate a model catalog, or force a reasoning effort.
