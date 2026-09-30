@@ -24,7 +24,7 @@ describe('workflow configuration', () => {
     assert.deepEqual(sample.options, expected)
   })
 
-  it('scheduled runs publish one coordinated branch and issue only after every migration succeeds', () => {
+  it('scheduled runs assign one coordinated handoff to Copilot only after every migration succeeds', () => {
     const workflow = record(
       parse(readFileSync(path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8')),
       'sync workflow'
@@ -44,8 +44,13 @@ describe('workflow configuration', () => {
     assert.match(JSON.stringify(publish), /prepare-handoff/)
     assert.match(JSON.stringify(publish), /prepare-issue/)
     assert.match(JSON.stringify(publish), /artifact-url/)
-    assert.match(JSON.stringify(publish), /gh issue create/)
-    assert.match(JSON.stringify(publish), /git push origin --delete/)
+    assert.match(JSON.stringify(publish), /COPILOT_ASSIGNMENT_TOKEN/)
+    assert.match(JSON.stringify(publish), /copilot-swe-agent\[bot\]/)
+    assert.match(JSON.stringify(publish), /agent_assignment/)
+    assert.match(JSON.stringify(publish), /current_base.*BASE_SHA/)
+    assert.match(JSON.stringify(publish), /handoff-id\.txt/)
+    assert.match(JSON.stringify(publish), /existing_number/)
+    assert.doesNotMatch(JSON.stringify(publish), /git push origin/)
     assert.doesNotMatch(JSON.stringify(publish), /gh pr |publish-pr/)
   })
 })

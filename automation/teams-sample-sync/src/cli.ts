@@ -15,9 +15,10 @@ import { createContext } from './context.js'
 import { protection, targets, SyncError } from './config.js'
 import { guardCandidate, validateTool, type ToolHost } from './agent-tools.js'
 import { changedPaths, digestDirectory, git, hash, matches, stable } from './git.js'
+import { prepareHandoffBundle } from './handoff-bundle.js'
 import { createPlan } from './plan.js'
 import { publishableResults } from './publish-bundle.js'
-import { combinedPrBody, failureReport, githubErrorAnnotation, handoffIssueBody, issueTitle, prTitle, workflowSummary } from './report.js'
+import { failureReport, githubErrorAnnotation, handoffId, handoffIssueBody, issueTitle, workflowSummary } from './report.js'
 import { createState, statePath, validateState } from './state.js'
 import { prepareManifest, type ValidationRuntime } from './validate.js'
 import { assertAgentsSdkVersionSelection, resolveAgentsSdkVersion } from './versions.js'
@@ -42,7 +43,6 @@ function parseArgs (items: string[]): Record<string, string> {
         'output-directory',
         'output',
         'result',
-        'branch',
         'base-sha',
         'base-branch',
         'repository',
@@ -50,6 +50,7 @@ function parseArgs (items: string[]): Record<string, string> {
         'run-url',
         'artifact-urls',
         'handoff-url',
+        'handoff-artifact',
       ].includes(key)
     ) {
       throw new SyncError(`Unknown option: ${option}`)
@@ -411,28 +412,33 @@ export async function main (argv = process.argv.slice(2)): Promise<number> {
       mkdirSync(output, { recursive: true })
       if (command === 'prepare-handoff') {
         const artifactUrls = readJson<Record<string, string>>(resolveOption(required(values, 'artifact-urls')))
-        for (const result of results) {
-          if (!artifactUrls[`teams-sample-sync-${result.sample}`]) {
-            throw new SyncError(`Missing evidence artifact URL for ${result.sample}`)
-          }
-        }
-        writeFileSync(path.join(output, 'pr-body.md'), combinedPrBody(results, required(values, 'run-url'), artifactUrls), 'utf8')
-        writeFileSync(path.join(output, 'pr-title.txt'), `${prTitle(results)}\n`, 'utf8')
+        prepareHandoffBundle({
+          repo,
+          planFile: resolveOption(required(values, 'plan')),
+          resultsDirectory: resolveOption(required(values, 'results-directory')),
+          results,
+          baseSha: required(values, 'base-sha'),
+          runUrl: required(values, 'run-url'),
+          artifactUrls,
+          output,
+        })
         return 0
       }
       writeFileSync(
         path.join(output, 'issue-body.md'),
         handoffIssueBody(
           results,
-          required(values, 'branch'),
+          required(values, 'base-sha'),
           required(values, 'base-branch'),
           required(values, 'repository'),
           required(values, 'run-url'),
-          required(values, 'handoff-url')
+          required(values, 'handoff-url'),
+          required(values, 'handoff-artifact')
         ),
         'utf8'
       )
       writeFileSync(path.join(output, 'issue-title.txt'), `${issueTitle(results)}\n`, 'utf8')
+      writeFileSync(path.join(output, 'handoff-id.txt'), `${handoffId(required(values, 'base-sha'), results)}\n`, 'utf8')
       return 0
     }
     verifyPatch(repo, values)

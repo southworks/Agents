@@ -139,13 +139,12 @@ jobs:
           if-no-files-found: warn
 
   publish:
-    name: publish coordinated sync
+    name: hand off coordinated sync
     needs: [plan, migrate]
     if: (github.event_name == 'schedule' || inputs.publish) && needs.plan.result == 'success' && needs.migrate.result == 'success' && needs.plan.outputs.matrix != '[]'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      issues: write
+      contents: read
       actions: read
     env:
       GH_TOKEN: ${{ github.token }}
@@ -188,19 +187,6 @@ jobs:
             node "$repo_root/$SYNC_TOOL/dist/cli.js" verify-patch --repo-root "$verify" --sample "$sample" --result "$result/sync-result.json"
             git worktree remove --force "$verify"
           done < <(jq -r '.matrix[].sample' .sync/plan.json)
-      - name: Create one branch with a commit per sample
-        env:
-          BASE_SHA: ${{ needs.plan.outputs.baseSha }}
-        run: |
-          branch="automation/teams-sample-sync/run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git checkout -b "$branch" "$BASE_SHA"
-          while IFS= read -r sample; do
-            git apply --index --binary ".sync/results/teams-sample-sync-$sample/change.patch"
-            git commit -m "Sync Teams SDK sample: $sample"
-          done < <(jq -r '.matrix[].sample' .sync/plan.json)
-          echo "SYNC_BRANCH=$branch" >> "$GITHUB_ENV"
       - name: Prepare consolidated handoff
         env:
           BASE_SHA: ${{ needs.plan.outputs.baseSha }}
@@ -218,24 +204,71 @@ jobs:
         with:
           name: teams-sample-sync-handoff-${{ github.run_id }}-${{ github.run_attempt }}
           path: .sync/handoff
+          if-no-files-found: error
       - name: Prepare handoff issue
         env:
           BASE_SHA: ${{ needs.plan.outputs.baseSha }}
           BASE_BRANCH: ${{ github.event.repository.default_branch }}
           HANDOFF_URL: ${{ steps.handoff.outputs.artifact-url }}
+          HANDOFF_ARTIFACT: teams-sample-sync-handoff-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           node "$SYNC_TOOL/dist/cli.js" prepare-issue \
             --repo-root . --plan .sync/plan.json --results-directory .sync/results \
-            --base-sha "$BASE_SHA" --branch "$SYNC_BRANCH" --base-branch "$BASE_BRANCH" \
-            --repository "$GITHUB_REPOSITORY" --run-url "$RUN_URL" \
-            --handoff-url "$HANDOFF_URL" --output-directory .sync/handoff
-      - name: Push branch and create handoff issue
+            --base-sha "$BASE_SHA" --base-branch "$BASE_BRANCH" \
+            --repository "$GITHUB_REPOSITORY" --run-url "$RUN_URL" --handoff-url "$HANDOFF_URL" \
+            --handoff-artifact "$HANDOFF_ARTIFACT" --output-directory .sync/handoff
+      - name: Create and assign handoff issue to Copilot
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_ASSIGNMENT_TOKEN }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          BASE_SHA: ${{ needs.plan.outputs.baseSha }}
         run: |
-          git push origin "HEAD:refs/heads/$SYNC_BRANCH"
-          if ! issue_url="$(gh issue create --title "$(cat .sync/handoff/issue-title.txt)" --body-file .sync/handoff/issue-body.md)"; then
-            git push origin --delete "$SYNC_BRANCH"
-            exit 1
+          test -n "$GH_TOKEN" || { echo 'COPILOT_ASSIGNMENT_TOKEN is required to assign Copilot'; exit 1; }
+          current_base="$(git ls-remote origin "refs/heads/$BASE_BRANCH" | cut -f1)"
+          test "$current_base" = "$BASE_SHA" || { echo 'Target branch moved since planning; rerun the sync'; exit 1; }
+          jq -n \
+            --rawfile title .sync/handoff/issue-title.txt \
+            --rawfile body .sync/handoff/issue-body.md \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg base "$BASE_BRANCH" \
+            '{title: ($title | rtrimstr("\n")), body: $body,
+              assignees: ["copilot-swe-agent[bot]"],
+              agent_assignment: {target_repo: $repository, base_branch: $base,
+                custom_instructions: "", custom_agent: "", model: ""}}' \
+            > .sync/handoff/issue-request.json
+          handoff_id="$(cat .sync/handoff/handoff-id.txt)"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" \
+            > .sync/handoff/open-issues.json
+          existing_number="$(jq -sr --arg marker "teams-sample-sync-handoff:$handoff_id" \
+            '[.[][] | select(.pull_request == null and ((.body // "") | contains($marker)))]
+              | first | .number // empty' .sync/handoff/open-issues.json)"
+          if [ -n "$existing_number" ]; then
+            existing_assigned="$(jq -sr --argjson number "$existing_number" \
+              '[.[][] | select(.number == $number)] | first
+                | .assignees | any(.login == "Copilot" or .login == "copilot-swe-agent[bot]")' \
+              .sync/handoff/open-issues.json)"
+            if [ "$existing_assigned" != true ]; then
+              jq '{title, body}' .sync/handoff/issue-request.json > .sync/handoff/issue-update.json
+              gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/$existing_number" \
+                --input .sync/handoff/issue-update.json > /dev/null
+              jq '{assignees, agent_assignment}' .sync/handoff/issue-request.json \
+                > .sync/handoff/assignment-request.json
+              gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$existing_number/assignees" \
+                --input .sync/handoff/assignment-request.json > .sync/handoff/issue-response.json
+              jq -e '.assignees | any(.login == "Copilot" or .login == "copilot-swe-agent[bot]")' \
+                .sync/handoff/issue-response.json > /dev/null || { echo 'Existing issue was not assigned to Copilot'; exit 1; }
+            fi
+            echo "### Coordinated sync already handed to Copilot" >> "$GITHUB_STEP_SUMMARY"
+            echo "Handoff issue: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/issues/$existing_number" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
-          echo "### Coordinated sync published" >> "$GITHUB_STEP_SUMMARY"
-          echo "Branch: \`$SYNC_BRANCH\`" >> "$GITHUB_STEP_SUMMARY"
+          gh api --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/$GITHUB_REPOSITORY/issues" \
+            --input .sync/handoff/issue-request.json > .sync/handoff/issue-response.json
+          jq -e '.assignees | any(.login == "Copilot" or .login == "copilot-swe-agent[bot]")' \
+            .sync/handoff/issue-response.json > /dev/null || { echo 'Issue was created without Copilot assignment'; exit 1; }
+          issue_url="$(jq -r .html_url .sync/handoff/issue-response.json)"
+          echo "### Coordinated sync handed to Copilot" >> "$GITHUB_STEP_SUMMARY"
           echo "Handoff issue: $issue_url" >> "$GITHUB_STEP_SUMMARY"

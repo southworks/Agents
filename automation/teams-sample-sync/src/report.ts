@@ -4,6 +4,7 @@
  * It keeps workflow logs concise and builds short PR and issue handoffs from publishable results.
  */
 import type { SyncResult } from './types.js'
+import { hash, stable } from './git.js'
 
 function safe (value: string): string {
   return value
@@ -59,12 +60,24 @@ export function prTitle (results: SyncResult[]): string {
 
 export function issueTitle (results: SyncResult[]): string {
   if (results.length === 1) {
-    return `Open PR for Teams sample: ${results[0]!.sample.replaceAll('-', ' ')}`
+    return `Review and publish Teams sample: ${results[0]!.sample.replaceAll('-', ' ')}`
   }
   if (results.length === 2) {
-    return `Open PR for Teams samples: ${results.map((result) => result.sample.replaceAll('-', ' ')).join(' and ')}`
+    return `Review and publish Teams samples: ${results.map((result) => result.sample.replaceAll('-', ' ')).join(' and ')}`
   }
-  return `Open PR for ${results.length} synced Teams .NET samples`
+  return `Review and publish ${results.length} synced Teams .NET samples`
+}
+
+export function handoffId (baseSha: string, results: SyncResult[]): string {
+  return hash(stable({
+    baseSha,
+    samples: results.map((result) => ({
+      sample: result.sample,
+      upstreamCommit: result.upstreamCommit,
+      inputDigest: result.inputDigest,
+      outputDigest: result.outputDigest,
+    })),
+  }))
 }
 
 export function combinedPrBody (
@@ -100,28 +113,32 @@ export function combinedPrBody (
 
 export function handoffIssueBody (
   results: SyncResult[],
-  branch: string,
+  baseSha: string,
   baseBranch: string,
   repository: string,
   runUrl: string,
-  handoffUrl: string
+  handoffUrl: string,
+  handoffArtifact: string
 ): string {
-  const compareUrl = `https://github.com/${repository}/compare/${encodeURIComponent(baseBranch)}...${encodeURIComponent(branch)}?expand=1`
+  const runId = /\/actions\/runs\/(\d+)/.exec(runUrl)?.[1]
   return [
-    'The Teams sample sync workflow has validated the selected samples and pushed their changes.',
-    'PR creation from GitHub Actions and GitHub CLI is restricted here, so this issue is the handoff.',
+    `The Teams sample sync workflow validated ${results.length} samples and prepared their changes.`,
+    'PR creation from GitHub Actions and GitHub CLI is restricted here, so Copilot will assemble and review the PR.',
     '',
     '### Handoff',
     '',
-    `- **Changes:** [${code(branch)} → ${code(baseBranch)}](${compareUrl})`,
+    `- **Target branch:** ${code(baseBranch)} at ${code(baseSha)}`,
     `- **Workflow:** [run and validation summary](${runUrl})`,
-    `- **Prepared PR title:** ${prTitle(results)}`,
-    `- **Prepared PR description:** [download the handoff artifact](${handoffUrl}) and use \`pr-body.md\``,
+    `- **Prepared changes and PR description:** [download the handoff artifact](${handoffUrl}) (${code(handoffArtifact)})`,
+    ...(runId ? [`- **Download:** ${code(`gh run download ${runId} --repo ${repository} --name ${handoffArtifact}`)}`] : []),
     '',
-    '### Create the PR',
+    '### Copilot task',
     '',
-    'Open one draft PR from the branch above into the target branch using the prepared title and description.',
-    `Expect one commit per sample (${results.length} total). The migrations and validation are complete; do not redo them.`,
+    'On your PR branch, follow `agent-instructions.md` in the artifact to apply the verified patches,',
+    'review the result, fix and validate any clear omissions, and use the prepared PR title and description.',
+    'Request human review only when the complete coordinated sync is ready. Report any blocker in the draft PR.',
+    '',
+    `<!-- teams-sample-sync-handoff:${handoffId(baseSha, results)} -->`,
   ].join('\n')
 }
 

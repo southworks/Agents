@@ -1,13 +1,13 @@
 # Teams sample synchronization
 
 This workflow synchronizes selected Teams SDK .NET samples into their existing Agents SDK
-counterparts. It has three GitHub Actions jobs: plan, migrate, and publish. Migration has Copilot
-access but no repository-write credential. Publishing has repository-write access but never starts
-Copilot or executes the candidate.
+counterparts. It has three GitHub Actions jobs: plan, migrate, and handoff. Migration has Copilot
+access but no repository-write credential. The handoff job verifies the candidates and assigns
+the issue to Copilot cloud agent; it does not execute candidate code.
 
 The workflow runs every Sunday at 00:00 UTC for all configured samples. Manual runs can select one
 sample or all samples and can enable or disable publication. Migrations run independently, but the
-selected samples publish as one coordinated set: if any migration fails, no branch or issue is created.
+selected samples publish as one coordinated set: if any migration fails, no handoff issue is created.
 
 For each changed sample, one persistent Copilot implementation session first creates a Markdown
 migration plan without write permission. The coordinator saves and hashes that plan. The same
@@ -20,14 +20,19 @@ the sample.
 When verification finds that no selected-sample file needs a change, the published patch contains
 only synchronization state and is explicitly reported as **no changes required**.
 
-Publishing verifies every patch against the planned base, then creates one branch with one commit per
-sample. Copilot is asked for a one-line change summary during each migration. The publish job combines those
-summaries into a short PR description, with links to validation and the per-sample evidence artifacts.
-The handoff issue links to that description and gives the branch and PR instructions. The workflow does
-not create a PR. The issue is left for a maintainer because assigning
-it to Copilot creates a new branch and a PR against Copilot's selected starting branch; that behavior
-does not yet provide a verified way to open the intended PR from the generated branch into the default
-branch. Failed runs retain their per-sample diagnostic artifacts and can be rerun manually.
+The handoff job verifies every patch against the planned base and uploads one bundle containing the
+ordered patches, frozen plans, self-audits, source contexts, result metadata, and a short prepared PR
+description. It does not push a branch. Once the bundle is available and the target branch still matches
+the planned base, it creates one issue and assigns Copilot cloud agent. Copilot applies the patches on its
+own PR branch, reviews the final changes against the evidence, fixes clear omissions, validates its fixes,
+and requests human review. Failed runs retain their per-sample diagnostic artifacts and can be rerun manually.
+
+Automatic assignment requires an Actions secret named `COPILOT_ASSIGNMENT_TOKEN` containing a GitHub
+user token with permission to assign Copilot in this repository. GitHub's fine-grained token requirements
+include metadata read and Actions, Contents, Issues, and Pull requests read/write access. The normal
+workflow `GITHUB_TOKEN` retains read-only repository and Actions access. If the assignment secret is absent,
+the handoff job fails without creating an unassigned issue. The first live run should verify that Copilot
+can download the handoff artifact and apply its patches; this has not been exercised by local tests.
 
 Copilot uses Auto routing. The workflow records the observed model for diagnosis but does not
 select a model, enumerate a model catalog, or force a reasoning effort.

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { combinedPrBody, failureReport, handoffIssueBody, issueTitle, prTitle, workflowSummary } from '../../src/report.js'
+import { combinedPrBody, failureReport, handoffId, handoffIssueBody, issueTitle, prTitle, workflowSummary } from '../../src/report.js'
 import type { SyncResult } from '../../src/types.js'
 
 function result (overrides: Partial<SyncResult> = {}): SyncResult {
@@ -94,7 +94,7 @@ describe('synchronization reports', () => {
     }
     const body = combinedPrBody([first, second], runUrl, artifactUrls)
     assert.equal(prTitle([first, second]), 'Sync Teams samples: bot cards and bot meetings')
-    assert.equal(issueTitle([first]), 'Open PR for Teams sample: bot cards')
+    assert.equal(issueTitle([first]), 'Review and publish Teams sample: bot cards')
     assert.match(body, /bot-cards.*Added a card action/)
     assert.match(body, /bot-meetings.*Verified that no code changes/)
     assert.match(body, /<details>/)
@@ -105,17 +105,26 @@ describe('synchronization reports', () => {
 
     const issue = handoffIssueBody(
       [first, second],
-      'automation/teams-sample-sync/run-123-1',
+      'a'.repeat(40),
       'main',
       'example/Agents',
       runUrl,
-      `${runUrl}/artifacts/999`
+      `${runUrl}/artifacts/999`,
+      'teams-sample-sync-handoff-123-1'
     )
     assert.match(issue, /PR creation from GitHub Actions and GitHub CLI is restricted here/)
-    assert.match(issue, /Open one draft PR from/)
-    assert.match(issue, /do not redo them/)
-    assert.match(issue, /compare\/main\.\.\.automation%2Fteams-sample-sync%2Frun-123-1/)
+    assert.match(issue, /Copilot will assemble and review the PR/)
+    assert.match(issue, /agent-instructions\.md/)
+    assert.match(issue, /gh run download 123 --repo example\/Agents --name teams-sample-sync-handoff-123-1/)
+    assert.match(issue, /Target branch.*main/)
     assert.match(issue, /artifacts\/999/)
+    assert.match(issue, /teams-sample-sync-handoff:sha256:/)
     assert.doesNotMatch(issue, /Added a card action/)
+  })
+
+  it('distinguishes different verified outputs from the same migration inputs', () => {
+    const first = result({ sample: 'bot-cards', outputDigest: 'first' })
+    const second = result({ sample: 'bot-cards', outputDigest: 'second' })
+    assert.notEqual(handoffId('a'.repeat(40), [first]), handoffId('a'.repeat(40), [second]))
   })
 })
