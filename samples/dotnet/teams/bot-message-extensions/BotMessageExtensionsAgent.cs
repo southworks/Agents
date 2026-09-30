@@ -91,7 +91,7 @@ public partial class BotMessageExtensionsAgent(
         CancellationToken cancellationToken)
     {
         await turnContext.SendActivityAsync(
-            "Hi! I'm the Search Messaging Extension Agent!\n\n" +
+            "Hi! I'm the Search Messaging Extension Bot!\n\n" +
             "Use me in the compose area to search for Wikipedia articles\n",
             cancellationToken: cancellationToken);
     }

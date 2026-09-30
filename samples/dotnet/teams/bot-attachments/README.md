@@ -1,16 +1,10 @@
-# Agent Attachments Sample
+# Agent Attachments - .NET (C#)
 
-This sample demonstrates how to receive file attachments in Microsoft Teams, request file consent, and upload accepted files to the user's OneDrive using the Microsoft 365 Agents SDK and its Teams extension.
+This sample demonstrates how to send and receive file attachments in Microsoft Teams using an agent built with the Microsoft 365 Agents SDK. When a user sends a file, the agent downloads it, requests consent via a File Consent Card, and uploads the file to the user's OneDrive upon acceptance.
+
+It targets [Microsoft 365 Agents SDK](https://learn.microsoft.com/microsoft-365/agents-sdk/) with the Teams extension (`Microsoft.Agents.Extensions.MSTeams`).
 
 ![Agent Attachments](bot-attachments.gif)
-
-## Features
-
-- **File download** - Receives files sent as attachments in a Teams chat.
-- **File consent card** - Requests permission before uploading a received file.
-- **OneDrive upload** - Uploads accepted files and sends a file info card with a link.
-- **Decline handling** - Removes the pending upload and notifies the user.
-- **Proactive completion** - A hosted background service performs the upload and proactively sends the result without retaining the incoming turn context.
 
 ## Prerequisites
 
@@ -18,22 +12,42 @@ This sample demonstrates how to receive file attachments in Microsoft Teams, req
 - [Dev tunnels](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started)
 - An Azure Bot configured with the Microsoft Teams channel
 
-## Configure the sample
+## Configuration
 
-Create an ignored `appsettings.Development.json` with the client ID, tenant ID, and client secret from your Azure Bot registration. It overrides the corresponding values in the checked-in `appsettings.json` when you run the Development launch profile:
+Agent credentials use the Agents SDK MSAL configuration in [appsettings.json](appsettings.json):
 
 ```json
 {
   "TokenValidation": {
-    "Audiences": [ "<client-id>" ],
-    "TenantId": "<tenant-id>"
+    "Audiences": [ "{{ClientId}}" ],
+    "TenantId": "{{TenantId}}"
   },
   "Connections": {
     "ServiceConnection": {
       "Settings": {
-        "AuthorityEndpoint": "https://login.microsoftonline.com/<tenant-id>",
-        "ClientId": "<client-id>",
-        "ClientSecret": "<client-secret>"
+        "AuthorityEndpoint": "https://login.microsoftonline.com/{{TenantId}}",
+        "ClientId": "{{ClientId}}",
+        "ClientSecret": null
+      }
+    }
+  }
+}
+```
+
+Create an ignored `appsettings.Development.json` with your credentials from your Azure Bot registration. It overrides the checked-in `appsettings.json` when you run the Development launch profile:
+
+```json
+{
+  "TokenValidation": {
+    "Audiences": [ "your-client-id" ],
+    "TenantId": "your-tenant-id"
+  },
+  "Connections": {
+    "ServiceConnection": {
+      "Settings": {
+        "AuthorityEndpoint": "https://login.microsoftonline.com/your-tenant-id",
+        "ClientId": "your-client-id",
+        "ClientSecret": "your-client-secret"
       }
     }
   }
@@ -44,22 +58,39 @@ This sample uses the Teams file consent flow and does not require Microsoft Grap
 
 ## Run the sample
 
-1. Start a persistent public dev tunnel for port 3978:
+1. Navigate to this directory:
+   ```bash
+   cd samples/dotnet/teams/bot-attachments
+   ```
 
+2. Copy the example launch settings file:
+   ```bash
+   cp Properties/launchSettings.EXAMPLE.json Properties/launchSettings.json
+   ```
+
+3. Start a persistent public dev tunnel for port 3978:
    ```bash
    devtunnel create -a my-tunnel
    devtunnel port create -p 3978 my-tunnel
    devtunnel host my-tunnel
    ```
 
-1. Set the Azure Bot messaging endpoint to `https://<your-tunnel-domain>/api/messages`.
-1. From this directory, start the sample:
+4. Set the Azure Bot messaging endpoint to `https://<your-tunnel-domain>/api/messages`.
 
+5. Restore dependencies and run:
    ```bash
    dotnet run --launch-profile BotAttachments
    ```
 
-The agent listens on `http://localhost:3978`.
+The agent will start listening on `http://localhost:3978`.
+
+## Features
+
+- **File receive**: Accepts files sent by the user in a Teams chat.
+- **File Consent Card**: Requests user permission before uploading to OneDrive.
+- **OneDrive upload**: On acceptance, uploads the file and sends a File Info Card with a link.
+- **Decline handling**: Notifies the user gracefully when consent is declined.
+- **Proactive completion**: A hosted background service performs the upload and proactively sends the result without retaining the incoming turn context.
 
 ## App package and testing in Teams
 

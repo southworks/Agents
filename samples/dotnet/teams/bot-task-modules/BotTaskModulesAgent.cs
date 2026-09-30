@@ -164,7 +164,12 @@ public partial class BotTaskModulesAgent(
                     IsMultiline = true
                 }
             ],
-            Actions = [new SubmitAction { Title = "Submit" }]
+            Actions =
+            [
+                new SubmitAction()
+                    .WithTitle("Submit")
+                    .WithData(CreateSubmitData(("submissiontype", "adaptive_card")))
+            ]
         };
 
         return ContinueWith(

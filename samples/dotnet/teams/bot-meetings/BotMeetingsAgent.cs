@@ -116,6 +116,10 @@ public partial class BotMeetingsAgent : AgentApplication
         string? graphMeetingId = meetingInfo?.Details?.MSGraphResourceId;
 
         string transcript = string.Empty;
+        
+        // Wait 30 seconds for the transcript to become available
+        await Task.Delay(30000, cancellationToken);
+
         if (_graphClient is not null &&
             !string.IsNullOrEmpty(graphMeetingId) &&
             !string.IsNullOrEmpty(userId))

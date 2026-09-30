@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "BotAttachments": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "https://localhost:3979;http://localhost:3978",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "BotAttachmentsWithCredentials": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "https://localhost:3979;http://localhost:3978",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "TokenValidation__TenantId": "YOUR_TenantId",
+        "TokenValidation__Audiences__0": "YOUR_ClientId",
+        "Connections__ServiceConnection__Settings__AuthorityEndpoint": "https://login.microsoftonline.com/YOUR_TenantId",
+        "Connections__ServiceConnection__Settings__ClientId": "YOUR_ClientId",
+        "Connections__ServiceConnection__Settings__ClientSecret": "YOUR_ClientSecret"
+      }
+    }
+  }
+}
