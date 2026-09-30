@@ -115,6 +115,7 @@ describe('synchronization reports', () => {
     assert.match(issue, /PR creation from GitHub Actions and GitHub CLI is restricted here/)
     assert.match(issue, /Copilot will assemble and review the PR/)
     assert.match(issue, /agent-instructions\.md/)
+    assert.match(issue, /Start the PR description with `Fixes #<this issue number>`/)
     assert.match(issue, /gh run download 123 --repo example\/Agents --name teams-sample-sync-handoff-123-1/)
     assert.match(issue, /Target branch.*main/)
     assert.match(issue, /artifacts\/999/)

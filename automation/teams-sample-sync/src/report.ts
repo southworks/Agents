@@ -136,6 +136,7 @@ export function handoffIssueBody (
     '',
     'On your PR branch, follow `agent-instructions.md` in the artifact to apply the verified patches,',
     'review the result, fix and validate any clear omissions, and use the prepared PR title and description.',
+    'Start the PR description with `Fixes #<this issue number>`, then a blank line and the prepared description.',
     'Request human review only when the complete coordinated sync is ready. Report any blocker in the draft PR.',
     '',
     `<!-- teams-sample-sync-handoff:${handoffId(baseSha, results)} -->`,
