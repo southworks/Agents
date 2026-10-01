@@ -75,8 +75,11 @@ describe('synchronization reports', () => {
     assert.match(issue, /bot-meetings.*no code changes/)
     assert.match(issue, /make any adjustments needed/)
     assert.match(issue, /Acceptance criteria/)
-    assert.match(issue, /Run relevant validation and report results or blockers/)
-    assert.match(issue, /Summarize each sample's changes.*additional adjustments and why.*remaining manual checks/)
+    assert.match(issue, /Create a PR linked to this issue and summarize each sample's changes/)
+    assert.match(issue, /Explain any additional changes, including tests, and why they were needed in the PR description/)
+    assert.match(issue, /Run relevant validation and include results in the PR description/)
+    assert.match(issue, /Report failed, blocked, or incomplete checks, including security checks/)
+    assert.match(issue, /List remaining manual checks in the PR description, or state that none remain/)
     assert.match(issue, /gh run download 123 --repo example\/Agents --name teams-sample-sync-handoff-123-1/)
     assert.match(issue, /Target.*main/)
     assert.match(issue, /artifacts\/999/)
@@ -89,6 +92,19 @@ describe('synchronization reports', () => {
       `${runUrl}/artifacts/999`, 'handoff-123'
     )
     assert.equal(longIssue.split('\n').find((line) => line.startsWith('- **bot-cards:** ')), `- **bot-cards:** ${longSummary}`)
+  })
+
+  it('preserves summary Markdown without adding escapes and keeps each sample on one line', () => {
+    const summary = 'Updated `bots[0].commandLists` and `{{Bot_Domain}}`.\nKept **existing commands** and the path `first\\second`.'
+    const issue = handoffIssueBody(
+      [result({ sample: 'bot-cards', summary })],
+      'base', 'main', 'example/Agents', 'https://github.com/example/Agents/actions/runs/123',
+      'https://github.com/example/Agents/actions/runs/123/artifacts/999', 'handoff-123'
+    )
+    const sampleLine = issue.split('\n').find((line) => line.startsWith('- **bot-cards:** '))
+
+    assert.equal(sampleLine, `- **bot-cards:** ${summary.replace('\n', ' ')}`)
+    assert.doesNotMatch(sampleLine!, /\\[`_[\]]/)
   })
 
   it('distinguishes different verified outputs from the same migration inputs', () => {

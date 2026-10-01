@@ -90,13 +90,18 @@ export function handoffIssueBody (
     '',
     '### Samples',
     '',
-    ...results.map((result) => `- **${safe(result.sample)}:** ${safe(result.summary!)}`),
+    ...results.map((result) => {
+      const summary = result.summary!.replace(/[\r\n]+/g, ' ').trim()
+      return `- **${safe(result.sample)}:** ${summary}`
+    }),
     '',
     '### Acceptance criteria',
     '',
     '- Complete the sample sync using the patches, plans, and evidence in the artifact.',
-    '- Run relevant validation and report results or blockers.',
-    '- Create a PR linked to this issue. Summarize each sample\'s changes (or no changes needed), any additional adjustments and why, validation results, and remaining manual checks.',
+    '- Create a PR linked to this issue and summarize each sample\'s changes (or no changes needed).',
+    '- Explain any additional changes, including tests, and why they were needed in the PR description.',
+    '- Run relevant validation and include results in the PR description. Report failed, blocked, or incomplete checks, including security checks.',
+    '- List remaining manual checks in the PR description, or state that none remain.',
     '',
     `<!-- teams-sample-sync-handoff:${handoffId(baseSha, results)} -->`,
   ].join('\n')
