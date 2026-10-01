@@ -1,10 +1,11 @@
 # Teams sample synchronization
 
 This workflow synchronizes selected Teams SDK .NET samples into their existing Agents SDK
-counterparts. It has three GitHub Actions jobs: plan, migrate, and handoff. Migration has Copilot
+counterparts. Its synchronization jobs are plan, migrate, and handoff. Migration has Copilot
 access but no repository-write credential. The handoff job verifies the candidates and assigns
 the issue to Copilot cloud agent; it does not execute candidate code. A publication-check job inspects
-sync PRs using trusted base-branch tooling and never executes PR code.
+sync PRs using trusted base-branch tooling and never executes PR code. A separate finalization job
+restores prepared PR metadata after Copilot finishes, keeping the PR as a draft.
 
 The workflow runs every Sunday at 00:00 UTC for all configured samples. Dispatch manual runs from
 the repository's default branch; other refs are skipped. Manual runs can select one
@@ -29,12 +30,25 @@ reference. After uploading the bundle, it updates the issue with the artifact li
 and publication instructions, then assigns Copilot. It does not push a branch or generate separate
 PR-title or agent-instruction files.
 
-Copilot applies every prepared patch exactly on its own PR branch and copies `pr-body.md` verbatim.
+Copilot applies every prepared patch exactly on its own PR branch, creates a draft PR linked to the
+handoff issue, and stops. It does not wait for checks or request human review.
 It must not add fixes, refactoring, formatting changes, or dependency updates. Missing behavior,
 artifact failures, patch failures, or a moved base are reported in the issue; the PR stays a draft.
 Corrections must go through migration and validation again. The publication check reconstructs the
 expected Git tree from the artifact patches and compares the entire PR tree, title, and description.
 It rejects missing or additional changes, including synchronization-state differences.
+
+When `Running Copilot cloud agent` completes, finalization locates the associated PR and reads its
+current head, rather than the agent run's starting commit. It verifies the entire tree before updating
+the title from the issue and the description from `pr-body.md`. It rechecks the base, head, and draft
+status before and after writing. Already matching metadata is left alone. Closed or ready-for-review
+PRs are not edited. Verification and finalization are queued together so their results cannot race.
+
+For manual recovery, dispatch this workflow with `finalize_pr` set to the draft PR number. This skips
+planning, migration, issue creation, and Copilot assignment. Leave `finalize_pr` empty for normal sync.
+Both publication jobs report a `Teams sync publication` check on the PR's actual head commit.
+While Copilot is active, verification leaves that check pending; finalization waits for completion
+rather than overwriting a running agent's progress. Human review readiness remains a manual action.
 
 Failed runs retain their diagnostic artifacts and can be rerun manually. An interrupted handoff may
 leave an unassigned issue; reruns reuse it when the base and verified outputs match. An already assigned
@@ -46,11 +60,13 @@ already gated by successful migration and patch verification, rather than the ru
 Automatic assignment requires an Actions secret named `COPILOT_ASSIGNMENT_TOKEN` containing a GitHub
 user token with permission to assign Copilot in this repository. GitHub's fine-grained token requirements
 include metadata read and Actions, Contents, Issues, and Pull requests read/write access. The normal
-workflow `GITHUB_TOKEN` retains read-only repository and Actions access. If the assignment secret is absent,
+handoff job's `GITHUB_TOKEN` retains read-only repository and Actions access. Verification additionally
+writes check results; finalization can write check results and PR metadata but has no contents-write
+permission. If the assignment secret is absent,
 the handoff job fails before reserving an issue. The first live run should verify that Copilot
-can download the handoff artifact, apply its patches, and preserve the prepared description; live
-assignment and artifact download have not been exercised by local tests. Configure the
-`Verify prepared Teams sync publication` check as required in repository branch protection to block
+can download the artifact and apply its patches. Verify the completion-triggered finalization live
+after deployment; use manual recovery if that trigger is unavailable or requires approval. Configure the
+`Teams sync publication` check as required in repository branch protection to block
 merging a PR that deviates from its handoff.
 
 Copilot uses Auto routing. The workflow records the observed model for diagnosis but does not

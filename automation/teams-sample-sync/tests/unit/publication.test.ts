@@ -5,6 +5,7 @@ import path from 'node:path'
 import { describe, it } from 'node:test'
 import { git, hash } from '../../src/git.js'
 import { verifyPublication, type Publication } from '../../src/publication.js'
+import { finalizePublication, type CurrentPublication } from '../../src/finalize-publication.js'
 
 function fixture () {
   const root = mkdtempSync(path.join(tmpdir(), 'teams-sync-publication-test-'))
@@ -38,8 +39,9 @@ function fixture () {
   const handoffId = hash('handoff')
   writeFileSync(path.join(directory, 'handoff.json'), JSON.stringify({ version: 1, baseSha, handoffId, samples }))
   writeFileSync(path.join(directory, 'pr-body.md'), body)
-  const publication: Publication = {
+  const publication: Publication & { baseRef: string } = {
     baseSha,
+    baseRef: 'main',
     headSha,
     issueNumber: 42,
     title: 'Sync Teams samples',
@@ -95,7 +97,7 @@ describe('publication verification', () => {
         { baseSha: f.publication.headSha },
         { handoffId: hash('another handoff') },
       ]) {
-        assert.throws(() => verifyPublication(f.repo, f.directory, { ...f.publication, ...override }), /differs/)
+        assert.throws(() => verifyPublication(f.repo, f.directory, { ...f.publication, ...override }), /differs|closing issue reference/)
       }
     } finally {
       rmSync(f.root, { recursive: true, force: true })
@@ -109,6 +111,106 @@ describe('publication verification', () => {
       writeFileSync(patch, `${readFileSync(patch, 'utf8')}tampered\n`)
       assert.throws(() => verifyPublication(f.repo, f.directory, f.publication), /Patch digest differs for bot-cards/)
       assert.equal(git(f.repo, ['status', '--porcelain']), '')
+    } finally {
+      rmSync(f.root, { recursive: true, force: true })
+    }
+  })
+})
+
+function current (publication: Publication & { baseRef: string }): CurrentPublication {
+  return {
+    baseSha: publication.baseSha,
+    baseRef: publication.baseRef,
+    headSha: publication.headSha,
+    title: '[WIP] Publish sync',
+    body: 'Copilot progress checklist',
+    state: 'open',
+    draft: true,
+  }
+}
+
+describe('publication finalization', () => {
+  it('restores rewritten metadata exactly, keeps the draft, and is safe to repeat', () => {
+    const f = fixture()
+    try {
+      const pr = current(f.publication)
+      const updates: Array<{ title: string; body: string }> = []
+      const editor = {
+        read: () => pr,
+        update: (metadata: { title: string; body: string }) => {
+          updates.push(metadata)
+          Object.assign(pr, metadata)
+        },
+      }
+      assert.equal(finalizePublication(f.repo, f.directory, f.publication, editor), true)
+      assert.deepEqual(updates, [{ title: f.publication.expectedTitle, body: f.publication.body }])
+      assert.equal(pr.draft, true)
+      assert.equal(pr.headSha, f.publication.headSha)
+      assert.equal(finalizePublication(f.repo, f.directory, f.publication, editor), false)
+      assert.equal(updates.length, 1)
+    } finally {
+      rmSync(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it('does not edit metadata when patches are missing or the artifact is modified', () => {
+    const f = fixture()
+    try {
+      let edits = 0
+      const editor = {
+        read: () => current(f.publication),
+        update: () => { edits += 1 },
+      }
+      assert.throws(() => finalizePublication(f.repo, f.directory, {
+        ...f.publication, headSha: f.publication.baseSha,
+      }, editor), /PR differs/)
+      writeFileSync(path.join(f.directory, 'samples', 'bot-cards', 'change.patch'), 'Invalid patch')
+      assert.throws(() => finalizePublication(f.repo, f.directory, f.publication, editor), /Patch digest differs/)
+      assert.equal(edits, 0)
+    } finally {
+      rmSync(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses to edit a moved, closed, or ready-for-review PR', () => {
+    const f = fixture()
+    try {
+      for (const override of [
+        { headSha: 'new-head' },
+        { baseSha: 'new-base' },
+        { baseRef: 'another-branch-at-the-same-sha' },
+        { state: 'closed' },
+        { draft: false },
+      ]) {
+        let edits = 0
+        assert.throws(() => finalizePublication(f.repo, f.directory, f.publication, {
+          read: () => ({ ...current(f.publication), ...override }),
+          update: () => { edits += 1 },
+        }), /changed during finalization|open draft/)
+        assert.equal(edits, 0)
+      }
+    } finally {
+      rmSync(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it('detects an update race and a server that does not preserve the requested metadata', () => {
+    const f = fixture()
+    try {
+      let reads = 0
+      assert.throws(() => finalizePublication(f.repo, f.directory, f.publication, {
+        read: () => {
+          reads += 1
+          return reads === 1 ? current(f.publication) : {
+            ...current(f.publication), headSha: 'new-head',
+          }
+        },
+        update: () => {},
+      }), /head changed during finalization/)
+      assert.throws(() => finalizePublication(f.repo, f.directory, f.publication, {
+        read: () => current(f.publication),
+        update: () => {},
+      }), /description differs/)
     } finally {
       rmSync(f.root, { recursive: true, force: true })
     }

@@ -5,17 +5,44 @@ import path from 'node:path'
 import { SyncError } from './config.js'
 import { git, hash } from './git.js'
 
-export interface Publication {
+export interface PublicationFiles {
   baseSha: string
   headSha: string
+  handoffId: string
+}
+
+export interface Publication extends PublicationFiles {
   issueNumber: number
   title: string
   body: string
   expectedTitle: string
-  handoffId: string
 }
 
 export function verifyPublication (repo: string, directory: string, publication: Publication): void {
+  verifyPublicationFiles(repo, directory, publication)
+  verifyPublicationMetadata(directory, publication)
+}
+
+export function preparedMetadata (
+  directory: string,
+  issueNumber: number,
+  title: string
+): { title: string; body: string } {
+  const body = readFileSync(path.join(directory, 'pr-body.md'), 'utf8')
+  if (!body.startsWith(`Fixes #${issueNumber}\n\n`) || !title.trim()) {
+    throw new SyncError('Prepared PR metadata is missing its title or closing issue reference')
+  }
+  return { title, body }
+}
+
+export function verifyPublicationMetadata (directory: string, publication: Publication): void {
+  const expected = preparedMetadata(directory, publication.issueNumber, publication.expectedTitle)
+  if (publication.body.trim() !== expected.body.trim() || publication.title !== expected.title) {
+    throw new SyncError('PR title or description differs from the prepared publication')
+  }
+}
+
+export function verifyPublicationFiles (repo: string, directory: string, publication: PublicationFiles): void {
   const handoff = JSON.parse(readFileSync(path.join(directory, 'handoff.json'), 'utf8')) as {
     version: number
     baseSha: string
@@ -31,15 +58,6 @@ export function verifyPublication (repo: string, directory: string, publication:
   ) {
     throw new SyncError('PR base or handoff identity differs from the prepared publication')
   }
-  const expectedBody = readFileSync(path.join(directory, 'pr-body.md'), 'utf8').trim()
-  if (
-    !expectedBody.startsWith(`Fixes #${publication.issueNumber}\n\n`) ||
-    publication.body.trim() !== expectedBody ||
-    publication.title !== publication.expectedTitle
-  ) {
-    throw new SyncError('PR title or description differs from the prepared publication')
-  }
-
   const worktree = mkdtempSync(path.join(tmpdir(), 'teams-sync-publication-'))
   let added = false
   try {

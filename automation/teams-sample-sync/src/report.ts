@@ -129,7 +129,7 @@ export function handoffIssueBody (
   const runId = /\/actions\/runs\/(\d+)/.exec(runUrl)?.[1]
   return [
     `The Teams sample sync workflow validated ${results.length} samples and prepared their changes.`,
-    'The implementation is complete. Copilot only needs to publish the prepared patches as a PR.',
+    'The implementation is complete. Copilot only needs to apply the prepared patches and create a draft PR.',
     '',
     '### Handoff',
     '',
@@ -148,9 +148,9 @@ export function handoffIssueBody (
     '1. Read `handoff.json` and `plan.json`. Confirm the target branch still matches `baseSha` before applying changes.',
     '2. In `handoff.json` order, verify each `samples/<sample>/change.patch` against its `patchDigest` and apply it exactly, including synchronization state.',
     '3. Include every supplied patch and only its changes. Do not add fixes, refactoring, formatting changes, dependency updates, or other files. Do not redo the migrations.',
-    '4. Use the PR title above. Copy `pr-body.md` verbatim as the PR description; it already contains the actual closing issue reference. Do not rewrite it or append an audit note.',
+    '4. Create a draft PR linked to this issue. Use the PR title above and `pr-body.md` when your tools support it. The workflow will restore the exact title and description after your session finishes.',
     '5. If the artifact cannot be downloaded, a patch fails verification or application, the base has moved, or you identify an omission, report the blocker in this issue and leave the PR as a draft. Do not independently repair it.',
-    '6. Request human review only when all prepared patches are included and publication checks pass.',
+    '6. After applying the patches and creating the draft PR, stop. Do not wait for publication checks, request human review, or mark the PR ready for review. Leave readiness to a human.',
     '',
     `<!-- teams-sample-sync-handoff:${handoffId(baseSha, results)} -->`,
   ].join('\n')
