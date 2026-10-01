@@ -92,9 +92,9 @@ describe('synchronization reports', () => {
       'teams-sample-sync-bot-cards': `${runUrl}/artifacts/456`,
       'teams-sample-sync-bot-meetings': `${runUrl}/artifacts/789`,
     }
-    const body = combinedPrBody([first, second], runUrl, artifactUrls)
+    const body = combinedPrBody([first, second], runUrl, artifactUrls, 42)
     assert.equal(prTitle([first, second]), 'Sync Teams samples: bot cards and bot meetings')
-    assert.equal(issueTitle([first]), 'Review and publish Teams sample: bot cards')
+    assert.equal(issueTitle([first]), 'Publish Teams sample: bot cards')
     assert.match(body, /bot-cards.*Added a card action/)
     assert.match(body, /bot-meetings.*Verified that no code changes/)
     assert.match(body, /<details>/)
@@ -107,7 +107,8 @@ describe('synchronization reports', () => {
     const longBody = combinedPrBody(
       [{ ...first, summary: longSummary }],
       runUrl,
-      artifactUrls
+      artifactUrls,
+      42
     )
     const sampleLine = longBody.split('\n').find((line) => line.startsWith('- **bot-cards:** '))
     assert.equal(sampleLine, `- **bot-cards:** ${longSummary}`)
@@ -121,10 +122,11 @@ describe('synchronization reports', () => {
       `${runUrl}/artifacts/999`,
       'teams-sample-sync-handoff-123-1'
     )
-    assert.match(issue, /PR creation from GitHub Actions and GitHub CLI is restricted here/)
-    assert.match(issue, /Copilot will assemble and review the PR/)
-    assert.match(issue, /agent-instructions\.md/)
-    assert.match(issue, /Start the PR description with `Fixes #<this issue number>`/)
+    assert.match(body, /^Fixes #42\n\n/)
+    assert.match(issue, /PR title:.*Sync Teams samples: bot cards and bot meetings/)
+    assert.match(issue, /Copy `pr-body\.md` verbatim/)
+    assert.match(issue, /only its changes/)
+    assert.doesNotMatch(issue, /fix and validate|agent-instructions|pr-title\.txt|Fixes #</)
     assert.match(issue, /gh run download 123 --repo example\/Agents --name teams-sample-sync-handoff-123-1/)
     assert.match(issue, /Target branch.*main/)
     assert.match(issue, /artifacts\/999/)
@@ -136,5 +138,21 @@ describe('synchronization reports', () => {
     const first = result({ sample: 'bot-cards', outputDigest: 'first' })
     const second = result({ sample: 'bot-cards', outputDigest: 'second' })
     assert.notEqual(handoffId('a'.repeat(40), [first]), handoffId('a'.repeat(40), [second]))
+  })
+
+  it('reserves an issue without presenting an unavailable artifact as ready', () => {
+    const issue = handoffIssueBody(
+      [result({ sample: 'bot-cards' })], 'base', 'main', 'example/Agents',
+      'https://github.com/example/Agents/actions/runs/123', undefined, 'handoff-123'
+    )
+    assert.match(issue, /Preparing the handoff artifact/)
+    assert.match(issue, /PR title:.*Sync Teams sample: bot cards/)
+    assert.doesNotMatch(issue, /download the handoff artifact|gh run download/)
+  })
+
+  it('rejects missing, fractional, and nonpositive issue numbers', () => {
+    for (const number of [NaN, 0, -1, 1.5]) {
+      assert.throws(() => combinedPrBody([], 'run', {}, number), /positive issue number/)
+    }
   })
 })

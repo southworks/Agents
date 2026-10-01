@@ -3,9 +3,11 @@
 This workflow synchronizes selected Teams SDK .NET samples into their existing Agents SDK
 counterparts. It has three GitHub Actions jobs: plan, migrate, and handoff. Migration has Copilot
 access but no repository-write credential. The handoff job verifies the candidates and assigns
-the issue to Copilot cloud agent; it does not execute candidate code.
+the issue to Copilot cloud agent; it does not execute candidate code. A publication-check job inspects
+sync PRs using trusted base-branch tooling and never executes PR code.
 
-The workflow runs every Sunday at 00:00 UTC for all configured samples. Manual runs can select one
+The workflow runs every Sunday at 00:00 UTC for all configured samples. Dispatch manual runs from
+the repository's default branch; other refs are skipped. Manual runs can select one
 sample or all samples and can enable or disable publication. Migrations run independently, but the
 selected samples publish as one coordinated set: if any migration fails, no handoff issue is created.
 
@@ -21,18 +23,35 @@ When verification finds that no selected-sample file needs a change, the publish
 only synchronization state and is explicitly reported as **no changes required**.
 
 The handoff job verifies every patch against the planned base and uploads one bundle containing the
-ordered patches, frozen plans, self-audits, source contexts, result metadata, and a short prepared PR
-description. It does not push a branch. Once the bundle is available and the target branch still matches
-the planned base, it creates one issue and assigns Copilot cloud agent. Copilot applies the patches on its
-own PR branch, reviews the final changes against the evidence, fixes clear omissions, validates its fixes,
-and requests human review. Failed runs retain their per-sample diagnostic artifacts and can be rerun manually.
+ordered patches, frozen plans, self-audits, source contexts, result metadata, and a prepared PR description.
+It first creates or reuses an unassigned issue so `pr-body.md` can include its actual `Fixes #<number>`
+reference. After uploading the bundle, it updates the issue with the artifact link, literal PR title,
+and publication instructions, then assigns Copilot. It does not push a branch or generate separate
+PR-title or agent-instruction files.
+
+Copilot applies every prepared patch exactly on its own PR branch and copies `pr-body.md` verbatim.
+It must not add fixes, refactoring, formatting changes, or dependency updates. Missing behavior,
+artifact failures, patch failures, or a moved base are reported in the issue; the PR stays a draft.
+Corrections must go through migration and validation again. The publication check reconstructs the
+expected Git tree from the artifact patches and compares the entire PR tree, title, and description.
+It rejects missing or additional changes, including synchronization-state differences.
+
+Failed runs retain their diagnostic artifacts and can be rerun manually. An interrupted handoff may
+leave an unassigned issue; reruns reuse it when the base and verified outputs match. An already assigned
+handoff is left untouched. Publication checks require the handoff artifacts to remain available and
+the PR base to match the prepared base; rerun synchronization when that base moves.
+An uploaded handoff remains verifiable if a later issue-assignment response fails: bundle upload is
+already gated by successful migration and patch verification, rather than the run's final status.
 
 Automatic assignment requires an Actions secret named `COPILOT_ASSIGNMENT_TOKEN` containing a GitHub
 user token with permission to assign Copilot in this repository. GitHub's fine-grained token requirements
 include metadata read and Actions, Contents, Issues, and Pull requests read/write access. The normal
 workflow `GITHUB_TOKEN` retains read-only repository and Actions access. If the assignment secret is absent,
-the handoff job fails without creating an unassigned issue. The first live run should verify that Copilot
-can download the handoff artifact and apply its patches; this has not been exercised by local tests.
+the handoff job fails before reserving an issue. The first live run should verify that Copilot
+can download the handoff artifact, apply its patches, and preserve the prepared description; live
+assignment and artifact download have not been exercised by local tests. Configure the
+`Verify prepared Teams sync publication` check as required in repository branch protection to block
+merging a PR that deviates from its handoff.
 
 Copilot uses Auto routing. The workflow records the observed model for diagnosis but does not
 select a model, enumerate a model catalog, or force a reasoning effort.

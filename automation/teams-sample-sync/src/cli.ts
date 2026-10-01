@@ -51,6 +51,7 @@ function parseArgs (items: string[]): Record<string, string> {
         'artifact-urls',
         'handoff-url',
         'handoff-artifact',
+        'issue-number',
       ].includes(key)
     ) {
       throw new SyncError(`Unknown option: ${option}`)
@@ -413,13 +414,13 @@ export async function main (argv = process.argv.slice(2)): Promise<number> {
       if (command === 'prepare-handoff') {
         const artifactUrls = readJson<Record<string, string>>(resolveOption(required(values, 'artifact-urls')))
         prepareHandoffBundle({
-          repo,
           planFile: resolveOption(required(values, 'plan')),
           resultsDirectory: resolveOption(required(values, 'results-directory')),
           results,
           baseSha: required(values, 'base-sha'),
           runUrl: required(values, 'run-url'),
           artifactUrls,
+          issueNumber: Number(required(values, 'issue-number')),
           output,
         })
         return 0
@@ -432,7 +433,7 @@ export async function main (argv = process.argv.slice(2)): Promise<number> {
           required(values, 'base-branch'),
           required(values, 'repository'),
           required(values, 'run-url'),
-          required(values, 'handoff-url'),
+          values['handoff-url'],
           required(values, 'handoff-artifact')
         ),
         'utf8'

@@ -60,12 +60,12 @@ export function prTitle (results: SyncResult[]): string {
 
 export function issueTitle (results: SyncResult[]): string {
   if (results.length === 1) {
-    return `Review and publish Teams sample: ${results[0]!.sample.replaceAll('-', ' ')}`
+    return `Publish Teams sample: ${results[0]!.sample.replaceAll('-', ' ')}`
   }
   if (results.length === 2) {
-    return `Review and publish Teams samples: ${results.map((result) => result.sample.replaceAll('-', ' ')).join(' and ')}`
+    return `Publish Teams samples: ${results.map((result) => result.sample.replaceAll('-', ' ')).join(' and ')}`
   }
-  return `Review and publish ${results.length} synced Teams .NET samples`
+  return `Publish ${results.length} synced Teams .NET samples`
 }
 
 export function handoffId (baseSha: string, results: SyncResult[]): string {
@@ -83,9 +83,15 @@ export function handoffId (baseSha: string, results: SyncResult[]): string {
 export function combinedPrBody (
   results: SyncResult[],
   runUrl: string,
-  artifactUrls: Record<string, string>
+  artifactUrls: Record<string, string>,
+  issueNumber: number
 ): string {
+  if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) {
+    throw new Error('A positive issue number is required for the PR description')
+  }
   return [
+    `Fixes #${issueNumber}`,
+    '',
     'This PR records a coordinated, validated sync of the Teams .NET samples below with the upstream Teams SDK.',
     '',
     '### Samples',
@@ -117,27 +123,34 @@ export function handoffIssueBody (
   baseBranch: string,
   repository: string,
   runUrl: string,
-  handoffUrl: string,
+  handoffUrl: string | undefined,
   handoffArtifact: string
 ): string {
   const runId = /\/actions\/runs\/(\d+)/.exec(runUrl)?.[1]
   return [
     `The Teams sample sync workflow validated ${results.length} samples and prepared their changes.`,
-    'PR creation from GitHub Actions and GitHub CLI is restricted here, so Copilot will assemble and review the PR.',
+    'The implementation is complete. Copilot only needs to publish the prepared patches as a PR.',
     '',
     '### Handoff',
     '',
     `- **Target branch:** ${code(baseBranch)} at ${code(baseSha)}`,
+    `- **PR title:** ${code(prTitle(results))}`,
     `- **Workflow:** [run and validation summary](${runUrl})`,
-    `- **Prepared changes and PR description:** [download the handoff artifact](${handoffUrl}) (${code(handoffArtifact)})`,
-    ...(runId ? [`- **Download:** ${code(`gh run download ${runId} --repo ${repository} --name ${handoffArtifact}`)}`] : []),
+    ...(handoffUrl
+      ? [
+          `- **Prepared changes and PR description:** [download the handoff artifact](${handoffUrl}) (${code(handoffArtifact)})`,
+          ...(runId ? [`- **Download:** ${code(`gh run download ${runId} --repo ${repository} --name ${handoffArtifact}`)}`] : []),
+        ]
+      : ['- **Status:** Preparing the handoff artifact. Do not start publication until it is available.']),
     '',
     '### Copilot task',
     '',
-    'On your PR branch, follow `agent-instructions.md` in the artifact to apply the verified patches,',
-    'review the result, fix and validate any clear omissions, and use the prepared PR title and description.',
-    'Start the PR description with `Fixes #<this issue number>`, then a blank line and the prepared description.',
-    'Request human review only when the complete coordinated sync is ready. Report any blocker in the draft PR.',
+    '1. Read `handoff.json` and `plan.json`. Confirm the target branch still matches `baseSha` before applying changes.',
+    '2. In `handoff.json` order, verify each `samples/<sample>/change.patch` against its `patchDigest` and apply it exactly, including synchronization state.',
+    '3. Include every supplied patch and only its changes. Do not add fixes, refactoring, formatting changes, dependency updates, or other files. Do not redo the migrations.',
+    '4. Use the PR title above. Copy `pr-body.md` verbatim as the PR description; it already contains the actual closing issue reference. Do not rewrite it or append an audit note.',
+    '5. If the artifact cannot be downloaded, a patch fails verification or application, the base has moved, or you identify an omission, report the blocker in this issue and leave the PR as a draft. Do not independently repair it.',
+    '6. Request human review only when all prepared patches are included and publication checks pass.',
     '',
     `<!-- teams-sample-sync-handoff:${handoffId(baseSha, results)} -->`,
   ].join('\n')

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
@@ -12,7 +12,6 @@ describe('Copilot handoff bundle', () => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'teams-sync-handoff-'))
     const resultsDirectory = path.join(root, 'results')
     const output = path.join(root, 'handoff')
-    const promptDirectory = path.join(root, 'automation/teams-sample-sync/prompts')
     const samples = ['bot-cards', 'bot-meetings']
     const baseSha = 'a'.repeat(40)
     const runUrl = 'https://github.com/example/Agents/actions/runs/123'
@@ -20,8 +19,6 @@ describe('Copilot handoff bundle', () => {
     const results: SyncResult[] = []
 
     try {
-      mkdirSync(promptDirectory, { recursive: true })
-      writeFileSync(path.join(promptDirectory, 'handoff-agent.md'), 'Review the final diff.\n')
       const planFile = path.join(root, 'plan.json')
       writeFileSync(planFile, '{"version":3}\n')
 
@@ -47,13 +44,13 @@ describe('Copilot handoff bundle', () => {
       }
 
       prepareHandoffBundle({
-        repo: root,
         planFile,
         resultsDirectory,
         results,
         baseSha,
         runUrl,
         artifactUrls,
+        issueNumber: 42,
         output,
       })
 
@@ -71,7 +68,9 @@ describe('Copilot handoff bundle', () => {
       )
       assert.equal(readFileSync(path.join(output, 'plan.json'), 'utf8'), '{"version":3}\n')
       assert.match(readFileSync(path.join(output, 'pr-body.md'), 'utf8'), /Updated bot-cards/)
-      assert.match(readFileSync(path.join(output, 'agent-instructions.md'), 'utf8'), /Review the final diff/)
+      assert.match(readFileSync(path.join(output, 'pr-body.md'), 'utf8'), /^Fixes #42\n\n/)
+      assert.equal(existsSync(path.join(output, 'pr-title.txt')), false)
+      assert.equal(existsSync(path.join(output, 'agent-instructions.md')), false)
       assert.equal(
         readFileSync(path.join(output, 'samples', samples[1]!, 'self-audit.md'), 'utf8'),
         'bot-meetings: self-audit.md\n'

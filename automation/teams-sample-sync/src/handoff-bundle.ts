@@ -3,17 +3,17 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import path from 'node:path'
 import { SyncError } from './config.js'
 import { hash } from './git.js'
-import { combinedPrBody, handoffId, prTitle } from './report.js'
+import { combinedPrBody, handoffId } from './report.js'
 import type { SyncResult } from './types.js'
 
 export interface HandoffBundleOptions {
-  repo: string
   planFile: string
   resultsDirectory: string
   results: SyncResult[]
   baseSha: string
   runUrl: string
   artifactUrls: Record<string, string>
+  issueNumber: number
   output: string
 }
 
@@ -26,6 +26,7 @@ const sampleFiles = [
 ]
 
 export function prepareHandoffBundle (options: HandoffBundleOptions): void {
+  const body = combinedPrBody(options.results, options.runUrl, options.artifactUrls, options.issueNumber)
   for (const result of options.results) {
     if (!options.artifactUrls[`teams-sample-sync-${result.sample}`]) {
       throw new SyncError(`Missing evidence artifact URL for ${result.sample}`)
@@ -34,10 +35,6 @@ export function prepareHandoffBundle (options: HandoffBundleOptions): void {
 
   mkdirSync(options.output, { recursive: true })
   copyFileSync(options.planFile, path.join(options.output, 'plan.json'))
-  copyFileSync(
-    path.join(options.repo, 'automation/teams-sample-sync/prompts/handoff-agent.md'),
-    path.join(options.output, 'agent-instructions.md')
-  )
 
   const samples = options.results.map((result) => {
     const source = path.join(options.resultsDirectory, `teams-sample-sync-${result.sample}`)
@@ -57,15 +54,21 @@ export function prepareHandoffBundle (options: HandoffBundleOptions): void {
     }
   })
 
+  const handoff = {
+    version: 1,
+    handoffId: handoffId(options.baseSha, options.results),
+    baseSha: options.baseSha,
+    runUrl: options.runUrl,
+    samples,
+  }
   writeFileSync(
     path.join(options.output, 'handoff.json'),
-    `${JSON.stringify({ version: 1, handoffId: handoffId(options.baseSha, options.results), baseSha: options.baseSha, runUrl: options.runUrl, samples }, null, 2)}\n`,
+    `${JSON.stringify(handoff, null, 2)}\n`,
     'utf8'
   )
   writeFileSync(
     path.join(options.output, 'pr-body.md'),
-    combinedPrBody(options.results, options.runUrl, options.artifactUrls),
+    body,
     'utf8'
   )
-  writeFileSync(path.join(options.output, 'pr-title.txt'), `${prTitle(options.results)}\n`, 'utf8')
 }
