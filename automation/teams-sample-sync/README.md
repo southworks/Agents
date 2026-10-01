@@ -3,9 +3,11 @@
 This workflow synchronizes selected Teams SDK .NET samples into their existing Agents SDK
 counterparts. Its synchronization jobs are plan, migrate, and handoff. Migration has Copilot
 access but no repository-write credential. The handoff job verifies the candidates and assigns
-the issue to Copilot cloud agent; it does not execute candidate code. A publication-check job inspects
-sync PRs using trusted base-branch tooling and never executes PR code. A separate finalization job
-restores prepared PR metadata after Copilot finishes and marks the verified PR ready for review.
+the issue to Copilot cloud agent; it does not execute candidate code. PR handling lives in a separate
+`Finalize Teams sync PR` workflow (`.github/workflows/finalize-teams-sync-pr.yml`) with one job.
+It inspects sync PRs using trusted default-branch tooling, restores prepared metadata after Copilot
+finishes, and marks the verified PR ready for review. It never executes PR code. Migration jobs
+do not run on PR events, so they do not appear as skipped PR checks.
 
 The workflow runs every Sunday at 00:00 UTC for all configured samples. Dispatch manual runs from
 the repository's default branch; other refs are skipped. Manual runs can select one
@@ -38,23 +40,27 @@ Corrections must go through migration and validation again. The publication chec
 expected Git tree from the artifact patches and compares the entire PR tree, title, and description.
 It rejects missing or additional changes, including synchronization-state differences.
 
-When `Running Copilot cloud agent` completes, finalization locates the associated PR and reads its
-current head, rather than the agent run's starting commit. It verifies the entire tree before updating
+The post workflow starts on PR creation, pushes, metadata edits, reopening, and readiness changes.
+It identifies the handoff and polls the PR's `Running Copilot cloud agent` sessions every 15 seconds
+for up to 20 minutes. It requires successful completion and stable PR metadata over two polls before
+proceeding. It does not depend on a `workflow_run` completion event. A missing, failed, or timed-out
+session blocks publication without modifying the PR. Unrelated and fork PRs are ignored.
+After waiting, it reads the current PR head, rather than the agent run's starting commit.
+It verifies the entire tree before updating
 the title from the issue and the description from `pr-body.md`. It rechecks the base branch, base and
 head commits, open status, and metadata before marking the PR ready with `gh pr ready`, then verifies
 the resulting state again. Verification failures before the ready transition keep the PR draft;
 a readiness failure fails the job and can be retried. Changes detected after the transition fail
 the publication check. Already matching metadata is left alone. Closed PRs are skipped, and
-already ready PRs are verified without editing them. Verification and finalization are queued together
-so their results cannot race.
+already ready PRs are verified without editing them. Post jobs are queued per PR so concurrent
+events and manual recovery cannot race; different PRs can finalize independently.
 
-The optional `finalize_pr_number` input is for manual recovery only: enter an existing PR number, such
-as `56`, to retry finalization without planning, migration, issue creation, or Copilot assignment.
-It is a string so the default can be blank; entered values must be positive whole PR numbers, not
-`true` or `false`. Leave it blank for normal sync. Automatic completion-triggered finalization finds
-the PR from the Copilot run and does not use this input.
-Both publication jobs report a `Teams sync publication` check on the PR's actual head commit.
-While Copilot is active, verification leaves that check pending; finalization waits for completion
+For manual recovery, dispatch `Finalize Teams sync PR` with `finalize_pr_number` set to an existing
+PR number, such as `58`. The recovery form requires a positive whole PR number, not `true` or `false`.
+Automatic finalization gets the PR number from the PR event and does not use this input. Normal
+sync runs use the separate `Sync Teams .NET samples` workflow, which has no recovery input.
+The post job reports a `Teams sync publication` check on the PR's actual head commit.
+While Copilot is active, it leaves that check pending and waits for completion
 rather than overwriting a running agent's progress. Successful finalization marks the PR ready for
 review automatically; other repository checks and review requirements still govern merging.
 
@@ -68,12 +74,13 @@ already gated by successful migration and patch verification, rather than the ru
 Automatic assignment requires an Actions secret named `COPILOT_ASSIGNMENT_TOKEN` containing a GitHub
 user token with permission to assign Copilot in this repository. GitHub's fine-grained token requirements
 include metadata read and Actions, Contents, Issues, and Pull requests read/write access. The normal
-handoff job's `GITHUB_TOKEN` retains read-only repository and Actions access. Verification additionally
-writes check results; finalization can write check results, PR metadata, and review readiness but has no contents-write
+handoff job's `GITHUB_TOKEN` retains read-only repository and Actions access. The post workflow
+can write check results, PR metadata, and review readiness but has no contents-write
 permission. If the assignment secret is absent,
 the handoff job fails before reserving an issue. The first live run should verify that Copilot
-can download the artifact and apply its patches. Verify the completion-triggered finalization live
-after deployment; use manual recovery if that trigger is unavailable or requires approval. Configure the
+can download the artifact and apply its patches. Verify PR-triggered finalization live after deployment.
+GitHub may require approval for workflows triggered by Copilot PRs; once approved, the post job waits
+and finalizes automatically. Configure the
 `Teams sync publication` check as required in repository branch protection to block
 merging a PR that deviates from its handoff.
 
