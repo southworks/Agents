@@ -10,7 +10,7 @@ import { SyncError } from './config.js'
 import { hash } from './git.js'
 import type { ImplementationSession } from './agent-runner.js'
 import type { ValidationResult } from './types.js'
-import { assertFullValidation } from './validate.js'
+import { assertFullValidation, cancelValidationProcesses } from './validate.js'
 
 export interface MigrationSessionOptions {
   sample: string
@@ -24,7 +24,6 @@ export interface MigrationSessionOptions {
 }
 export type MigrationOutcome = 'changed' | 'no-changes'
 export interface MigrationSessionResult {
-  plan: string
   planHash: string
   selfAudit: string
   summary: string
@@ -103,6 +102,7 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
   const timer = setTimeout(
     () => {
       expired = true
+      cancelValidationProcesses()
       options.session.abort().catch(() => {})
       rejectDeadline(new SyncError('Per-sample migration deadline exceeded'))
     },
@@ -327,7 +327,7 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
         summary = `Updated ${options.sample} and passed automated validation.`
       }
     }
-    return { plan, planHash, selfAudit, summary, outcome, validation, repairPasses }
+    return { planHash, selfAudit, summary, outcome, validation, repairPasses }
   } finally {
     clearTimeout(timer)
     if (expired) {

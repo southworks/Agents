@@ -1,7 +1,7 @@
 /** For Copilot Agents only: workflow reporting infrastructure. */
 /**
  * Turns structured synchronization results into CI-facing output.
- * It keeps workflow logs concise and builds short PR and issue handoffs from publishable results.
+ * It keeps workflow logs concise and builds short issue handoffs from publishable results.
  */
 import type { SyncResult } from './types.js'
 import { hash, stable } from './git.js'
@@ -48,16 +48,6 @@ export function failureReport (result: SyncResult): { stderr: string; annotation
   }
 }
 
-export function prTitle (results: SyncResult[]): string {
-  if (results.length === 1) {
-    return `Sync Teams sample: ${results[0]!.sample.replaceAll('-', ' ')}`
-  }
-  if (results.length === 2) {
-    return `Sync Teams samples: ${results.map((result) => result.sample.replaceAll('-', ' ')).join(' and ')}`
-  }
-  return `Sync ${results.length} Teams .NET samples with upstream`
-}
-
 export function issueTitle (results: SyncResult[]): string {
   if (results.length === 1) {
     return `Publish Teams sample: ${results[0]!.sample.replaceAll('-', ' ')}`
@@ -80,77 +70,33 @@ export function handoffId (baseSha: string, results: SyncResult[]): string {
   }))
 }
 
-export function combinedPrBody (
-  results: SyncResult[],
-  runUrl: string,
-  artifactUrls: Record<string, string>,
-  issueNumber: number
-): string {
-  if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) {
-    throw new Error('A positive issue number is required for the PR description')
-  }
-  return [
-    `Fixes #${issueNumber}`,
-    '',
-    'This PR records a coordinated, validated sync of the Teams .NET samples below with the upstream Teams SDK.',
-    '',
-    '### Samples',
-    '',
-    ...results.map((result) => `- **${safe(result.sample)}:** ${safe(result.summary!)}`),
-    '',
-    `All samples passed automated validation. [View the workflow summary and validation results](${runUrl}).`,
-    '',
-    '<details>',
-    '<summary>Migration evidence and review notes</summary>',
-    '',
-    ...results.map((result) => {
-      const artifact = artifactUrls[`teams-sample-sync-${result.sample}`]!
-      return `- **${safe(result.sample)}:** [Copilot log, plan, and self-audit](${artifact})`
-    }),
-    '',
-    `Upstream Teams SDK commit: ${code(results[0]?.upstreamCommit ?? 'unknown')}`,
-    '',
-    'Review credentialed Teams and external service behavior before merge.',
-    '',
-    '</details>',
-    '',
-  ].join('\n')
-}
-
 export function handoffIssueBody (
   results: SyncResult[],
   baseSha: string,
   baseBranch: string,
   repository: string,
   runUrl: string,
-  handoffUrl: string | undefined,
+  handoffUrl: string,
   handoffArtifact: string
 ): string {
   const runId = /\/actions\/runs\/(\d+)/.exec(runUrl)?.[1]
   return [
-    `The Teams sample sync workflow validated ${results.length} samples and prepared their changes.`,
-    'The implementation is complete. Copilot only needs to apply the prepared patches and create a draft PR.',
+    'Sync the Teams samples below into their Agents SDK counterparts. Use the prepared patches and migration evidence as a starting point; make any adjustments needed to complete the work.',
     '',
-    '### Handoff',
+    `- **Target:** ${code(baseBranch)} (prepared at ${code(baseSha)})`,
+    `- **Workflow:** [validation results](${runUrl})`,
+    `- **Artifact:** [prepared changes and evidence](${handoffUrl})`,
+    ...(runId ? [`- **Download:** ${code(`gh run download ${runId} --repo ${repository} --name ${handoffArtifact}`)}`] : []),
     '',
-    `- **Target branch:** ${code(baseBranch)} at ${code(baseSha)}`,
-    `- **PR title:** ${code(prTitle(results))}`,
-    `- **Workflow:** [run and validation summary](${runUrl})`,
-    ...(handoffUrl
-      ? [
-          `- **Prepared changes and PR description:** [download the handoff artifact](${handoffUrl}) (${code(handoffArtifact)})`,
-          ...(runId ? [`- **Download:** ${code(`gh run download ${runId} --repo ${repository} --name ${handoffArtifact}`)}`] : []),
-        ]
-      : ['- **Status:** Preparing the handoff artifact. Do not start publication until it is available.']),
+    '### Samples',
     '',
-    '### Copilot task',
+    ...results.map((result) => `- **${safe(result.sample)}:** ${safe(result.summary!)}`),
     '',
-    '1. Read `handoff.json` and `plan.json`. Confirm the target branch still matches `baseSha` before applying changes.',
-    '2. In `handoff.json` order, verify each `samples/<sample>/change.patch` against its `patchDigest` and apply it exactly, including synchronization state.',
-    '3. Include every supplied patch and only its changes. Do not add fixes, refactoring, formatting changes, dependency updates, or other files. Do not redo the migrations.',
-    '4. Create a draft PR linked to this issue. Use the PR title above and `pr-body.md` when your tools support it. The workflow will restore the exact title and description after your session finishes.',
-    '5. If the artifact cannot be downloaded, a patch fails verification or application, the base has moved, or you identify an omission, report the blocker in this issue and leave the PR as a draft. Do not independently repair it.',
-    '6. After applying the patches and creating the draft PR, stop. Do not wait for publication checks, request human review, or mark the PR ready for review. The workflow will mark it ready after verifying the changes, title, and description.',
+    '### Acceptance criteria',
+    '',
+    '- Complete the sample sync using the patches, plans, and evidence in the artifact.',
+    '- Run relevant validation and report results or blockers.',
+    '- Create a PR linked to this issue. Summarize each sample\'s changes (or no changes needed), any additional adjustments and why, validation results, and remaining manual checks.',
     '',
     `<!-- teams-sample-sync-handoff:${handoffId(baseSha, results)} -->`,
   ].join('\n')

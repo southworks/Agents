@@ -4,7 +4,7 @@
  * CLI entry point used by the GitHub Actions plan, migrate, and publish jobs.
  * `plan` writes a deterministic matrix, `migrate` produces an isolated validated patch and artifacts,
  * `verify-patch` rejects anything whose context, digest, or changed paths no longer match that run,
- * and the handoff commands produce one concise PR description and issue for a verified run.
+ * and the handoff commands package migration evidence and a concise issue for a verified run.
  */
 import type { Tool } from '@github/copilot-sdk'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -48,10 +48,8 @@ function parseArgs (items: string[]): Record<string, string> {
         'repository',
         'results-directory',
         'run-url',
-        'artifact-urls',
         'handoff-url',
         'handoff-artifact',
-        'issue-number',
       ].includes(key)
     ) {
       throw new SyncError(`Unknown option: ${option}`)
@@ -236,7 +234,6 @@ export async function migrateCandidate (
       result.validation = migration.validation
       result.outputDigest = migration.validation.outputDigest
       result.planHash = migration.planHash
-      result.selfAudit = migration.selfAudit
       result.summary = migration.summary
       writeFileSync(path.join(output, 'self-audit.md'), `${migration.selfAudit}\n`, 'utf8')
       const sampleChanges = changedPaths(repo, baseSha).filter((item) => item.startsWith(`${sampleRelative}/`))
@@ -281,10 +278,6 @@ export async function migrateCandidate (
     }
   }
   return result.publishable ? 0 : 1
-}
-
-async function migrate (repo: string, values: Record<string, string>): Promise<number> {
-  return migrateCandidate(repo, values)
 }
 
 function verifyPatch (repo: string, values: Record<string, string>): void {
@@ -404,7 +397,7 @@ export async function main (argv = process.argv.slice(2)): Promise<number> {
       return 0
     }
     if (command === 'migrate') {
-      return migrate(repo, values)
+      return migrateCandidate(repo, values)
     }
     if (command === 'prepare-handoff' || command === 'prepare-issue') {
       const plan = readJson<Plan>(resolveOption(required(values, 'plan')))
@@ -412,15 +405,10 @@ export async function main (argv = process.argv.slice(2)): Promise<number> {
       const output = resolveOption(required(values, 'output-directory'))
       mkdirSync(output, { recursive: true })
       if (command === 'prepare-handoff') {
-        const artifactUrls = readJson<Record<string, string>>(resolveOption(required(values, 'artifact-urls')))
         prepareHandoffBundle({
           planFile: resolveOption(required(values, 'plan')),
           resultsDirectory: resolveOption(required(values, 'results-directory')),
           results,
-          baseSha: required(values, 'base-sha'),
-          runUrl: required(values, 'run-url'),
-          artifactUrls,
-          issueNumber: Number(required(values, 'issue-number')),
           output,
         })
         return 0
@@ -433,7 +421,7 @@ export async function main (argv = process.argv.slice(2)): Promise<number> {
           required(values, 'base-branch'),
           required(values, 'repository'),
           required(values, 'run-url'),
-          values['handoff-url'],
+          required(values, 'handoff-url'),
           required(values, 'handoff-artifact')
         ),
         'utf8'
