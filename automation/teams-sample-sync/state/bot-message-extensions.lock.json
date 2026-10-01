@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "sample": "bot-message-extensions",
+  "upstreamCommit": "2718855c7f5b8156406d138e58da8644e75ac4d1",
+  "sourceTree": "e0e8b29956a5bb09239f55b46e831971b6e8a8fc",
+  "inputDigest": "sha256:fdb930cc921815b3f30215b0fcb12a0ad6f823c88e3a909577bd6f6ee80f7328",
+  "outputDigest": "sha256:c58afba9456bbd7426ea70810264bf13e5faf5272637e69bb33b164d41854de6",
+  "componentDigests": {
+    "sourceTree": "e0e8b29956a5bb09239f55b46e831971b6e8a8fc",
+    "target": "sha256:c3b523ccd7f7d58b1e6a4942ae3e42cfeec92a7e6b92c2b52aac5e4bb8a1f37e",
+    "protection": "sha256:be28ae806b6d122572cf2096430aabb2b20bc3791c4292a6719b69b70274ffde",
+    "migrationSkill": "sha256:1effb5257e7fa9fbb8d8103b093be84ec3d13894edc75dfe740e42db5b15dcf6",
+    "manifestSkill": "sha256:b63aba0a092fdb6cb120601fc03252f9830fda759d8d6be77729168286816f86",
+    "syncSkill": "sha256:825d7ecd41ddb7d883e50498c82e9fa0fd25c8f21a8433b669d83246ce831d6b",
+    "canonicalSample": "sha256:d80a9ddb3975c02591a6b81b210bc99a83b7c577b49aca1d03eec8700f34a5c2",
+    "copilot": "sha256:f2fbc365eb532e30c69edc879408480bbc1734734e1bed001820a8abdb3fb3e2",
+    "packagePolicy": "sha256:6577f21646c6b4379b9c3fbcc673f70fe92965980b8952f5a0d6a374db4c29a7",
+    "validator": "sha256:0484c6baf353039ef51f9ff3caf2733139f7fdbbb50b224600bb4bea8bf4736f"
+  },
+  "status": "verified"
+}
