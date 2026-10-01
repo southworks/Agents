@@ -16,6 +16,22 @@ public partial class TeamsSampleContracts
 {
     [Fact]
     [Trait("Sample", "bot-message-extensions")]
+    public async Task Help_UsesUpstreamSearchBotTextAsync()
+    {
+        await using var host = CreateHost(services => new BotMessageExtensionsAgent(
+            CreateOptions(services), services.GetRequiredService<IHttpClientFactory>()));
+        await host.CreateTestFlow()
+            .Send("help")
+            .AssertReply(activity => Assert.Equal(
+                "Hi! I'm the Search Messaging Extension Bot!\n\n" +
+                "Use me in the compose area to search for Wikipedia articles\n",
+                activity.Text))
+            .AssertNoMoreReplies()
+            .StartTestAsync();
+    }
+
+    [Fact]
+    [Trait("Sample", "bot-message-extensions")]
     public async Task QueryLink_ReturnsCardPreviewContainingRequestedUrlAsync()
     {
         await using var host = CreateHost(services => new BotMessageExtensionsAgent(

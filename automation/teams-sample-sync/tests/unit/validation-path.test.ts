@@ -29,6 +29,38 @@ describe('sample validation', () => {
     }
   })
 
+  it('declares the migrated Teams commands and task-module domain placeholder', () => {
+    type SampleManifest = {
+      bots: Array<{
+        commandLists?: Array<{
+          triggers?: string[]
+          scopes?: string[]
+          commands: Array<{ title: string }>
+        }>
+      }>
+      validDomains?: string[]
+    }
+    const manifest = (sample: string): SampleManifest =>
+      JSON.parse(
+        readFileSync(path.join(repo, 'samples/dotnet/teams', sample, 'manifest/manifest.json'), 'utf8')
+      ) as SampleManifest
+    const targetedCommands = manifest('agent-targeted-messages').bots[0]!.commandLists!
+      .find((list) => list.triggers?.includes('slash'))!.commands
+      .map((command) => command.title)
+    const cardManifest = manifest('bot-cards')
+    const taskModuleManifest = manifest('bot-task-modules')
+
+    assert.ok(targetedCommands.includes('cancel-reminder'))
+    assert.ok(targetedCommands.includes('add-reaction'))
+    assert.ok(targetedCommands.includes('remove-reaction'))
+    assert.deepEqual(cardManifest.bots[0]!.commandLists![0]!.scopes, ['personal', 'team', 'groupChat'])
+    assert.deepEqual(
+      cardManifest.bots[0]!.commandLists![0]!.commands.map((command) => command.title),
+      ['card actions', 'toggle visibility']
+    )
+    assert.deepEqual(taskModuleManifest.validDomains, ['{{BotDomain}}'])
+  })
+
   it('runs sample validation commands relative to the sample working directory', async () => {
     const configured = targets(repo)
     const target = configured.samples['agent-targeted-messages']!
