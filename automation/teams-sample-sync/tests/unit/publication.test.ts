@@ -130,24 +130,32 @@ function current (publication: Publication & { baseRef: string }): CurrentPublic
 }
 
 describe('publication finalization', () => {
-  it('restores rewritten metadata exactly, keeps the draft, and is safe to repeat', () => {
+  it('restores metadata before marking ready and is safe to repeat', () => {
     const f = fixture()
     try {
       const pr = current(f.publication)
       const updates: Array<{ title: string; body: string }> = []
+      let readyCalls = 0
       const editor = {
         read: () => pr,
         update: (metadata: { title: string; body: string }) => {
           updates.push(metadata)
           Object.assign(pr, metadata)
         },
+        ready: () => {
+          assert.equal(pr.title, f.publication.expectedTitle)
+          assert.equal(pr.body, f.publication.body)
+          readyCalls += 1
+          pr.draft = false
+        },
       }
       assert.equal(finalizePublication(f.repo, f.directory, f.publication, editor), true)
       assert.deepEqual(updates, [{ title: f.publication.expectedTitle, body: f.publication.body }])
-      assert.equal(pr.draft, true)
+      assert.equal(pr.draft, false)
       assert.equal(pr.headSha, f.publication.headSha)
       assert.equal(finalizePublication(f.repo, f.directory, f.publication, editor), false)
       assert.equal(updates.length, 1)
+      assert.equal(readyCalls, 1)
     } finally {
       rmSync(f.root, { recursive: true, force: true })
     }
@@ -160,6 +168,7 @@ describe('publication finalization', () => {
       const editor = {
         read: () => current(f.publication),
         update: () => { edits += 1 },
+        ready: () => { assert.fail('Invalid files must remain draft') },
       }
       assert.throws(() => finalizePublication(f.repo, f.directory, {
         ...f.publication, headSha: f.publication.baseSha,
@@ -172,7 +181,7 @@ describe('publication finalization', () => {
     }
   })
 
-  it('refuses to edit a moved, closed, or ready-for-review PR', () => {
+  it('refuses to edit a moved or closed PR, or mismatching metadata on a ready PR', () => {
     const f = fixture()
     try {
       for (const override of [
@@ -186,7 +195,8 @@ describe('publication finalization', () => {
         assert.throws(() => finalizePublication(f.repo, f.directory, f.publication, {
           read: () => ({ ...current(f.publication), ...override }),
           update: () => { edits += 1 },
-        }), /changed during finalization|open draft/)
+          ready: () => { assert.fail('Blocked PR must not be marked ready') },
+        }), /changed during finalization|open PR|description differs/)
         assert.equal(edits, 0)
       }
     } finally {
@@ -206,11 +216,57 @@ describe('publication finalization', () => {
           }
         },
         update: () => {},
+        ready: () => { assert.fail('A moved PR must remain draft') },
       }), /head changed during finalization/)
       assert.throws(() => finalizePublication(f.repo, f.directory, f.publication, {
         read: () => current(f.publication),
         update: () => {},
+        ready: () => { assert.fail('Unverified metadata must remain draft') },
       }), /description differs/)
+    } finally {
+      rmSync(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it('marks an already matching draft ready without rewriting metadata', () => {
+    const f = fixture()
+    try {
+      const pr = { ...current(f.publication), title: f.publication.title, body: f.publication.body }
+      assert.equal(finalizePublication(f.repo, f.directory, f.publication, {
+        read: () => ({ ...pr }),
+        update: () => { assert.fail('Matching metadata must not be rewritten') },
+        ready: () => { pr.draft = false },
+      }), true)
+      assert.equal(pr.draft, false)
+    } finally {
+      rmSync(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it('reports a readiness failure and detects changes during the ready transition', () => {
+    const f = fixture()
+    try {
+      for (const outcome of ['still-draft', 'moved-head', 'changed-metadata', 'api-error']) {
+        const pr = current(f.publication)
+        assert.throws(() => finalizePublication(f.repo, f.directory, f.publication, {
+          read: () => ({ ...pr }),
+          update: (metadata) => { Object.assign(pr, metadata) },
+          ready: () => {
+            if (outcome === 'api-error') {
+              throw new Error('Ready API failed')
+            }
+            if (outcome !== 'still-draft') {
+              pr.draft = false
+            }
+            if (outcome === 'moved-head') {
+              pr.headSha = 'new-head'
+            }
+            if (outcome === 'changed-metadata') {
+              pr.body = 'Changed during readiness'
+            }
+          },
+        }), /still a draft|changed during finalization|description differs|Ready API failed/)
+      }
     } finally {
       rmSync(f.root, { recursive: true, force: true })
     }

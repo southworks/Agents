@@ -126,6 +126,7 @@ describe('synchronization reports', () => {
     assert.match(issue, /PR title:.*Sync Teams samples: bot cards and bot meetings/)
     assert.match(issue, /workflow will restore the exact title and description/)
     assert.match(issue, /Do not wait for publication checks, request human review/)
+    assert.match(issue, /workflow will mark it ready after verifying the changes, title, and description/)
     assert.match(issue, /only its changes/)
     assert.doesNotMatch(issue, /fix and validate|agent-instructions|pr-title\.txt|Fixes #</)
     assert.match(issue, /gh run download 123 --repo example\/Agents --name teams-sample-sync-handoff-123-1/)

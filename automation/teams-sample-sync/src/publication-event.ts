@@ -14,7 +14,7 @@ export interface PullRequest {
 
 export interface PublicationEvent {
   repository: { default_branch: string }
-  inputs?: { finalize_pr?: string }
+  inputs?: { finalize_pr_number?: string }
   pull_request?: { number: number }
   workflow_run?: {
     name: string
@@ -38,9 +38,9 @@ export function publicationNumber (
     }
     return event.pull_request.number
   }
-  if (event.inputs?.finalize_pr) {
-    const number = Number(event.inputs.finalize_pr)
-    if (!/^\d+$/.test(event.inputs.finalize_pr) || !Number.isSafeInteger(number) || number < 1) {
+  if (event.inputs?.finalize_pr_number) {
+    const number = Number(event.inputs.finalize_pr_number)
+    if (!/^\d+$/.test(event.inputs.finalize_pr_number) || !Number.isSafeInteger(number) || number < 1) {
       throw new Error('Manual finalization requires a positive PR number')
     }
     return number

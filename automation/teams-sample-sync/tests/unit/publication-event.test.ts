@@ -23,9 +23,9 @@ describe('publication completion events', () => {
   })
 
   it('supports manual recovery and rejects malformed PR numbers', () => {
-    assert.equal(publicationNumber({ ...event, inputs: { finalize_pr: '56' } }, 'finalize', repository, noApi), 56)
+    assert.equal(publicationNumber({ ...event, inputs: { finalize_pr_number: '56' } }, 'finalize', repository, noApi), 56)
     for (const number of ['0', '-1', '1.5', 'NaN', '9007199254740992']) {
-      assert.throws(() => publicationNumber({ ...event, inputs: { finalize_pr: number } }, 'finalize', repository, noApi), /positive PR/)
+      assert.throws(() => publicationNumber({ ...event, inputs: { finalize_pr_number: number } }, 'finalize', repository, noApi), /positive PR/)
     }
   })
 

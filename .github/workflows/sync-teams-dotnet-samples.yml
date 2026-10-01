@@ -11,8 +11,8 @@ on:
     - cron: "0 0 * * 0"
   workflow_dispatch:
     inputs:
-      finalize_pr:
-        description: Finalize this draft PR instead of running a migration (leave empty for sync)
+      finalize_pr_number:
+        description: 'Optional recovery: enter a PR number (e.g. 56) to retry finalization only. Leave blank for normal sync. Automatic finalization does not use this input.'
         required: false
         type: string
         default: ""
@@ -74,7 +74,7 @@ jobs:
 
   finalize-publication:
     name: Finalize prepared Teams sync draft
-    if: github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && inputs.finalize_pr != '')
+    if: github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && inputs.finalize_pr_number != '')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -98,14 +98,14 @@ jobs:
           cache: npm
           cache-dependency-path: automation/teams-sample-sync/package-lock.json
       - run: npm ci --prefix "$SYNC_TOOL" && npm run build --prefix "$SYNC_TOOL"
-      - name: Verify files and restore prepared draft metadata
+      - name: Verify prepared publication and mark PR ready for review
         env:
           GH_TOKEN: ${{ github.token }}
           PUBLICATION_MODE: finalize
         run: node "$SYNC_TOOL/dist/check-publication.js"
 
   plan:
-    if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.finalize_pr == '')) && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.finalize_pr_number == '')) && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -362,7 +362,7 @@ jobs:
             '{title: ($title | rtrimstr("\n")), body: $body,
               assignees: ["copilot-swe-agent[bot]"],
               agent_assignment: {target_repo: $repository, base_branch: $base,
-                custom_instructions: "Apply only the supplied patches, create a draft PR linked to the issue, then stop. Do not wait for checks or request review. The workflow restores final metadata. Report blockers without adding fixes.",
+                custom_instructions: "Apply only the supplied patches, create a draft PR linked to the issue, then stop. Do not wait for checks or request review. The workflow restores final metadata and marks the PR ready after verification. Report blockers without adding fixes.",
                 custom_agent: "", model: ""}}' > .sync/issue/issue-request.json
           jq '{title, body}' .sync/issue/issue-request.json > .sync/issue/issue-update.json
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER" \

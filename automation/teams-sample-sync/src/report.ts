@@ -150,7 +150,7 @@ export function handoffIssueBody (
     '3. Include every supplied patch and only its changes. Do not add fixes, refactoring, formatting changes, dependency updates, or other files. Do not redo the migrations.',
     '4. Create a draft PR linked to this issue. Use the PR title above and `pr-body.md` when your tools support it. The workflow will restore the exact title and description after your session finishes.',
     '5. If the artifact cannot be downloaded, a patch fails verification or application, the base has moved, or you identify an omission, report the blocker in this issue and leave the PR as a draft. Do not independently repair it.',
-    '6. After applying the patches and creating the draft PR, stop. Do not wait for publication checks, request human review, or mark the PR ready for review. Leave readiness to a human.',
+    '6. After applying the patches and creating the draft PR, stop. Do not wait for publication checks, request human review, or mark the PR ready for review. The workflow will mark it ready after verifying the changes, title, and description.',
     '',
     `<!-- teams-sample-sync-handoff:${handoffId(baseSha, results)} -->`,
   ].join('\n')

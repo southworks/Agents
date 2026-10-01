@@ -173,8 +173,11 @@ function inspectPublication (event: PublicationEvent, mode: 'verify' | 'finalize
           update: (metadata) => {
             writeApi('PATCH', `repos/${repository}/pulls/${pr.number}`, metadata)
           },
+          ready: () => {
+            gh(['pr', 'ready', String(pr.number), '--repo', repository])
+          },
         })
-        process.stdout.write(changed ? 'Restored prepared PR title and description; PR remains draft.\n' : 'Prepared PR metadata already matches; no update needed.\n')
+        process.stdout.write(changed ? 'Prepared publication verified; PR is ready for review.\n' : 'Prepared publication already matches and is ready for review; no update needed.\n')
       } else {
         verifyPublication(repo, directory, publication)
         const current = readPr()
@@ -183,7 +186,9 @@ function inspectPublication (event: PublicationEvent, mode: 'verify' | 'finalize
           throw new Error('PR changed during verification; rerun against the current PR')
         }
       }
-      complete('success', 'PR files, title, and description match the prepared handoff. Review readiness remains a human decision.')
+      complete('success', mode === 'finalize'
+        ? 'PR files, title, and description match the prepared handoff; PR is ready for review.'
+        : 'PR files, title, and description match the prepared handoff.')
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }
