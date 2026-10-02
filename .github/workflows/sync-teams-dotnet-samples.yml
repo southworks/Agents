@@ -255,6 +255,8 @@ jobs:
             '{assignees: ["copilot-swe-agent[bot]"],
               agent_assignment: {target_repo: $repository, base_branch: $base,
                 custom_agent: "", model: ""}}' > .sync/issue/assignment-request.json
+          current_base="$(git ls-remote origin "refs/heads/$BASE_BRANCH" | cut -f1)"
+          test "$current_base" = "$BASE_SHA" || { echo 'Target branch moved since planning; rerun the sync'; exit 1; }
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$issue_number/assignees" \
             --input .sync/issue/assignment-request.json > .sync/issue/issue-response.json
           jq -e '.assignees | any(.login == "Copilot" or .login == "copilot-swe-agent[bot]")' \

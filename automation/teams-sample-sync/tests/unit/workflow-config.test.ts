@@ -73,6 +73,27 @@ describe('workflow configuration', () => {
     assert.equal(existsSync(path.join(repo, '.github/workflows/finalize-teams-sync-pr.yml')), false)
   })
 
+  it('rejects a moved base before issue preparation and immediately before Copilot assignment', () => {
+    const workflow = record(
+      parse(readFileSync(path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8')),
+      'sync workflow'
+    )
+    const publish = record(record(workflow.jobs, 'jobs').publish, 'publish')
+    const steps = publish.steps as Array<{ name?: string; run?: string }>
+    const script = steps.find((step) => step.name === 'Create or reuse handoff issue and assign Copilot')!.run!
+    const checks = [...script.matchAll(
+      /current_base="\$\(git ls-remote origin "refs\/heads\/\$BASE_BRANCH" \| cut -f1\)"\n\s*test "\$current_base" = "\$BASE_SHA" \|\| \{[^\n]*exit 1; \}/g
+    )]
+
+    assert.equal(checks.length, 2)
+    assert.ok(checks[0]!.index < script.indexOf('gh api --paginate'))
+    assert.ok(checks[1]!.index > script.indexOf('> .sync/issue/assignment-request.json'))
+    const afterFinalCheck = script.slice(checks[1]!.index + checks[1]![0].length).trimStart()
+    assert.ok(afterFinalCheck.startsWith(
+      'gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$issue_number/assignees"'
+    ))
+  })
+
   it('reads the configured upstream ref and downloads each publish artifact once', () => {
     const workflow = record(parse(readFileSync(
       path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8'
