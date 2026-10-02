@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
@@ -24,7 +24,7 @@ describe('workflow configuration', () => {
     assert.deepEqual(sample.options, expected)
   })
 
-  it('scheduled runs process all samples and publish draft pull requests', () => {
+  it('scheduled runs assign one coordinated handoff to Copilot only after every migration succeeds', () => {
     const workflow = record(
       parse(readFileSync(path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8')),
       'sync workflow'
@@ -37,7 +37,71 @@ describe('workflow configuration', () => {
 
     assert.deepEqual(schedule, [{ cron: '0 0 * * 0' }])
     assert.match(JSON.stringify(plan), /github\.event_name == 'schedule' && 'all' \|\| inputs\.sample/)
-    assert.match(String(publish.if), /github\.event_name == 'schedule' \|\| inputs\.createPr/)
-    assert.match(JSON.stringify(publish), /publish-pr --repo-root \. --sample/)
+    assert.match(JSON.stringify(plan), /upstream-removed/)
+    assert.match(String(publish.if), /github\.event_name == 'schedule' \|\| inputs\.publish/)
+    assert.match(String(publish.if), /needs\.migrate\.result == 'success'/)
+    assert.equal(publish.strategy, undefined)
+    assert.match(JSON.stringify(publish), /prepare-handoff/)
+    assert.match(JSON.stringify(publish), /prepare-issue/)
+    assert.match(JSON.stringify(publish), /artifact-url/)
+    assert.match(JSON.stringify(publish), /COPILOT_ASSIGNMENT_TOKEN/)
+    assert.match(JSON.stringify(publish), /copilot-swe-agent\[bot\]/)
+    assert.match(JSON.stringify(publish), /agent_assignment/)
+    assert.match(JSON.stringify(publish), /current_base.*BASE_SHA/)
+    assert.match(JSON.stringify(publish), /handoff-id\.txt/)
+    assert.match(JSON.stringify(publish), /existing_number/)
+    assert.doesNotMatch(JSON.stringify(publish), /git push origin/)
+    assert.doesNotMatch(JSON.stringify(publish), /gh pr |publish-pr/)
+    const steps = publish.steps as Array<{ name?: string; id?: string; run?: string; if?: string }>
+    const bundle = steps.findIndex((step) => step.name === 'Prepare consolidated handoff')
+    const upload = steps.findIndex((step) => step.id === 'handoff')
+    const issue = steps.findIndex((step) => step.name === 'Prepare handoff issue')
+    const assignment = steps.findIndex((step) => step.name === 'Create or reuse handoff issue and assign Copilot')
+    assert.ok(bundle < upload && upload < issue && issue < assignment)
+    assert.doesNotMatch(steps[bundle]!.run!, /issue-number|artifact-urls/)
+    assert.match(steps[assignment]!.run!, /PATCH[\s\S]*\/assignees/)
+    assert.doesNotMatch(JSON.stringify(publish), /pr-body|custom_instructions|final metadata|ready for review|artifact-urls/)
+    assert.deepEqual(Object.keys(jobs), ['plan', 'migrate', 'publish'])
+    assert.equal(triggers.pull_request_target, undefined)
+    assert.equal(triggers.workflow_run, undefined)
+    assert.equal(record(record(triggers.workflow_dispatch, 'dispatch').inputs, 'inputs').finalize_pr_number, undefined)
+    assert.match(String(plan.if), /github.event_name == 'schedule'/)
+    assert.match(String(plan.if), /github.ref == format/)
+  })
+
+  it('does not run a post workflow for Copilot PRs', () => {
+    assert.equal(existsSync(path.join(repo, '.github/workflows/finalize-teams-sync-pr.yml')), false)
+  })
+
+  it('reads the configured upstream ref and downloads each publish artifact once', () => {
+    const workflow = record(parse(readFileSync(
+      path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8'
+    )), 'sync workflow')
+    const jobs = record(workflow.jobs, 'jobs')
+    const steps = record(jobs.plan, 'plan').steps as Array<{ id?: string; run?: string; with?: Record<string, unknown> }>
+    const configuration = steps.find((step) => step.id === 'upstream')
+    assert.match(configuration!.run!, /targets\(process.cwd\(\)\).upstream/)
+    assert.match(configuration!.run!, /ref=\$\{ref\}/)
+    const checkout = steps.find((step) => step.with?.path === '.sync/upstream')
+    assert.equal(checkout!.with!.ref, '${{ steps.upstream.outputs.ref }}')
+    assert.ok(steps.indexOf(configuration!) < steps.indexOf(checkout!))
+
+    assert.match(steps.find((step) => step.id === 'plan')!.run!, /--output \.sync\/plan.json/)
+    assert.equal(steps.find((step) => step.with?.name === 'teams-sample-sync-plan')!.with!.path, '.sync/plan.json')
+    const migrate = record(jobs.migrate, 'migrate')
+    const migrateSteps = migrate.steps as Array<{ run?: string; uses?: string; with?: Record<string, unknown> }>
+    const planDownload = migrateSteps.find((step) => step.uses?.startsWith('actions/download-artifact@'))
+    assert.equal(planDownload!.with!.name, 'teams-sample-sync-plan')
+    assert.equal(planDownload!.with!.path, '.sync')
+    assert.match(JSON.stringify(migrate), /--plan \.sync\/plan.json/)
+    assert.doesNotMatch(JSON.stringify([steps, migrateSteps]), /\$PLAN_FILE/)
+
+    const publish = record(jobs.publish, 'publish')
+    const publishSteps = publish.steps as Array<{ uses?: string; with?: Record<string, unknown> }>
+    const downloads = publishSteps.filter((step) => step.uses?.startsWith('actions/download-artifact@'))
+    assert.equal(downloads.length, 1)
+    assert.equal(downloads[0]!.with!.pattern, 'teams-sample-sync-*')
+    assert.equal(record(publish.env, 'publish environment').PLAN_FILE, '.sync/results/teams-sample-sync-plan/plan.json')
+    assert.doesNotMatch(JSON.stringify(publish), /--plan \.sync\/plan.json/)
   })
 })
