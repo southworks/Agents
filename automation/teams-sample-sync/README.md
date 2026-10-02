@@ -3,7 +3,7 @@
 This workflow synchronizes selected Teams SDK .NET samples into their existing Agents SDK
 counterparts. Its jobs are plan, migrate, and handoff. Migration has Copilot access but no
 repository-write credential. The handoff job verifies the candidates, uploads their patches and
-migration evidence, and assigns an issue to Copilot cloud agent. Copilot owns the resulting
+migration evidence, and creates an issue for Copilot cloud agent. Copilot owns the resulting
 implementation and PR, including its title, description, and readiness.
 
 The workflow runs every Sunday at 00:00 UTC for all configured samples. Dispatch manual runs from
@@ -41,10 +41,16 @@ prepared base and verified outputs match. An already assigned issue is left unto
 issue is updated with the current artifact before assignment. If the target branch moves before
 assignment, rerun synchronization to prepare changes against the current base.
 
-Automatic assignment requires an Actions secret named `COPILOT_ASSIGNMENT_TOKEN` containing a
-GitHub user token with permission to assign Copilot in this repository. The handoff job's
-`GITHUB_TOKEN` retains read-only repository and Actions access. Missing assignment credentials fail
-the handoff before issue creation. The workflow does not push a branch or create a PR itself.
+The optional Actions secret `COPILOT_ASSIGNMENT_TOKEN` enables automatic assignment. When configured,
+the workflow uses this GitHub user token to create or update the issue and assign Copilot. The token
+must have permission to assign Copilot in this repository. If assignment fails, the handoff fails
+and reports the error.
+
+Without the secret, the workflow uses `GITHUB_TOKEN` to create or update the issue, then succeeds
+with an issue link and instructions to assign Copilot manually in the workflow summary. The handoff
+job grants `GITHUB_TOKEN` issue-write permission and read-only repository contents and Actions access.
+Issues already assigned to Copilot remain untouched in either mode. The workflow does not push a
+branch or create a PR itself.
 
 Copilot uses Auto routing. The workflow records the observed model for diagnosis but does not
 select a model, enumerate a model catalog, or force a reasoning effort.

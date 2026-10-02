@@ -73,6 +73,35 @@ describe('workflow configuration', () => {
     assert.equal(existsSync(path.join(repo, '.github/workflows/finalize-teams-sync-pr.yml')), false)
   })
 
+  it('creates an issue without a PAT and leaves Copilot assignment manual', () => {
+    const workflow = record(
+      parse(readFileSync(path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8')),
+      'sync workflow'
+    )
+    const jobs = record(workflow.jobs, 'jobs')
+    const publish = record(jobs.publish, 'publish')
+    assert.equal(record(publish.permissions, 'publish permissions').issues, 'write')
+    for (const name of ['plan', 'migrate']) {
+      assert.notEqual(record(record(jobs[name], name).permissions, `${name} permissions`).issues, 'write')
+    }
+    const steps = publish.steps as Array<{ name?: string; run?: string; env?: unknown; 'continue-on-error'?: boolean }>
+    const handoff = steps.find((step) => step.name === 'Create or reuse handoff issue and assign Copilot')!
+    const environment = record(handoff.env, 'handoff environment')
+    assert.equal(environment.GH_TOKEN, '${{ secrets.COPILOT_ASSIGNMENT_TOKEN || github.token }}')
+    assert.equal(environment.COPILOT_ASSIGNMENT_TOKEN, '${{ secrets.COPILOT_ASSIGNMENT_TOKEN }}')
+    const script = handoff.run!
+    const manualAssignment = script.match(/if \[ -z "\$COPILOT_ASSIGNMENT_TOKEN" \]; then([\s\S]*?)\n\s*fi/)
+    assert.ok(manualAssignment)
+    assert.match(manualAssignment[1]!, /Handoff issue: \$issue_url/)
+    assert.match(manualAssignment[1]!, /Assign Copilot manually/)
+    assert.match(manualAssignment[1]!, /exit 0/)
+    assert.ok(manualAssignment.index! > script.indexOf('issue_number='))
+    assert.ok(manualAssignment.index! < script.indexOf('> .sync/issue/assignment-request.json'))
+    assert.doesNotMatch(script, /test -n "\$GH_TOKEN"/)
+    assert.notEqual(handoff['continue-on-error'], true)
+    assert.match(script, /Issue was not assigned to Copilot'; exit 1/)
+  })
+
   it('rejects a moved base before issue preparation and immediately before Copilot assignment', () => {
     const workflow = record(
       parse(readFileSync(path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8')),
