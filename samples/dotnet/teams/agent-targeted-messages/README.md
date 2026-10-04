@@ -96,7 +96,7 @@ Manage reminders with:
 - `add-reaction [type]`
 - `remove-reaction [type]`
 
-The app manifest declares `supportsTargetedMessages` and preserves personal, team, and group-chat scopes. It also declares `my-reminders` as a slash command, `remind` as a mention command, and `reminder-help` for both command surfaces.
+The app manifest declares `supportsTargetedMessages` and preserves personal, team, and group-chat scopes. All commands are available via both mention and slash surfaces: `remind`, `reminder-help`, `my-reminders`, `cancel-reminder`, `add-reaction`, and `remove-reaction`.
 
 ## Further reading
 
