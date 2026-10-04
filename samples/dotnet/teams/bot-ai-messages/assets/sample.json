@@ -1,22 +1,22 @@
 [
   {
-    "name": "officedev-microsoft-teams-samples-bot-ai-messages-dotnet",
-    "source": "officeDev",
+    "name": "southworks-agents-sdk-bot-ai-messages-dotnet",
+    "source": "Agents",
     "title": "Agent AI Messages Sample",
-    "shortDescription": "This sample demonstrates how to enhance AI-generated agent messages for Microsoft Teams using .NET (C#).",
+    "shortDescription": "This sample demonstrates how to enhance AI-generated agent messages for Microsoft Teams using the Microsoft 365 Agents SDK and its Teams extension.",
     "url": "https://github.com/microsoft/Agents/tree/main/samples/dotnet/teams/bot-ai-messages",
     "longDescription": [
       "This sample demonstrates how to enhance AI-generated agent messages for Microsoft Teams, built with the Microsoft 365 Agents SDK. It showcases AI labels, citations, feedback buttons, and sensitivity labels."
     ],
     "creationDateTime": "2026-03-05",
-    "updateDateTime": "2026-08-13",
+    "updateDateTime": "2026-10-04",
     "products": [
       "Teams"
     ],
     "metadata": [
       {
         "key": "TEAMS-SAMPLE-SOURCE",
-        "value": "OfficeDev"
+        "value": "Agents"
       },
       {
         "key": "TEAMS-SERVER-LANGUAGE",
@@ -41,19 +41,27 @@
     ],
     "authors": [
       {
-        "gitHubAccount": "OfficeDev",
-        "pictureUrl": "https://avatars.githubusercontent.com/u/6789362?s=200&v=4",
-        "name": "OfficeDev"
+        "gitHubAccount": "microsoft",
+        "pictureUrl": "https://avatars.githubusercontent.com/u/6154722?s=200&v=4",
+        "name": "microsoft"
       }
     ],
     "references": [
       {
-        "name": "Teams developer documentation",
-        "url": "https://aka.ms/TeamsPlatformDocs"
+        "name": "Microsoft 365 Agents SDK",
+        "url": "https://learn.microsoft.com/microsoft-365/agents-sdk/"
       },
       {
-        "name": "Teams developer questions",
-        "url": "https://aka.ms/TeamsPlatformFeedback"
+        "name": "Use the Teams extension for the Microsoft 365 Agents SDK",
+        "url": "https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/teams/teams-extension?pivots=dotnet"
+      },
+      {
+        "name": "Bot messages with AI-generated content",
+        "url": "https://learn.microsoft.com/microsoftteams/platform/bots/how-to/bot-messages-ai-generated-content"
+      },
+      {
+        "name": "Dev Tunnels documentation",
+        "url": "https://learn.microsoft.com/azure/developer/dev-tunnels/"
       }
     ]
   }

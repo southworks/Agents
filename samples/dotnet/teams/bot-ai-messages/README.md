@@ -31,6 +31,8 @@ Matching is case-insensitive. If a message contains multiple keywords, the first
 
 ## Configure the agent
 
+### Set up a dev tunnel
+
 Create a persistent tunnel for port 3978 with anonymous access:
 
 ```bash
@@ -39,7 +41,11 @@ devtunnel port create -p 3978 bot-ai-messages
 devtunnel host bot-ai-messages
 ```
 
+### Create an Azure Bot resource
+
 Create an Azure Bot resource backed by a single-tenant Entra app, set its messaging endpoint to `https://<your-devtunnel-domain>/api/messages`, and enable the Microsoft Teams channel.
+
+### Configure authentication
 
 Create an ignored `appsettings.Development.json` with the Entra app values. It overrides the corresponding values in the checked-in `appsettings.json` when you run the Development launch profile:
 
@@ -60,6 +66,16 @@ Create an ignored `appsettings.Development.json` with the Entra app values. It o
   }
 }
 ```
+
+Alternatively, use the `BotAiMessages-Development` launch profile to inject these values via environment variables:
+
+```bash
+dotnet run --launch-profile BotAiMessages-Development
+```
+
+Update the profile in `Properties/launchSettings.json` with your Entra app values before running.
+
+### Update the app manifest
 
 Update `manifest/manifest.json`:
 
