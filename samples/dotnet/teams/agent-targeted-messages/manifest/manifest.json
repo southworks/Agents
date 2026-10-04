@@ -39,15 +39,23 @@
           "triggers": ["mention"],
           "commands": [
             { "title": "remind", "description": "Create a reminder." },
-            { "title": "reminder-help", "description": "Show reminder help." }
+            { "title": "reminder-help", "description": "Show reminder help." },
+            { "title": "my-reminders", "description": "List active reminders." },
+            { "title": "cancel-reminder", "description": "Cancel a specific reminder." },
+            { "title": "add-reaction", "description": "Add a reaction to a message." },
+            { "title": "remove-reaction", "description": "Remove a reaction from a message." }
           ]
         },
         {
           "scopes": ["personal", "team", "groupChat"],
           "triggers": ["slash"],
           "commands": [
+            { "title": "remind", "description": "Create a reminder." },
+            { "title": "reminder-help", "description": "Show reminder help." },
             { "title": "my-reminders", "description": "List active reminders." },
-            { "title": "reminder-help", "description": "Show reminder help." }
+            { "title": "cancel-reminder", "description": "Cancel a specific reminder." },
+            { "title": "add-reaction", "description": "Add a reaction to a message." },
+            { "title": "remove-reaction", "description": "Remove a reaction from a message." }
           ]
         }
       ]
