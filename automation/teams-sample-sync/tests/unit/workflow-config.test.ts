@@ -128,13 +128,23 @@ describe('workflow configuration', () => {
       path.join(repo, '.github/workflows/sync-teams-dotnet-samples.yml'), 'utf8'
     )), 'sync workflow')
     const jobs = record(workflow.jobs, 'jobs')
-    const steps = record(jobs.plan, 'plan').steps as Array<{ id?: string; run?: string; with?: Record<string, unknown> }>
+    const steps = record(jobs.plan, 'plan').steps as Array<{
+      id?: string
+      name?: string
+      run?: string
+      env?: Record<string, unknown>
+      with?: Record<string, unknown>
+    }>
     const configuration = steps.find((step) => step.id === 'upstream')
     assert.match(configuration!.run!, /targets\(process.cwd\(\)\).upstream/)
     assert.match(configuration!.run!, /ref=\$\{ref\}/)
-    const checkout = steps.find((step) => step.with?.path === '.sync/upstream')
-    assert.equal(checkout!.with!.ref, '${{ steps.upstream.outputs.ref }}')
-    assert.ok(steps.indexOf(configuration!) < steps.indexOf(checkout!))
+    const fetch = steps.find((step) => step.name === 'Fetch upstream metadata without checking out code')!
+    assert.equal(fetch.env!.UPSTREAM_REF, '${{ steps.upstream.outputs.ref }}')
+    assert.match(fetch.run!, /git init --bare \.sync\/upstream/)
+    assert.match(fetch.run!, /fetch --depth=1 origin "\$UPSTREAM_REF"/)
+    assert.match(fetch.run!, /update-ref HEAD 'FETCH_HEAD\^\{commit\}'/)
+    assert.ok(steps.indexOf(configuration!) < steps.indexOf(fetch))
+    assert.equal(steps.some((step) => step.with?.path === '.sync/upstream'), false)
 
     assert.match(steps.find((step) => step.id === 'plan')!.run!, /--output \.sync\/plan.json/)
     assert.equal(steps.find((step) => step.with?.name === 'teams-sample-sync-plan')!.with!.path, '.sync/plan.json')

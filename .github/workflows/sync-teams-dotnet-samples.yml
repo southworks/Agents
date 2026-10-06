@@ -61,12 +61,14 @@ jobs:
           const { ref } = targets(process.cwd()).upstream
           appendFileSync(process.env.GITHUB_OUTPUT, `ref=${ref}\n`)
           NODE
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ env.TEAMS_SAMPLES_REPOSITORY }}
-          ref: ${{ steps.upstream.outputs.ref }}
-          path: .sync/upstream
-          persist-credentials: false
+      - name: Fetch upstream metadata without checking out code
+        env:
+          UPSTREAM_REF: ${{ steps.upstream.outputs.ref }}
+        run: |
+          git init --bare .sync/upstream
+          git -C .sync/upstream remote add origin "https://github.com/$TEAMS_SAMPLES_REPOSITORY.git"
+          git -C .sync/upstream fetch --depth=1 origin "$UPSTREAM_REF"
+          git -C .sync/upstream update-ref HEAD 'FETCH_HEAD^{commit}'
       - id: plan
         env:
           SYNC_SAMPLE: ${{ github.event_name == 'schedule' && 'all' || inputs.sample }}

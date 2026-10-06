@@ -10,8 +10,9 @@ The workflow runs every Sunday at 00:00 UTC for all configured samples. Dispatch
 the repository's default branch; other refs are skipped. Manual runs can select one
 sample or all samples and can enable or disable publication. Migrations run independently, but the
 selected samples publish as one coordinated set: if any migration fails, no handoff issue is created.
-The planning checkout uses `upstream.ref` from `config/targets.yml`; migration jobs use the exact
-commit selected by the plan. A sample's deadline aborts Copilot and cancels validation processes.
+Planning fetches `upstream.ref` from `config/targets.yml` into a bare Git repository, so no upstream
+code is checked out in the planning job. Migration jobs use the exact commit selected by the plan.
+A sample's deadline aborts Copilot and cancels validation processes.
 
 For each changed sample, one persistent Copilot implementation session first creates a Markdown
 migration plan without write permission. The coordinator saves and hashes that plan. The same
