@@ -103,7 +103,7 @@ describe('synchronization reports', () => {
     )
     const sampleLine = issue.split('\n').find((line) => line.startsWith('- **bot-cards:** '))
 
-    assert.equal(sampleLine, `- **bot-cards:** ${summary.replace('\n', ' ')}`)
+    assert.equal(sampleLine, `- **bot-cards:** ${summary.replace(/\n/g, ' ')}`)
     assert.doesNotMatch(sampleLine!, /\\[`_[\]]/)
   })
 
