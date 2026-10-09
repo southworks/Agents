@@ -1,5 +1,9 @@
 # Agents SDK production guidance
 
+For the consolidated Microsoft Learn article and publication notes, see the
+[Learn draft](learn/production-ready-agent.md) and
+[documentation handoff](learn/handoff-notes.md).
+
 Use the guide for the language that hosts your agent:
 
 - [JavaScript and TypeScript](nodejs/production-ready-agent.md)
