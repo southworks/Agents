@@ -2,12 +2,17 @@
 
 This guide explains how to move a JavaScript or TypeScript Microsoft 365 Agents SDK agent toward a bounded, evidence-backed production deployment.
 
+Use the [shared readiness contract](../shared/production-readiness.md) and
+[matrix](../shared/readiness-matrix.md) to compare controls and evidence with
+the [Python](../python/production-ready-agent.md) and
+[.NET](../dotnet/production-ready-agent.md) implementations.
+
 Production readiness is more than secure source code. It includes identity, state, traffic protection, observability, infrastructure, tests, deployment evidence, rollback, and operator procedures.
 
 > [!IMPORTANT]
 > This guide is a baseline, not a production certification. Apply your organization's security, privacy, reliability, and compliance requirements. Do not describe an agent as production-ready until its selected environment has passed the required deployment and operator checks.
 
-The companion [Web Chat production reference](../samples/nodejs/production-reference/README.md) demonstrates one supported path: Azure App Service, Azure Bot Service Web Chat, managed identity, and Blob state. It does not demonstrate every Agents SDK feature.
+The companion [Web Chat production reference](../../samples/nodejs/production-reference/README.md) demonstrates one supported path: Azure App Service, Azure Bot Service Web Chat, managed identity, and Blob state. It does not demonstrate every Agents SDK feature.
 
 The reference labels itself Tier 3 because it supplies durable state, production identity, health checks, observability, tests, infrastructure as code, deployment guidance, rollback, and an operator runbook. The tier describes supplied evidence. It does not certify a deployed workload.
 
@@ -41,7 +46,7 @@ Use these states instead of a general “production-ready” claim:
 - Access to the infrastructure, identity, telemetry, and traffic-protection configuration for that environment.
 - An operator who owns deployment, incidents, retention, deletion, and rollback.
 
-Use the [production reference sample](../samples/nodejs/production-reference/README.md) for executable code. Use the [production-readiness skill](../agent-plugins/agents-for-js/skills/agents-sdk-to-prod/SKILL.md) when an AI coding agent must assess or harden a selected JavaScript scenario.
+Use the [production reference sample](../../samples/nodejs/production-reference/README.md) for executable code. Use the [production-readiness skill](../../agent-plugins/agents-for-js/skills/agents-sdk-to-prod/SKILL.md) when an AI coding agent must assess or harden a selected JavaScript scenario.
 
 ## Define the deployment boundary
 
@@ -291,9 +296,10 @@ Maintain a versioned evaluation set for expected requests, prompt injection, dat
 
 ## Next steps
 
-- Run the [Web Chat production reference](../samples/nodejs/production-reference/README.md).
-- Use the [production-readiness skill](../agent-plugins/agents-for-js/skills/agents-sdk-to-prod/SKILL.md) to assess a selected JavaScript scenario.
+- Run the [Web Chat production reference](../../samples/nodejs/production-reference/README.md).
+- Use the [production-readiness skill](../../agent-plugins/agents-for-js/skills/agents-sdk-to-prod/SKILL.md) to assess a selected JavaScript scenario.
 - Review [Agents SDK JavaScript authentication](https://learn.microsoft.com/microsoft-365/agents-sdk/azure-bot-authentication-for-javascript).
 - Review [Agents SDK storage](https://learn.microsoft.com/microsoft-365/agents-sdk/storage).
 - Review the [Agents SDK telemetry package](https://github.com/microsoft/Agents-for-js/tree/main/packages/agents-telemetry).
 - Review [managed identities for App Service](https://learn.microsoft.com/azure/app-service/overview-managed-identity).
+

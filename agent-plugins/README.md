@@ -35,6 +35,7 @@ Skills for building agents with the Microsoft 365 Agents SDK for Python.
 
 | Skill | Activates when... |
 |-------|-------------------|
+| `agents-sdk-to-prod` | Assessing, hardening, deploying, or reviewing production readiness for Microsoft 365 Agents SDK Python code |
 | `agents-sdk-python-otel` | Adding or troubleshooting OpenTelemetry traces, metrics, logs, OTLP exporters, Azure Monitor, sampling, or an Aspire Dashboard for an Agents SDK Python application |
 
 ---
@@ -45,6 +46,7 @@ Skills for building agents with the Microsoft 365 Agents SDK for C# / .NET.
 
 | Skill | Activates when... |
 |-------|-------------------|
+| `agents-sdk-to-prod` | Assessing, hardening, deploying, or reviewing production readiness for Microsoft 365 Agents SDK C#/.NET code |
 | `agents-sdk-dotnet` | Code imports `Microsoft.Agents.Hosting.AspNetCore`, `Microsoft.Agents.Builder`, or related packages, or when building a new agent in C# / .NET |
 | `agents-sdk-dotnet-debugging` | Troubleshooting a Microsoft Agents SDK agent in C# / .NET (build errors, auth failures, startup crashes, configuration issues) |
 | `agents-sdk-dotnet-otel` | Adding or troubleshooting OpenTelemetry traces, metrics, logs, OTLP exporters, Azure Monitor, or an Aspire Dashboard for an Agents SDK .NET application |

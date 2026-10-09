@@ -12,7 +12,7 @@ module infrastructure '../../../shared/production-reference/infra/main.bicep' = 
     location: location
     skuName: skuName
     botSkuName: botSkuName
-    language: 'nodejs'
+    language: 'dotnet'
   }
 }
 
