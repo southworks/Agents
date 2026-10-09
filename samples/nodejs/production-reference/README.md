@@ -21,7 +21,7 @@ Use the guide to plan or review production requirements. Use this sample to insp
 
 Use the SDK `startServer` helper for a simple agent that accepts its default JSON parser, endpoint pipeline, and shutdown behavior. This sample owns its Express host because it must set the JSON limit before the agent route, apply JWT authentication before its Web Chat host policy, add error handling after the route, and close the HTTP server before telemetry shutdown. The health routes remain anonymous. The SDK helper's optional rate limit is IP-based and runs before JWT validation; it is not a trusted per-user limit for Web Chat.
 
-The start commands preload `telemetry.js` so Azure Monitor initializes before Agents SDK components run. The SDK then emits its built-in instrumentation automatically. Set `AGENTS_TELEMETRY_DISABLED_SPAN_CATEGORIES` only when a built-in category is not required; valid values are `STORAGE`, `AUTHENTICATION`, `AUTHORIZATION`, and `DIALOGS`.
+The start commands preload `telemetry.js` so Azure Monitor initializes before Agents SDK components run. The SDK then emits its built-in instrumentation automatically. Review the exported content and configure sampling for the selected deployment.
 
 ## Local run
 

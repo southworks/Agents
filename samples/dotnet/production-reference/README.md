@@ -65,9 +65,8 @@ policy; startup rejects overrides that weaken or change that boundary.
 `ConnectionsMap:0:Audience` and `TokenValidation:Audiences` default to the service
 connection client ID; supplied values must match. `TokenValidation:TenantId`
 defaults to the service connection tenant ID and must match when supplied.
-`OTEL_SERVICE_NAME` sets the exported service identity. The Node.js setting
-`AGENTS_TELEMETRY_DISABLED_SPAN_CATEGORIES` does not apply here: all SDK spans are
-excluded, and only the sample's reviewed instrumentation is exported.
+`OTEL_SERVICE_NAME` sets the exported service identity. All SDK spans are excluded,
+and only the sample's reviewed instrumentation is exported.
 
 State uses `VersionedStorage` with the released Azure Blob client and SDK
 `IStorage` interface. It carries Blob versions per turn, uses conditional updates

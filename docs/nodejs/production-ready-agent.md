@@ -239,8 +239,6 @@ Collect the traces, metrics, and structured logs required to operate the selecte
 - Alert on readiness failure, elevated 5xx, authentication changes, outbound-policy rejection, dependency failure, and restart loops.
 - Maintain deployment, rollback, incident, retention, and deletion procedures.
 
-Use `AGENTS_TELEMETRY_DISABLED_SPAN_CATEGORIES` only when a built-in category is not required. Supported values are `STORAGE`, `AUTHENTICATION`, `AUTHORIZATION`, and `DIALOGS`, separated by commas or spaces.
-
 ## Add AI controls when the agent invokes a model
 
 AI controls do not replace normal web-service controls.

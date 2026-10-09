@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+
 """Add optimistic writes to the released SDK Blob provider.
 
 The SDK provider currently overwrites blobs unconditionally. Keep the ETag on

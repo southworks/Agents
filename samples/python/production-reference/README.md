@@ -5,7 +5,7 @@ profile using Python connection names. They have secure defaults and are checked
 at startup in production: managed identity, issuer validation, exact audience,
 the default service connection and the Web Chat outbound host policy.
 `OTEL_SERVICE_NAME` sets the exported service identity. SDK spans are excluded
-entirely; the Node.js span-category setting is not used.
+entirely; only reviewed application instrumentation is exported.
 
 **Runtime:** Python 3.12 · **Channel:** Web Chat · **Host:** Azure App Service
 

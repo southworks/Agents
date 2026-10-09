@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
 const appUrl = process.env.APP_URL?.replace(/\/$/, '')
 if (!appUrl) {
   throw new Error('APP_URL is required, for example https://my-agent.azurewebsites.net')

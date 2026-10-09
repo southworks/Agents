@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+
 def advance_issue_capture(current: dict, message: str) -> tuple[dict, str]:
     if current.get("version") != 1:
         raise ValueError("Unsupported state schema.")

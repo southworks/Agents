@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+
 """Package source and hash-pinned Linux wheels for reproducible App Service installs."""
 
 import hashlib
