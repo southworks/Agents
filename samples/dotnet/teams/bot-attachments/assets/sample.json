@@ -3,10 +3,10 @@
     "name": "officedev-microsoft-teams-samples-bot-attachments-dotnet",
     "source": "officeDev",
     "title": "Agent Attachments",
-    "shortDescription": "This sample demonstrates how to send and receive file attachments in Microsoft Teams using the Microsoft 365 Agents SDK.",
+    "shortDescription": "This sample demonstrates how to receive file attachments in Microsoft Teams, request consent, and upload to OneDrive using the Microsoft 365 Agents SDK.",
     "url": "https://github.com/microsoft/Agents/tree/main/samples/dotnet/teams/bot-attachments",
     "longDescription": [
-      "This sample demonstrates file attachment handling in Microsoft Teams using an agent built with the Microsoft 365 Agents SDK. When a user sends a file, the agent downloads it, stores it in memory, and sends a File Consent Card requesting permission to upload to OneDrive. Upon acceptance, the agent uploads the file and sends a File Info Card with a direct link. Declined requests are handled gracefully with a notification message."
+      "This sample demonstrates file attachment handling using the Microsoft 365 Agents SDK and its Teams extension. When a user sends a file, the agent downloads it, sends a File Consent Card requesting permission to upload to OneDrive, and queues the upload for processing. A hosted background service performs the upload asynchronously and proactively sends the result to the user without retaining the incoming turn context. Declined requests are handled gracefully with a notification message."
     ],
     "creationDateTime": "2026-01-30",
     "updateDateTime": "2026-01-30",
@@ -16,7 +16,7 @@
     "metadata": [
       {
         "key": "TEAMS-SAMPLE-SOURCE",
-        "value": "OfficeDev"
+        "value": "Microsoft 365 Agents SDK"
       },
       {
         "key": "TEAMS-SERVER-LANGUAGE",
@@ -24,11 +24,11 @@
       },
       {
         "key": "TEAMS-SERVER-PLATFORM",
-        "value": "netframework"
+        "value": "net10.0"
       },
       {
         "key": "TEAMS-FEATURES",
-        "value": "bot attachments"
+        "value": "file attachments, file consent, OneDrive upload, proactive messaging"
       }
     ],
     "thumbnails": [
@@ -41,27 +41,23 @@
     ],
     "authors": [
       {
-        "gitHubAccount": "OfficeDev",
-        "pictureUrl": "https://avatars.githubusercontent.com/u/6789362?s=200&v=4",
-        "name": "OfficeDev"
+        "gitHubAccount": "microsoft",
+        "pictureUrl": "https://avatars.githubusercontent.com/u/6154722?s=200&v=4",
+        "name": "Microsoft"
       }
     ],
     "references": [
       {
-        "name": "Teams developer documentation",
-        "url": "https://aka.ms/TeamsPlatformDocs"
+        "name": "Microsoft 365 Agents SDK documentation",
+        "url": "https://learn.microsoft.com/microsoft-365/agents-sdk/"
       },
       {
-        "name": "Teams developer questions",
-        "url": "https://aka.ms/TeamsPlatformFeedback"
+        "name": "Teams extension for Microsoft 365 Agents SDK",
+        "url": "https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/teams/teams-extension?pivots=dotnet"
       },
       {
-        "name": "Teams development videos from Microsoft",
-        "url": "https://aka.ms/sample-ref-teams-vids-from-microsoft"
-      },
-      {
-        "name": "Teams development videos from the community",
-        "url": "https://aka.ms/community/videos/m365powerplatform"
+        "name": "Send and receive files using bots",
+        "url": "https://learn.microsoft.com/microsoftteams/platform/bots/how-to/bots-filesv4"
       }
     ]
   }
