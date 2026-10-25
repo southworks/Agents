@@ -30,6 +30,21 @@
         "team",
         "groupChat"
       ],
+      "commandLists": [
+        {
+          "scopes": [
+            "personal",
+            "team",
+            "groupChat"
+          ],
+          "commands": [
+            {
+              "title": "help",
+              "description": "Show help for using the Wikipedia search agent."
+            }
+          ]
+        }
+      ],
       "supportsFiles": false,
       "isNotificationOnly": false
     }
