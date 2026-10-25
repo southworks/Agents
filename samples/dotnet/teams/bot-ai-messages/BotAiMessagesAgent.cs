@@ -14,7 +14,6 @@ using System.Threading.Tasks;
 
 namespace BotAiMessages;
 
-[TeamsExtension]
 public partial class BotAiMessagesAgent(AgentApplicationOptions options) : AgentApplication(options)
 {
     [TeamsMessageRoute]
@@ -75,10 +74,17 @@ public partial class BotAiMessagesAgent(AgentApplicationOptions options) : Agent
                 string? feedbackJson = feedbackProperty.GetString();
                 if (!string.IsNullOrEmpty(feedbackJson))
                 {
-                    using JsonDocument feedbackDocument = JsonDocument.Parse(feedbackJson);
-                    if (feedbackDocument.RootElement.TryGetProperty("feedbackText", out JsonElement feedbackTextProperty))
+                    try
                     {
-                        feedbackText = feedbackTextProperty.GetString() ?? "No feedback was provided.";
+                        using JsonDocument feedbackDocument = JsonDocument.Parse(feedbackJson);
+                        if (feedbackDocument.RootElement.TryGetProperty("feedbackText", out JsonElement feedbackTextProperty))
+                        {
+                            feedbackText = feedbackTextProperty.GetString() ?? "No feedback was provided.";
+                        }
+                    }
+                    catch (JsonException)
+                    {
+                        feedbackText = feedbackJson;
                     }
                 }
             }

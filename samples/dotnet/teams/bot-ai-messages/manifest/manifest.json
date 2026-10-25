@@ -1,6 +1,6 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json",
-  "manifestVersion": "1.22",
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.29/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.29",
   "version": "1.0.0",
   "id": "${{AAD_APP_CLIENT_ID}}",
   "developer": {
@@ -29,7 +29,35 @@
         "personal"
       ],
       "supportsFiles": false,
-      "isNotificationOnly": false
+      "isNotificationOnly": false,
+      "commandLists": [
+        {
+          "scopes": [
+            "personal"
+          ],
+          "triggers": [
+            "mention"
+          ],
+          "commands": [
+            {
+              "title": "label",
+              "description": "Send a message marked as AI-generated."
+            },
+            {
+              "title": "feedback",
+              "description": "Send a message with feedback buttons."
+            },
+            {
+              "title": "sensitivity",
+              "description": "Send a message with a sensitivity label."
+            },
+            {
+              "title": "citation",
+              "description": "Send an AI message with a citation."
+            }
+          ]
+        }
+      ]
     }
   ],
   "validDomains": [

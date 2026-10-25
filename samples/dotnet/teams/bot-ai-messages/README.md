@@ -28,6 +28,7 @@ Send a message containing one of these keywords:
 | `citation` | Sends an AI response with a numbered Microsoft Word citation. |
 
 Matching is case-insensitive. If a message contains multiple keywords, the first match in the order shown above is used. Any other message returns usage guidance.
+These same keywords are declared as **mention** commands in the Teams app manifest command menu.
 
 ## Configure the agent
 
