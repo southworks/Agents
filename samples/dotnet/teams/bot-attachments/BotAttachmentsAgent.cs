@@ -20,13 +20,11 @@ using System.Security;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using FileConsentCard = Microsoft.Teams.Api.FileConsentCard;
-using FileConsentCardResponse = Microsoft.Teams.Api.FileConsentCardResponse;
-using FileUploadInfo = Microsoft.Teams.Api.FileUploadInfo;
+using TeamsFileConsentValue = Microsoft.Teams.Apps.Files.FileConsentValue;
+using TeamsFileUploadInfo = Microsoft.Teams.Apps.Files.FileUploadInfo;
 
 namespace Microsoft.Teams.Samples.BotAttachments;
 
-[TeamsExtension]
 public partial class BotAttachmentsAgent : AgentApplication
 {
     private const string ContentTypeFileDownload = "application/vnd.microsoft.teams.file.download.info";
@@ -90,7 +88,7 @@ public partial class BotAttachmentsAgent : AgentApplication
     public async Task OnFileConsentAcceptAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
-        FileConsentCardResponse response,
+        TeamsFileConsentValue response,
         CancellationToken cancellationToken)
     {
         Dictionary<string, string>? context = DeserializeContext(response.Context);
@@ -107,8 +105,8 @@ public partial class BotAttachmentsAgent : AgentApplication
             return;
         }
 
-        FileUploadInfo? uploadInfo = response.UploadInfo;
-        if (uploadInfo == null || string.IsNullOrWhiteSpace(uploadInfo.UploadUrl))
+        TeamsFileUploadInfo? uploadInfo = response.UploadInfo;
+        if (uploadInfo == null || uploadInfo.UploadUrl == null)
         {
             _logger.LogWarning("The accepted file consent response did not include upload information.");
             return;
@@ -117,8 +115,8 @@ public partial class BotAttachmentsAgent : AgentApplication
         var workItem = new FileUploadWorkItem(
             content,
             uploadInfo.Name ?? fileName,
-            uploadInfo.UploadUrl,
-            uploadInfo.ContentUrl,
+            uploadInfo.UploadUrl.ToString(),
+            uploadInfo.ContentUrl?.ToString(),
             uploadInfo.UniqueId,
             uploadInfo.FileType,
             turnContext.Activity.GetConversationReference());
@@ -136,7 +134,7 @@ public partial class BotAttachmentsAgent : AgentApplication
     public async Task OnFileConsentDeclineAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
-        FileConsentCardResponse response,
+        TeamsFileConsentValue response,
         CancellationToken cancellationToken)
     {
         Dictionary<string, string>? context = DeserializeContext(response.Context);
@@ -205,12 +203,12 @@ public partial class BotAttachmentsAgent : AgentApplication
         CancellationToken cancellationToken)
     {
         var consentContext = new { filename = fileName, file_id = fileId };
-        var fileCard = new FileConsentCard
+        var fileCard = new
         {
-            Description = "This is the file I want to send you",
-            SizeInBytes = fileSize,
-            AcceptContext = consentContext,
-            DeclineContext = consentContext
+            description = "This is the file I want to send you",
+            sizeInBytes = fileSize,
+            acceptContext = consentContext,
+            declineContext = consentContext
         };
 
         var attachment = new Attachment
