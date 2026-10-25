@@ -15,7 +15,6 @@ using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
 using Microsoft.Agents.Extensions.MSTeams;
 using Microsoft.Agents.Extensions.MSTeams.App;
-using Microsoft.Teams.Api.Messages;
 using Microsoft.Teams.Cards;
 using Microsoft.Teams.Common;
 using AdaptiveCard = Microsoft.Teams.Cards.AdaptiveCard;
@@ -23,7 +22,6 @@ using TeamsAction = Microsoft.Teams.Cards.Action;
 
 namespace AgentTargetedMessages;
 
-[TeamsExtension]
 public partial class AgentTargetedMessagesAgent(
     AgentApplicationOptions options,
     ReminderService reminderService) : AgentApplication(options)
@@ -32,9 +30,9 @@ public partial class AgentTargetedMessagesAgent(
         @"in\s+(\d+)\s*(seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h)\b",
         RegexOptions.IgnoreCase);
 
-    [TeamsMessageRoute]
+    [MessageRoute]
     public async Task OnMessageAsync(
-        ITeamsTurnContext turnContext,
+        ITurnContext turnContext,
         ITurnState turnState,
         CancellationToken cancellationToken)
     {
@@ -90,9 +88,9 @@ public partial class AgentTargetedMessagesAgent(
         }
     }
 
-    [TeamsActivityRoute(ActivityTypes.Invoke)]
+    [ActivityRoute(ActivityTypes.Invoke)]
     public async Task OnSuggestedActionSubmitAsync(
-        ITeamsTurnContext turnContext,
+        ITurnContext turnContext,
         ITurnState turnState,
         CancellationToken cancellationToken)
     {
@@ -191,8 +189,8 @@ public partial class AgentTargetedMessagesAgent(
         return AdaptiveCardInvokeResponseFactory.Message($"Snoozed for {snoozeMinutes} minutes!");
     }
 
-    [MessageReactionsAddedRoute]
-    public async Task OnMessageReactionsAddedAsync(
+    [ActivityRoute(ActivityTypes.MessageReaction)]
+    public async Task OnMessageReactionsAsync(
         ITurnContext turnContext,
         ITurnState turnState,
         CancellationToken cancellationToken)
@@ -206,17 +204,8 @@ public partial class AgentTargetedMessagesAgent(
         }
     }
 
-    [MessageReactionsRemovedRoute]
-    public Task OnMessageReactionsRemovedAsync(
-        ITurnContext turnContext,
-        ITurnState turnState,
-        CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-
     private async Task HandleRemindCommandAsync(
-        ITeamsTurnContext turnContext,
+        ITurnContext turnContext,
         string commandText,
         bool isTargeted,
         CancellationToken cancellationToken)
@@ -256,7 +245,7 @@ public partial class AgentTargetedMessagesAgent(
     }
 
     private async Task ShowMyRemindersAsync(
-        ITeamsTurnContext turnContext,
+        ITurnContext turnContext,
         bool isTargeted,
         CancellationToken cancellationToken)
     {
@@ -297,7 +286,7 @@ public partial class AgentTargetedMessagesAgent(
     }
 
     private async Task CancelReminderAsync(
-        ITeamsTurnContext turnContext,
+        ITurnContext turnContext,
         string reminderId,
         bool isTargeted,
         CancellationToken cancellationToken)
@@ -330,7 +319,7 @@ public partial class AgentTargetedMessagesAgent(
     }
 
     private static async Task ShowHelpAsync(
-        ITeamsTurnContext turnContext,
+        ITurnContext turnContext,
         CancellationToken cancellationToken)
     {
         const string helpText =
@@ -355,7 +344,9 @@ public partial class AgentTargetedMessagesAgent(
             "**Reactions:**\n" +
             "- `add-reaction [type]` - Agent adds a reaction to your message\n" +
             "- `remove-reaction [type]` - Agent removes a reaction from your message\n" +
-            "- React to any agent message and the agent will acknowledge it!";
+            "- React to any agent message and the agent will acknowledge it!\n\n" +
+            "**Supported Reaction Types:**\n" +
+            "- `like`, `heart`, `1f440_eyes`, `2705_whiteheavycheckmark`, `launch`, `1f4cc_pushpin`";
 
         IActivity response = CreateTextActivity(helpText);
         response.SuggestedActions = BuildSuggestedCommands(
@@ -367,7 +358,7 @@ public partial class AgentTargetedMessagesAgent(
     }
 
     private static async Task HandleAddReactionAsync(
-        ITeamsTurnContext turnContext,
+        ITurnContext turnContext,
         string commandText,
         CancellationToken cancellationToken)
     {
@@ -379,23 +370,32 @@ public partial class AgentTargetedMessagesAgent(
         if (string.IsNullOrEmpty(reactionType))
         {
             await turnContext.SendActivityAsync(
-                "Please specify a reaction type. Example: `add-reaction like`",
+                "Please specify a reaction type. Example: `add-reaction like`\n\n" +
+                "Supported types: `like`, `heart`, `1f440_eyes`, `2705_whiteheavycheckmark`, `launch`, `1f4cc_pushpin`",
                 cancellationToken: cancellationToken);
             return;
         }
 
-        await turnContext.Client.Conversations.Reactions.AddAsync(
-            turnContext.Activity.Conversation.Id,
-            turnContext.Activity.Id,
-            new ReactionType(reactionType),
-            cancellationToken);
+        if (turnContext is ITeamsTurnContext teamsTurnContext)
+        {
+            await teamsTurnContext.Client.Conversations.AddReactionAsync(
+                turnContext.Activity.Conversation.Id,
+                turnContext.Activity.Id,
+                reactionType,
+                cancellationToken: cancellationToken);
+            await turnContext.SendActivityAsync(
+                $"Added a **{reactionType}** reaction to your message!",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
         await turnContext.SendActivityAsync(
-            $"Added a **{reactionType}** reaction to your message!",
+            "Adding reactions is unavailable in this environment.",
             cancellationToken: cancellationToken);
     }
 
     private static async Task HandleRemoveReactionAsync(
-        ITeamsTurnContext turnContext,
+        ITurnContext turnContext,
         string commandText,
         CancellationToken cancellationToken)
     {
@@ -412,13 +412,21 @@ public partial class AgentTargetedMessagesAgent(
             return;
         }
 
-        await turnContext.Client.Conversations.Reactions.DeleteAsync(
-            turnContext.Activity.Conversation.Id,
-            turnContext.Activity.Id,
-            new ReactionType(reactionType),
-            cancellationToken);
+        if (turnContext is ITeamsTurnContext teamsTurnContext)
+        {
+            await teamsTurnContext.Client.Conversations.DeleteReactionAsync(
+                turnContext.Activity.Conversation.Id,
+                turnContext.Activity.Id,
+                reactionType,
+                cancellationToken: cancellationToken);
+            await turnContext.SendActivityAsync(
+                $"Removed the **{reactionType}** reaction from your message!",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
         await turnContext.SendActivityAsync(
-            $"Removed the **{reactionType}** reaction from your message!",
+            "Removing reactions is unavailable in this environment.",
             cancellationToken: cancellationToken);
     }
 
@@ -654,7 +662,7 @@ public partial class AgentTargetedMessagesAgent(
     }
 
     private static async Task SendAsync(
-        ITeamsTurnContext turnContext,
+        ITurnContext turnContext,
         IActivity activity,
         bool isTargeted,
         ChannelAccount? recipient,
@@ -662,8 +670,15 @@ public partial class AgentTargetedMessagesAgent(
     {
         if (isTargeted)
         {
-            activity.Recipient = CopyAccount(recipient);
-            await turnContext.SendTargetedActivityAsync(activity, cancellationToken);
+            ChannelAccount target = CopyAccount(recipient);
+            activity.Recipient = target;
+            activity.MakeTargetedActivity(target);
+            if (turnContext is ITeamsTurnContext teamsTurnContext)
+            {
+                await teamsTurnContext.SendTargetedActivityAsync(activity, target, cancellationToken);
+                return;
+            }
+            await turnContext.SendActivityAsync(activity, cancellationToken);
         }
         else
         {

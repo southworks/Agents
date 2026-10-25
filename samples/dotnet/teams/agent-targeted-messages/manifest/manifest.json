@@ -47,6 +47,9 @@
           "triggers": ["slash"],
           "commands": [
             { "title": "my-reminders", "description": "List active reminders." },
+            { "title": "cancel-reminder", "description": "Cancel a reminder by ID." },
+            { "title": "add-reaction", "description": "Add a reaction to your message." },
+            { "title": "remove-reaction", "description": "Remove a reaction from your message." },
             { "title": "reminder-help", "description": "Show reminder help." }
           ]
         }
