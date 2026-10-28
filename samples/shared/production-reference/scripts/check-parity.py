@@ -5,7 +5,8 @@ import re
 
 def main():
     repository = Path(__file__).resolve().parents[4]
-    canonical = (repository / "docs/shared/readiness-matrix.md").read_text(encoding="utf-8").strip()
+    canonical_path = repository / "samples/shared/production-reference/readiness-matrix.md"
+    canonical = canonical_path.read_text(encoding="utf-8").strip()
     for plugin in ("agents-for-js", "agents-for-python", "agents-for-net"):
         matrix = repository / f"agent-plugins/{plugin}/skills/agents-sdk-to-prod/references/readiness-matrix.md"
         if matrix.read_text(encoding="utf-8").strip() != canonical:

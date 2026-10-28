@@ -10,6 +10,6 @@ Use the guide for the language that hosts your agent:
 - [Python](python/production-ready-agent.md)
 - [.NET](dotnet/production-ready-agent.md)
 
-All guides use the [shared readiness contract](shared/production-readiness.md)
-and [readiness matrix](shared/readiness-matrix.md). Each language has a bounded
+All guides use the [shared readiness contract](shared/production-readiness.md).
+Each language has a bounded
 Web Chat production reference and its own production-readiness skill.
