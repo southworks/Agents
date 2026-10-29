@@ -14,6 +14,12 @@ export function sanitizedChildEnvironment (extra: Record<string, string> = {}): 
     'WINDIR',
     'HOME',
     'USERPROFILE',
+    // NuGet needs user and machine configuration directories on Windows.
+    'APPDATA',
+    'LOCALAPPDATA',
+    'ProgramFiles',
+    'ProgramFiles(x86)',
+    'ProgramW6432',
     'TMP',
     'TEMP',
     'DOTNET_ROOT',

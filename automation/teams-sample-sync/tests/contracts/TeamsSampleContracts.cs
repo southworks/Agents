@@ -58,16 +58,24 @@ public partial class TeamsSampleContracts
     private static JObject Payload(object value) => JObject.Parse(
         System.Text.Json.JsonSerializer.Serialize(ProtocolJsonSerializer.ToJsonElements(value)));
 
-    private static AgentTestHost CreateHost(Func<IServiceProvider, IAgent> agentFactory)
+    private static AgentTestHost CreateHost(
+        Func<IServiceProvider, IAgent> agentFactory,
+        IHttpClientFactory? httpClients = null,
+        IHttpClientFactory? teamsHttpClients = null)
     {
         AgentTestHost host = AgentTestHost.Create(builder =>
         {
             builder.Services.AddSingleton<IStorage, MemoryStorage>();
             builder.Services.AddHttpClient();
+            if (httpClients != null)
+            {
+                builder.Services.AddSingleton(httpClients);
+            }
+
             builder.Services.AddTransient(agentFactory);
         });
         host.Adapter.Conversation.ChannelId = Channels.Msteams;
-        host.Adapter.Use(new TeamsTransportMiddleware());
+        host.Adapter.Use(new TeamsTransportMiddleware(teamsHttpClients));
 
         return host;
     }

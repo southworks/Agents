@@ -94,6 +94,13 @@ explicit `using` directives (matches Agents SDK sample convention).
 
 ---
 
+## SDK 1.9 payload compatibility
+
+For the 1.9 release line, read [SDK 1.9 Teams payloads](references/sdk-1.9-teams-payloads.md)
+before changing handlers. A package upgrade alone is insufficient: file consent, dialogs,
+message extensions, and meeting payloads changed. Verify against the installed version;
+do not copy 1.8 `Microsoft.Teams.Api.*` models or guess types in the Agents routing namespace.
+
 ## Namespace Replacements
 
 | Teams SDK (`teams.net`)                          | Agents SDK                                       |
@@ -102,7 +109,8 @@ explicit `using` directives (matches Agents SDK sample convention).
 | `Microsoft.Teams.Apps`                           | `Microsoft.Agents.Builder`, `Microsoft.Agents.Builder.App` |
 | `Microsoft.Teams.Apps.Activities`                | `Microsoft.Agents.Builder.App` (routing)         |
 | `Microsoft.Teams.Api.Activities`                 | `Microsoft.Agents.Core.Models`                   |
-| `Microsoft.Teams.Api` (models)                   | `Microsoft.Agents.Core.Models`                   |
+| `Microsoft.Teams.Api` (activity/card models)     | `Microsoft.Agents.Core.Models`                   |
+| `Microsoft.Teams.Api` (Teams route payloads, SDK 1.9) | `Microsoft.Teams.Apps.Files`, `.TaskModules`, `.MessageExtensions`, `.Meetings`, `.Clients` � see the version-specific guide |
 | *(Teams-specific)* `Microsoft.Teams.Apps.Activities.Events` etc. | `Microsoft.Agents.Extensions.MSTeams.*` |
 
 ---
@@ -347,8 +355,8 @@ Teams route handlers. Each Teams SDK `teamsApp.On*` maps to a route attribute:
 | `OnMeetingLeave`                         | `[TeamsMeetingParticipantsLeaveRoute]`                               |
 | `OnFileConsent` (Accept branch)          | `[TeamsFileConsentAcceptRoute]`                                      |
 | `OnFileConsent` (Decline branch)         | `[TeamsFileConsentDeclineRoute]`                                     |
-| `OnTaskFetch`                            | `[TeamsTaskFetchRoute("value")]` → returns `Microsoft.Teams.Api.TaskModules.Response` |
-| `OnTaskSubmit`                           | `[TeamsTaskSubmitRoute("value")]` → returns `Microsoft.Teams.Api.TaskModules.Response` |
+| `OnTaskFetch`                            | `[TeamsTaskFetchRoute("value")]` → returns `Microsoft.Teams.Apps.TaskModules.TaskModuleResponse` |
+| `OnTaskSubmit`                           | `[TeamsTaskSubmitRoute("value")]` → returns `Microsoft.Teams.Apps.TaskModules.TaskModuleResponse` |
 | `OnMessageExtensionQuery`                | `[TeamsQueryRoute("commandId")]`                                     |
 | `OnMessageExtensionSubmitAction`         | `[TeamsSubmitActionRoute("commandId")]`                              |
 | `OnMessageExtensionFetchTask`            | `[TeamsFetchActionRoute("commandId")]`                              |
@@ -365,15 +373,15 @@ Teams route handler signature (note `ITeamsTurnContext`, and the extra deseriali
 parameter whose type depends on the event):
 
 ```csharp
-// Meeting start/end payload is Microsoft.Teams.Api.Meetings.MeetingDetails
+// Meeting start/end payload is Microsoft.Teams.Apps.Clients.MeetingDetails
 [TeamsMeetingStartRoute]
 public async Task OnMeetingStartAsync(ITeamsTurnContext turnContext, ITurnState turnState,
-    Microsoft.Teams.Api.Meetings.MeetingDetails meeting, CancellationToken ct) { ... }
+    Microsoft.Teams.Apps.Clients.MeetingDetails meeting, CancellationToken ct) { ... }
 
-// Participant join/leave payload is Microsoft.Agents.Extensions.MSTeams.Models.MeetingParticipantsEventDetails
+// SDK 1.9 join/leave payloads are MeetingParticipantJoinValue / MeetingParticipantLeaveValue
 [TeamsMeetingParticipantsJoinRoute]
 public async Task OnJoinAsync(ITeamsTurnContext turnContext, ITurnState turnState,
-    MeetingParticipantsEventDetails participants, CancellationToken ct) { ... }
+    Microsoft.Teams.Apps.Meetings.MeetingParticipantJoinValue participants, CancellationToken ct) { ... }
 ```
 
 `teamsApp.OnInstall(...)` represents only a new installation. Since

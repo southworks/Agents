@@ -81,8 +81,8 @@ dotnet test automation/teams-sample-sync/tests/contracts/TeamsSampleSync.Contrac
   '-p:AgentsSdkTestVersion=1.9.*' --filter FullyQualifiedName~TeamsExtension_Initializes
 ```
 
-Run the full contract suite against the SDK line used by the samples. Forcing 1.9
-onto samples still compiled against 1.8 can fail on changed route signatures.
+The .NET Teams samples and contract suite now default to SDK 1.9. Run the complete
+suite above to check route signatures and payload behavior across all seven samples.
 When full validation fails, the terminal error reports the sample, failed checks,
 and their errors. The generic "Current full validation is required" message is
 reserved for partial, mismatched, or missing validation identity evidence.
