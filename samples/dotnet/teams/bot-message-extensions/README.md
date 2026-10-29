@@ -6,7 +6,7 @@ This sample demonstrates a search-based messaging extension in Microsoft Teams u
 
 ## Features
 
-- **Wikipedia Search** - Searches Wikipedia from the Teams compose area and returns adaptive card results.
+- **Wikipedia Search** - Searches Wikipedia from the Teams compose area and returns adaptive card results with thumbnail previews.
 - **Link Unfurling** - Generates an adaptive card preview when a Wikipedia URL is shared.
 - **Agent Messages** - Responds with help when a message contains `help` and echoes other messages.
 
@@ -67,10 +67,12 @@ The manifest preserves the upstream message extension configuration:
 - Query command ID: `wikipediaSearch`
 - Contexts: `compose` and `commandBox`
 - Query parameter: `searchQuery`
-- Link-unfurling domain: `*.wikipedia.org`
+- Link-unfurling domain: `en.wikipedia.org`
+- Bot command title (`bots[].commandLists`): `help` in `personal`, `team`, and `groupChat`
 - Bot endpoint: `/api/messages`, configured on the Azure Bot resource
 
 Upload the ZIP as a custom app in Teams. In the compose area, open **Apps**, select **Wikipedia Search**, and search for an article. Paste a Wikipedia URL to test link unfurling.
+In a bot chat, send `help` to view agent usage text.
 
 ## Further reading
 

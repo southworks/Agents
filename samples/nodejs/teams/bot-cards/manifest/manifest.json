@@ -29,6 +29,25 @@
         "team",
         "groupChat"
       ],
+      "commandLists": [
+        {
+          "scopes": [
+            "personal",
+            "team",
+            "groupChat"
+          ],
+          "commands": [
+            {
+              "title": "card actions",
+              "description": "Show adaptive card actions including submit and show-card."
+            },
+            {
+              "title": "toggle visibility",
+              "description": "Show an adaptive card that toggles hidden content."
+            }
+          ]
+        }
+      ],
       "supportsFiles": false,
       "isNotificationOnly": false
     }

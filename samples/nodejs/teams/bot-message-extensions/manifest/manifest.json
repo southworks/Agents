@@ -31,7 +31,22 @@
         "groupChat"
       ],
       "supportsFiles": false,
-      "isNotificationOnly": false
+      "isNotificationOnly": false,
+      "commandLists": [
+        {
+          "scopes": [
+            "personal",
+            "team",
+            "groupChat"
+          ],
+          "commands": [
+            {
+              "title": "help",
+              "description": "Show usage information."
+            }
+          ]
+        }
+      ]
     }
   ],
   "composeExtensions": [

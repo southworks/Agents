@@ -120,6 +120,7 @@ public partial class BotMeetingsAgent : AgentApplication
             !string.IsNullOrEmpty(graphMeetingId) &&
             !string.IsNullOrEmpty(userId))
         {
+            await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
             string vttTranscript = await GetMeetingTranscriptAsync(
                 graphMeetingId,
                 userId,

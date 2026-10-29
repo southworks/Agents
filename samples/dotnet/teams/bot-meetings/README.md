@@ -80,7 +80,8 @@ Configure an online meeting application access policy for the users whose meetin
 
 ## Configure Teams permissions and meeting events
 
-Use the Teams app ID returned by `teams app create` to add the required resource-specific consent permissions:
+The sample manifest already declares the required resource-specific consent permissions in `authorization.permissions.resourceSpecific`.
+If you are updating an existing Teams app registration, use the Teams app ID returned by `teams app create` to add the same permissions:
 
 ```bash
 teams app rsc add <teams-app-id> OnlineMeeting.ReadBasic.Chat --type Application

@@ -43,6 +43,31 @@ public partial class TeamsSampleContracts
     }
 
     [Fact]
+    [Trait("Sample", "bot-cards")]
+    public async Task BotCards_SubmitNameWithoutNameReturnsPromptAsync()
+    {
+        await using var host = CreateHost(services => new BotCardsAgent(CreateOptions(services)));
+
+        await host.CreateTestFlow()
+            .Send(new Activity
+            {
+                Type = ActivityTypes.Invoke,
+                Name = "adaptiveCard/action",
+                Value = new
+                {
+                    action = new { type = "Action.Execute", verb = "submit_name", data = new { } }
+                }
+            })
+            .AssertReply(activity =>
+            {
+                Assert.Equal(ActivityTypes.InvokeResponse, activity.Type);
+                Assert.Contains("No data specified", Payload(activity.Value).ToString());
+            })
+            .AssertNoMoreReplies()
+            .StartTestAsync();
+    }
+
+    [Fact]
     [Trait("Sample", "bot-ai-messages")]
     public async Task BotAiMessages_UnknownText_ReturnsStableHelpAsync()
     {

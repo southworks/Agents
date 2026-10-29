@@ -56,7 +56,7 @@ export function createAgent (services: {
   app.onActivity('message', async (context) => {
     const attachment = context.activity.attachments?.[0]
     if (attachment?.contentType !== 'application/vnd.microsoft.teams.file.download.info' || !attachment.name) {
-      await context.sendActivity('Welcome to the Agent Attachments sample!')
+      await context.sendActivity('Welcome to the Bot Attachments sample!')
       return
     }
     const info = attachment.content as { downloadUrl?: string }

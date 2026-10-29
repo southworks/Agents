@@ -92,7 +92,7 @@ test('decline clears the pending upload and ordinary messages return help', asyn
   })
   assert.equal(uploads, 0)
   const help = await harness.turn({ text: 'hello' })
-  assert.match(help.sent[0].text, /Attachments sample/)
+  assert.equal(help.sent[0].text, 'Welcome to the Bot Attachments sample!')
 })
 
 test('failed uploads do not retain reusable pending content', async (context) => {

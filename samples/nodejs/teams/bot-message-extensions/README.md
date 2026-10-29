@@ -10,17 +10,19 @@ npm ci
 npm run build
 ```
 
-Copy `env.TEMPLATE` to `.env` and fill in the app registration credentials. Run
-`npm start`, expose port 3978 over HTTPS, and configure the Azure Bot messaging
-endpoint as `https://YOUR_HOST/api/messages`. Fill the placeholders in the actual
+Copy `env.TEMPLATE` to `.env` and set the `connections__serviceConnection__...`
+values for your app registration. Run `npm start`, expose port 3978 over HTTPS,
+and configure the Azure Bot messaging endpoint as
+`https://YOUR_HOST/api/messages`. Fill the placeholders in the actual
 `manifest/manifest.json`, zip it with `color.png` and `outline.png`, and upload
 the package in Teams.
 
 The manifest declares the `wikipediaSearch` query command in
-`composeExtensions[0].commands`. Search results contain Adaptive Cards with
-thumbnail previews and links to Wikipedia. Empty searches return a message.
-The link handler supports `en.wikipedia.org`. Send `help` for usage or another
-message to receive an echo.
+`composeExtensions[0].commands` and the `help` bot command in
+`bots[0].commandLists`. Search results contain Adaptive Cards with thumbnail
+previews and links to Wikipedia. Empty searches return a message. The link
+handler supports `en.wikipedia.org`. Send `help` for usage or another message
+to receive an echo.
 
 The application factory accepts an optional `searchWikipedia` function so local
 contracts can exercise real SDK routing without depending on the external site.

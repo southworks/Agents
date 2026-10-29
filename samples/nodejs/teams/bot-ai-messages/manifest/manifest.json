@@ -29,7 +29,32 @@
         "personal"
       ],
       "supportsFiles": false,
-      "isNotificationOnly": false
+      "isNotificationOnly": false,
+      "commandLists": [
+        {
+          "scopes": [
+            "personal"
+          ],
+          "commands": [
+            {
+              "title": "label",
+              "description": "Send an AI-labeled sample response."
+            },
+            {
+              "title": "sensitivity",
+              "description": "Send a sample response with a sensitivity label."
+            },
+            {
+              "title": "feedback",
+              "description": "Send a sample response with feedback buttons."
+            },
+            {
+              "title": "citation",
+              "description": "Send a sample response with citation metadata."
+            }
+          ]
+        }
+      ]
     }
   ],
   "validDomains": [

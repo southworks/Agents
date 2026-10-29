@@ -51,9 +51,9 @@ public partial class BotTaskModulesAgent(
             ],
             Actions =
             [
-                CreateTaskFetchAction("Adaptive Card", "AdaptiveCard"),
-                CreateTaskFetchAction("Custom Form", "CustomForm"),
-                CreateTaskFetchAction("Multi-step Form", "MultiStep")
+                CreateTaskFetchAction("Adaptive Card", "AdaptiveCard", "adaptive_card"),
+                CreateTaskFetchAction("Custom Form", "CustomForm", "custom_form"),
+                CreateTaskFetchAction("Multi-step Form", "MultiStep", "multi_step_form")
             ]
         };
 
@@ -62,43 +62,111 @@ public partial class BotTaskModulesAgent(
             cancellationToken);
     }
 
-    [TeamsTaskFetchRoute("AdaptiveCard", key: "data")]
-    public Task<TaskResponse> OnAdaptiveCardFetchAsync(
+    [TeamsTaskFetchRoute("AdaptiveCard", key: "data", rank: 10)]
+    public Task<TaskResponse> OnAdaptiveCardFetchLegacyAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
         Request request,
         CancellationToken cancellationToken)
         => Task.FromResult(CreateAdaptiveCardTask());
 
-    [TeamsTaskFetchRoute("CustomForm", key: "data")]
-    public Task<TaskResponse> OnCustomFormFetchAsync(
+    [TeamsTaskFetchRoute("adaptive_card", key: "opendialogtype", rank: 11)]
+    public Task<TaskResponse> OnAdaptiveCardFetchSourceAsync(
+        ITeamsTurnContext turnContext,
+        ITurnState turnState,
+        Request request,
+        CancellationToken cancellationToken)
+        => Task.FromResult(CreateAdaptiveCardTask());
+
+    [TeamsTaskFetchRoute("CustomForm", key: "data", rank: 20)]
+    public Task<TaskResponse> OnCustomFormFetchLegacyAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
         Request request,
         CancellationToken cancellationToken)
         => Task.FromResult(CreateCustomFormTask());
 
-    [TeamsTaskFetchRoute("MultiStep", key: "data")]
-    public Task<TaskResponse> OnMultiStepFetchAsync(
+    [TeamsTaskFetchRoute("custom_form", key: "opendialogtype", rank: 21)]
+    public Task<TaskResponse> OnCustomFormFetchSourceAsync(
+        ITeamsTurnContext turnContext,
+        ITurnState turnState,
+        Request request,
+        CancellationToken cancellationToken)
+        => Task.FromResult(CreateCustomFormTask());
+
+    [TeamsTaskFetchRoute("MultiStep", key: "data", rank: 30)]
+    public Task<TaskResponse> OnMultiStepFetchLegacyAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
         Request request,
         CancellationToken cancellationToken)
         => Task.FromResult(CreateMultiStepOneTask());
 
+    [TeamsTaskFetchRoute("multi_step_form", key: "opendialogtype", rank: 31)]
+    public Task<TaskResponse> OnMultiStepFetchSourceAsync(
+        ITeamsTurnContext turnContext,
+        ITurnState turnState,
+        Request request,
+        CancellationToken cancellationToken)
+        => Task.FromResult(CreateMultiStepOneTask());
+
+    [TeamsTaskFetchRoute(rank: 100)]
+    public Task<TaskResponse> OnUnknownTaskFetchAsync(
+        ITeamsTurnContext turnContext,
+        ITurnState turnState,
+        Request request,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(TaskResponse.CreateBuilder()
+            .WithType(TaskModuleResponseTypes.Message)
+            .WithMessage("Unknown dialog type")
+            .Build().Body!);
+    }
+
     [TeamsTaskSubmitRoute("multi_step_1", key: "submissiontype", rank: 10)]
-    public Task<TaskResponse> OnMultiStepOneSubmitAsync(
+    public Task<TaskResponse> OnMultiStepOneSubmitLegacyAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
         Request request,
         CancellationToken cancellationToken)
     {
         string name = request.GetDataString("name");
-        return Task.FromResult(CreateMultiStepTwoTask(name));
+        return Task.FromResult(CreateMultiStepTwoTask(string.IsNullOrEmpty(name) ? "Unknown" : name));
+    }
+
+    [TeamsTaskSubmitRoute("multi_step_1", key: "submissiondialogtype", rank: 11)]
+    public Task<TaskResponse> OnMultiStepOneSubmitSourceAsync(
+        ITeamsTurnContext turnContext,
+        ITurnState turnState,
+        Request request,
+        CancellationToken cancellationToken)
+    {
+        string name = request.GetDataString("name");
+        return Task.FromResult(CreateMultiStepTwoTask(string.IsNullOrEmpty(name) ? "Unknown" : name));
     }
 
     [TeamsTaskSubmitRoute("multi_step_2", key: "submissiontype", rank: 20)]
-    public async Task<TaskResponse> OnMultiStepTwoSubmitAsync(
+    public async Task<TaskResponse> OnMultiStepTwoSubmitLegacyAsync(
+        ITeamsTurnContext turnContext,
+        ITurnState turnState,
+        Request request,
+        CancellationToken cancellationToken)
+    {
+        string name = request.GetDataString("name");
+        string email = request.GetDataString("email");
+
+        await turnContext.SendActivityAsync(
+            $"Hi {name}, thanks for submitting! Your email is {email}",
+            cancellationToken: cancellationToken);
+
+        return TaskResponse.CreateBuilder()
+            .WithType(TaskModuleResponseTypes.Message)
+            .WithMessage("Multi-step form completed!")
+            .Build().Body!;
+    }
+
+    [TeamsTaskSubmitRoute("multi_step_2", key: "submissiondialogtype", rank: 21)]
+    public async Task<TaskResponse> OnMultiStepTwoSubmitSourceAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
         Request request,
@@ -118,7 +186,27 @@ public partial class BotTaskModulesAgent(
     }
 
     [TeamsTaskSubmitRoute("custom_form", key: "submissiontype", rank: 30)]
-    public async Task<TaskResponse> OnCustomFormSubmitAsync(
+    public async Task<TaskResponse> OnCustomFormSubmitLegacyAsync(
+        ITeamsTurnContext turnContext,
+        ITurnState turnState,
+        Request request,
+        CancellationToken cancellationToken)
+    {
+        string name = request.GetDataString("name");
+        string email = request.GetDataString("email");
+
+        await turnContext.SendActivityAsync(
+            $"Hi {name}, thanks for submitting! Your email is {email}",
+            cancellationToken: cancellationToken);
+
+        return TaskResponse.CreateBuilder()
+            .WithType(TaskModuleResponseTypes.Message)
+            .WithMessage("Form submitted successfully")
+            .Build().Body!;
+    }
+
+    [TeamsTaskSubmitRoute("custom_form", key: "submissiondialogtype", rank: 31)]
+    public async Task<TaskResponse> OnCustomFormSubmitSourceAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
         Request request,
@@ -145,6 +233,13 @@ public partial class BotTaskModulesAgent(
         CancellationToken cancellationToken)
     {
         string userText = request.GetDataString("usertext");
+        if (!HasSubmissionData(request, userText))
+        {
+            return TaskResponse.CreateBuilder()
+                .WithType(TaskModuleResponseTypes.Message)
+                .WithMessage("No data found in the activity value")
+                .Build().Body!;
+        }
 
         await turnContext.SendActivityAsync(
             $"You submitted: {userText}",
@@ -222,7 +317,9 @@ public partial class BotTaskModulesAgent(
             [
                 new SubmitAction()
                     .WithTitle("Next")
-                    .WithData(CreateSubmitData(("submissiontype", "multi_step_1")))
+                    .WithData(CreateSubmitData(
+                        ("submissiontype", "multi_step_1"),
+                        ("submissiondialogtype", "multi_step_1")))
             ]
         };
 
@@ -258,6 +355,7 @@ public partial class BotTaskModulesAgent(
                     .WithTitle("Submit")
                     .WithData(CreateSubmitData(
                         ("submissiontype", "multi_step_2"),
+                        ("submissiondialogtype", "multi_step_2"),
                         ("name", name)))
             ]
         };
@@ -282,12 +380,22 @@ public partial class BotTaskModulesAgent(
             new SubmitActionData { NonSchemaProperties = properties });
     }
 
-    private static SubmitAction CreateTaskFetchAction(string title, string value)
+    private static SubmitAction CreateTaskFetchAction(string title, string legacyValue, string sourceValue)
         => new SubmitAction()
             .WithTitle(title)
             .WithData(CreateSubmitData(
                 ("msteams", new TaskFetchSubmitActionData()),
-                ("data", value)));
+                ("data", legacyValue),
+                ("opendialogtype", sourceValue)));
+
+    private static bool HasSubmissionData(Request request, string userText)
+    {
+        return !string.IsNullOrEmpty(userText)
+            || !string.IsNullOrEmpty(request.GetDataString("submissiontype"))
+            || !string.IsNullOrEmpty(request.GetDataString("submissiondialogtype"))
+            || !string.IsNullOrEmpty(request.GetDataString("name"))
+            || !string.IsNullOrEmpty(request.GetDataString("email"));
+    }
 
     private static TaskResponse ContinueWith(
         string title,

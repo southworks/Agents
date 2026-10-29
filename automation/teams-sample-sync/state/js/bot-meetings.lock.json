@@ -1,0 +1,23 @@
+{
+  "version": 3,
+  "language": "js",
+  "sample": "bot-meetings",
+  "upstreamCommit": "b9aedfea98e3505acbcf68a3931be05a780d6149",
+  "sourceTree": "1bcbcc154e01ef1ad28edf1c947c357a8a822842",
+  "inputDigest": "sha256:867a836d5498f5eebf0c0423099becdadcc2585f7f5471aa906e630c8ea1fd49",
+  "outputDigest": "sha256:e793a300a46722bc9d4c532a4e32feb6bc2258057352445ddbbf81fef92beb72",
+  "componentDigests": {
+    "sourceTree": "1bcbcc154e01ef1ad28edf1c947c357a8a822842",
+    "target": "sha256:babcf071d1129f2a4e6b2c365d055241460256f6cff20aa80abe7f453b6d6397",
+    "protection": "sha256:0d0446df068b289cd1893540973ddc05e6407a800a27f46a01cb2d69ffe4a345",
+    "migrationSkill": "sha256:b3e8a935474d37c9860cf39c6711a95b875f96b43262e053f2a862532736b0a2",
+    "manifestSkill": "sha256:b63aba0a092fdb6cb120601fc03252f9830fda759d8d6be77729168286816f86",
+    "syncSkill": "sha256:2b743f41023bfcce2a94ed79b5bba3b1fb8133ee7f07ce757edbdab3c382ae57",
+    "canonicalSample": "sha256:cc15d81ad91fc1709d8d6ff5decf497e380c27affc5094f03025ef51a18b739f",
+    "manifestAssets": "sha256:cc9d7730822069fcff21d64b9a2538c1f621ff9cd8cdb9003d4f76b9d158c038",
+    "copilot": "sha256:f2fbc365eb532e30c69edc879408480bbc1734734e1bed001820a8abdb3fb3e2",
+    "packagePolicy": "sha256:4aab670d7563b52fe8a4e4dcd534e1611a0e1444e7bac01cb93457b23925eba7",
+    "validator": "sha256:5274d305c0c972f81d9ee33002f4e9beac117ad7021297143d1dfc4786e537d3"
+  },
+  "status": "verified"
+}
