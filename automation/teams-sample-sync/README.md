@@ -71,6 +71,22 @@ npm run build --prefix automation/teams-sample-sync
 dotnet test automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj
 ```
 
+The .NET contract host installs offline connector and user-token transports before
+each turn, as required by MSTeams 1.9. Unexpected Teams API requests fail explicitly.
+`AgentsSdkTestVersion` selects both the testing package and the Teams extension.
+To check host compatibility with 1.9 independently of sample migration:
+
+```sh
+dotnet test automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj \
+  '-p:AgentsSdkTestVersion=1.9.*' --filter FullyQualifiedName~TeamsExtension_Initializes
+```
+
+Run the full contract suite against the SDK line used by the samples. Forcing 1.9
+onto samples still compiled against 1.8 can fail on changed route signatures.
+When full validation fails, the terminal error reports the sample, failed checks,
+and their errors. The generic "Current full validation is required" message is
+reserved for partial, mismatched, or missing validation identity evidence.
+
 Profiles live in `config/targets.yml`. Both languages configure the same seven sample names.
 Their state paths are separate: `state/dotnet/<sample>.lock.json` and
 `state/js/<sample>.lock.json`. Old unqualified .NET locks supply upstream history

@@ -136,12 +136,38 @@ export function assertFullValidation (
     value.language !== language ||
     value.sample !== sample ||
     value.group !== 'all' ||
-    !value.passed ||
     !value.id ||
-    !value.outputDigest ||
-    value.errors.length
+    !value.outputDigest
   ) {
     throw new SyncError('Current full validation is required')
+  }
+
+  if (!value.passed || value.errors.length) {
+    const details: string[] = []
+    const reportedErrors = new Set<string>()
+
+    for (const [name, check] of Object.entries(value.checks)) {
+      if (check.status === 'failed' || check.status === 'not-run' || check.errors.length) {
+        const errors = check.errors.join('\n')
+        details.push(`${name} (${check.status})${errors ? `: ${errors}` : ''}`)
+
+        for (const error of check.errors) {
+          reportedErrors.add(error)
+        }
+      }
+    }
+
+    for (const error of value.errors) {
+      if (!reportedErrors.has(error)) {
+        details.push(error)
+      }
+    }
+
+    if (!details.length) {
+      details.push('Validation did not pass and supplied no failure details.')
+    }
+
+    throw new SyncError(`Full validation failed for ${language}/${sample}:\n${details.join('\n')}`)
   }
 
   for (const key of (adapter ?? validationAdapter(language)).requiredChecks(sample)) {
