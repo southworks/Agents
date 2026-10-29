@@ -1,14 +1,16 @@
 # Teams sample synchronization
 
-This workflow synchronizes selected Teams SDK .NET samples into their existing Agents SDK
-counterparts. Its jobs are plan, migrate, and handoff. Migration has Copilot access but no
+This workflow synchronizes selected Teams SDK .NET and JavaScript/TypeScript samples into Agents SDK
+counterparts, including initial imports. Its jobs are plan, migrate, and handoff. Migration has Copilot access but no
 repository-write credential. The handoff job verifies the candidates, uploads their patches and
 migration evidence, and creates an issue for Copilot cloud agent. Copilot owns the resulting
 implementation and PR, including its title, description, and readiness.
 
 The workflow runs every Sunday at 00:00 UTC for all configured samples. Dispatch manual runs from
 the repository's default branch; other refs are skipped. Manual runs can select one
-sample or all samples and can enable or disable publication. Migrations run independently, but the
+language (`all`, `dotnet`, `js`), a sample or all samples, and publication. A named sample with
+`language=all` selects its configured language variants; an absent combination fails.
+Migrations run independently, but the
 selected samples publish as one coordinated set: if any migration fails, no handoff issue is created.
 Planning fetches `upstream.ref` from `config/targets.yml` into a bare Git repository, so no upstream
 code is checked out in the planning job. Migration jobs use the exact commit selected by the plan.
@@ -69,5 +71,70 @@ npm run build --prefix automation/teams-sample-sync
 dotnet test automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj
 ```
 
+Profiles live in `config/targets.yml`. Both languages configure the same seven sample names.
+Their state paths are separate: `state/dotnet/<sample>.lock.json` and
+`state/js/<sample>.lock.json`. Old unqualified .NET locks supply upstream history
+only; the first run after this upgrade revalidates them. A JS target never reads a
+legacy .NET lock. Shared automation changes conservatively revalidate both languages.
+
+JavaScript/TypeScript samples live in `samples/nodejs/teams/<sample>`. The resolver
+freezes compatible stable exact versions of four Agents SDK npm packages in the
+minimum version's major; it checks dependency/peer ranges and Node 24 support.
+Each profile owns its guidance, protected contracts, manifest asset source and
+generated-output exclusions. Python will need its own adapter/profile and runtime
+setup; it is not enabled here.
+
+The JS validator prepares the npm lockfile, installs with lifecycle scripts disabled,
+checks the installed SDK versions, compiles fresh output, runs protected contracts,
+checks the released manifest schema and starts the HTTP endpoint. Its child
+processes receive a sanitized environment. Run sample checks locally with:
+
+```sh
+cd samples/nodejs/teams/bot-cards
+npm ci --ignore-scripts
+npm run build
+cd ../../../..
+node automation/teams-sample-sync/tests/js-contracts/bot-cards.test.mjs samples/nodejs/teams/bot-cards
+```
+
+Repeat for each configured sample. These contracts cover local SDK routing and
+mock external services; credentialed Teams/Graph behavior still needs manual checks
+described in each sample's README. The offline candidate integration tests exercise
+initial and incremental patch/state verification with fake Copilot/npm transports.
+
+The sync workflow keeps its existing filename to preserve links, with a generic
+display name and language-qualified matrix/artifact IDs. It still dispatches only
+from the default branch. Normal sample PR CI explicitly discovers immediate Node
+packages and `samples/nodejs/teams/*`, builds on Node 22/latest, and runs the Teams
+contracts. That workflow targets PRs into `main`; a stacked PR into the unmerged
+parent branch does not automatically trigger it. Run the listed checks locally
+and again when the stack targets `main`.
+
 The live Copilot smoke test is opt-in because it consumes usage. Set
 `TEAMS_SYNC_SDK_SMOKE=1` before running `npm run test:sdk-smoke --prefix automation/teams-sample-sync`.
+
+## Maintaining the automation
+
+Keep hand-written files below 500 physical lines. The scoped rules in
+`eslint.config.js` require braced control flow, readable object properties and
+spacing before returns. Run `npx eslint automation/teams-sample-sync` from the
+repository root alongside the build and tests above.
+
+| Responsibility | Start here |
+| --- | --- |
+| CLI commands and artifacts | `src/cli.ts`, `src/cli-io.ts` |
+| Configuration and safe target paths | `src/config.ts`, `src/identity.ts` |
+| Incremental decisions and frozen input fingerprints | `src/plan.ts`, `src/plan-inputs.ts`, `src/state.ts` |
+| Copilot permissions and migration protocol | `src/agent-runner.ts`, `src/sync-session.ts`, `src/guard.ts` |
+| Validation orchestration and language adapters | `src/validate.ts`, `src/languages.ts`, `src/*-validation.ts` |
+| Source capabilities and manifest requirements | `src/js-capabilities.ts`, `src/dotnet-capabilities.ts`, `src/manifest-capabilities.ts`, `src/manifest.ts` |
+| Patch verification and coordinated handoff | `src/verify-patch.ts`, `src/publish-bundle.ts`, `src/handoff-bundle.ts` |
+
+Keep real SDK behavior checks in `tests/js-contracts` and `tests/contracts`.
+Use `tests/unit` for deterministic policy checks and `tests/integration` for the
+offline candidate pipeline. Shared session doubles live in `tests/fixtures`;
+outcome reconciliation and manifest validation have their own test modules.
+
+`scripts/build.mjs` removes stale compiled output before invoking TypeScript.
+Build scripts participate in the validator input fingerprint, just like source.
+Readability edits therefore trigger conservative revalidation of verified samples.

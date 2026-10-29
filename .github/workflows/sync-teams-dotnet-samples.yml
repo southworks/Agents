@@ -1,4 +1,4 @@
-name: Sync Teams .NET samples
+name: Sync Teams samples
 
 on:
   # Runs weekly at 00:00 UTC each Sunday.
@@ -6,6 +6,12 @@ on:
     - cron: "0 0 * * 0"
   workflow_dispatch:
     inputs:
+      language:
+        description: Selected language or all configured languages
+        required: true
+        type: choice
+        default: all
+        options: [all, dotnet, js]
       sample:
         description: Selected sample or all
         required: true
@@ -57,8 +63,8 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           import { appendFileSync } from 'node:fs'
-          import { targets } from './automation/teams-sample-sync/dist/config.js'
-          const { ref } = targets(process.cwd()).upstream
+          import { configuration } from './automation/teams-sample-sync/dist/config.js'
+          const { ref } = configuration(process.cwd()).upstream
           appendFileSync(process.env.GITHUB_OUTPUT, `ref=${ref}\n`)
           NODE
       - name: Fetch upstream metadata without checking out code
@@ -72,10 +78,17 @@ jobs:
       - id: plan
         env:
           SYNC_SAMPLE: ${{ github.event_name == 'schedule' && 'all' || inputs.sample }}
+          SYNC_LANGUAGE: ${{ github.event_name == 'schedule' && 'all' || inputs.language }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          sample_arg=(); [ "$SYNC_SAMPLE" = all ] || sample_arg=(--sample "$SYNC_SAMPLE")
-          node "$SYNC_TOOL/dist/cli.js" plan --repo-root . --upstream-root .sync/upstream "${sample_arg[@]}" --output .sync/plan.json
+          sample_arg=()
+          if [ "$SYNC_SAMPLE" != all ]; then
+            sample_arg=(--sample "$SYNC_SAMPLE")
+          fi
+          node "$SYNC_TOOL/dist/cli.js" plan \
+            --repo-root . --upstream-root .sync/upstream \
+            --language "$SYNC_LANGUAGE" "${sample_arg[@]}" \
+            --output .sync/plan.json
           echo "matrix=$(jq -c .matrix .sync/plan.json)" >> "$GITHUB_OUTPUT"
           jq -r '.samples | to_entries[] | "- \(.key): \(.value.status)"' .sync/plan.json >> "$GITHUB_STEP_SUMMARY"
           if ! jq -e '[.samples[] | select(.status == "upstream-removed")] | length == 0' .sync/plan.json; then
@@ -89,7 +102,7 @@ jobs:
           path: .sync/plan.json
 
   migrate:
-    name: migrate · ${{ matrix.sample }}
+    name: migrate · ${{ matrix.language }}/${{ matrix.sample }}
     needs: plan
     if: needs.plan.outputs.matrix != '[]'
     runs-on: ubuntu-latest
@@ -101,7 +114,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     concurrency:
-      group: teams-sample-sync-${{ matrix.sample }}
+      group: teams-sample-sync-${{ matrix.id }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -121,7 +134,8 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: automation/teams-sample-sync/package-lock.json
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      - if: matrix.language == 'dotnet'
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
       - run: npm ci --prefix "$SYNC_TOOL" && npm run build --prefix "$SYNC_TOOL"
@@ -133,21 +147,32 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SYNC_SAMPLE: ${{ matrix.sample }}
+          SYNC_LANGUAGE: ${{ matrix.language }}
+          SYNC_ID: ${{ matrix.id }}
           UPSTREAM_COMMIT: ${{ matrix.upstreamCommit }}
         run: |
           test "$(git -C .sync/upstream rev-parse HEAD)" = "$UPSTREAM_COMMIT"
-          node "$SYNC_TOOL/dist/cli.js" migrate --repo-root . --upstream-root .sync/upstream --plan .sync/plan.json --sample "$SYNC_SAMPLE" --output-directory ".sync/output/$SYNC_SAMPLE"
+          node "$SYNC_TOOL/dist/cli.js" migrate \
+            --repo-root . --upstream-root .sync/upstream --plan .sync/plan.json \
+            --language "$SYNC_LANGUAGE" --sample "$SYNC_SAMPLE" \
+            --output-directory ".sync/output/$SYNC_ID"
       - name: Report sample result
         if: always()
         env:
           SYNC_SAMPLE: ${{ matrix.sample }}
+          SYNC_LANGUAGE: ${{ matrix.language }}
+          SYNC_ID: ${{ matrix.id }}
         run: |
-          if [ -f ".sync/output/$SYNC_SAMPLE/workflow-summary.md" ]; then cat ".sync/output/$SYNC_SAMPLE/workflow-summary.md" >> "$GITHUB_STEP_SUMMARY"; else echo "### $SYNC_SAMPLE: failed before a report was produced" >> "$GITHUB_STEP_SUMMARY"; fi
+          if [ -f ".sync/output/$SYNC_ID/workflow-summary.md" ]; then
+            cat ".sync/output/$SYNC_ID/workflow-summary.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### $SYNC_SAMPLE: failed before a report was produced" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
-          name: teams-sample-sync-${{ matrix.sample }}
-          path: .sync/output/${{ matrix.sample }}
+          name: teams-sample-sync-${{ matrix.id }}
+          path: .sync/output/${{ matrix.id }}
           if-no-files-found: warn
 
   publish:
@@ -186,17 +211,17 @@ jobs:
           BASE_SHA: ${{ needs.plan.outputs.baseSha }}
         run: |
           repo_root="$PWD"
-          while IFS= read -r sample; do
-            result="$repo_root/.sync/results/teams-sample-sync-$sample"
+          while IFS=$'\t' read -r language sample target_id; do
+            result="$repo_root/.sync/results/teams-sample-sync-$target_id"
             test -f "$result/sync-result.json"
             test "$(jq -r .publishable "$result/sync-result.json")" = true
             test "$(jq -r .baseSha "$result/sync-result.json")" = "$BASE_SHA"
-            verify="$repo_root/.sync/verify/$sample"
+            verify="$repo_root/.sync/verify/$target_id"
             git worktree add --detach "$verify" "$BASE_SHA"
             git -C "$verify" apply --index --binary "$result/change.patch"
-            node "$repo_root/$SYNC_TOOL/dist/cli.js" verify-patch --repo-root "$verify" --sample "$sample" --result "$result/sync-result.json"
+            node "$repo_root/$SYNC_TOOL/dist/cli.js" verify-patch --repo-root "$verify" --language "$language" --sample "$sample" --result "$result/sync-result.json"
             git worktree remove --force "$verify"
-          done < <(jq -r '.matrix[].sample' "$PLAN_FILE")
+          done < <(jq -r '.matrix[] | [.language, .sample, .id] | @tsv' "$PLAN_FILE")
       - name: Prepare consolidated handoff
         env:
           BASE_SHA: ${{ needs.plan.outputs.baseSha }}
@@ -230,7 +255,10 @@ jobs:
           BASE_SHA: ${{ needs.plan.outputs.baseSha }}
         run: |
           current_base="$(git ls-remote origin "refs/heads/$BASE_BRANCH" | cut -f1)"
-          test "$current_base" = "$BASE_SHA" || { echo 'Target branch moved since planning; rerun the sync'; exit 1; }
+          if [ "$current_base" != "$BASE_SHA" ]; then
+            echo 'Target branch moved since planning; rerun the sync'
+            exit 1
+          fi
           handoff_id="$(cat .sync/issue/handoff-id.txt)"
           gh api --paginate "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" \
             > .sync/issue/open-issues.json
@@ -266,11 +294,17 @@ jobs:
               agent_assignment: {target_repo: $repository, base_branch: $base,
                 custom_agent: "", model: ""}}' > .sync/issue/assignment-request.json
           current_base="$(git ls-remote origin "refs/heads/$BASE_BRANCH" | cut -f1)"
-          test "$current_base" = "$BASE_SHA" || { echo 'Target branch moved since planning; rerun the sync'; exit 1; }
+          if [ "$current_base" != "$BASE_SHA" ]; then
+            echo 'Target branch moved since planning; rerun the sync'
+            exit 1
+          fi
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$issue_number/assignees" \
             --input .sync/issue/assignment-request.json > .sync/issue/issue-response.json
-          jq -e '.assignees | any(.login == "Copilot" or .login == "copilot-swe-agent[bot]")' \
-            .sync/issue/issue-response.json > /dev/null || { echo 'Issue was not assigned to Copilot'; exit 1; }
+          if ! jq -e '.assignees | any(.login == "Copilot" or .login == "copilot-swe-agent[bot]")' \
+            .sync/issue/issue-response.json > /dev/null; then
+            echo 'Issue was not assigned to Copilot'
+            exit 1
+          fi
           issue_url="$(jq -r .html_url .sync/issue/issue-response.json)"
           echo "### Coordinated sync handed to Copilot" >> "$GITHUB_STEP_SUMMARY"
           echo "Handoff issue: $issue_url" >> "$GITHUB_STEP_SUMMARY"

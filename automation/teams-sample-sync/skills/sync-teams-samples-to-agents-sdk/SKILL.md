@@ -1,6 +1,6 @@
 ---
-name: sync-teams-dotnet-samples-to-agents-sdk
-description: CI instructions for a bounded Teams SDK .NET to Agents SDK sample synchronization.
+name: sync-teams-samples-to-agents-sdk
+description: CI instructions for a bounded Teams SDK to Agents SDK sample synchronization using the selected language profile.
 ---
 
 # Teams sample synchronization
@@ -8,10 +8,11 @@ description: CI instructions for a bounded Teams SDK .NET to Agents SDK sample s
 This CI caller uses one persistent implementation session. Preserve the source behavior with
 the smallest necessary changes inside the selected sample. Invoke the public migration skill
 before editing code and the manifest skill when updating the Teams app package.
-The sync context records `minimumAgentsSdkVersion` as a floor and `selectedAgentsSdkVersion`
-as this run's resolved release line. Plan and implement with the selected line; do not copy the
-minimum into project references. Keep the three required Agents SDK packages on one major.minor
-line, allowing their published patch versions to differ.
+The context identifies the language and frozen SDK selection. For .NET, use its
+resolved release line; for JS/TS, use its exact npm package map. The minimum is
+a floor. Apply the selected migration skill's package conventions rather than
+copying the minimum into dependencies or imposing one language's version syntax
+on another. Initial imports may have an empty destination.
 
 The first turn is read-only planning. Before finalizing the plan, reconcile every user-facing
 capability across source handlers, README/help text, the destination implementation, and the

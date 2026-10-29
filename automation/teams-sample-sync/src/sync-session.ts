@@ -1,4 +1,3 @@
-/** For Copilot Agents only: frozen-plan session infrastructure. */
 /**
  * Runs the plan → implementation → validation conversation protocol for one sample.
  * It freezes and hashes the migration plan before granting write access, requires a structured self-audit,
@@ -11,8 +10,10 @@ import { hash } from './git.js'
 import type { ImplementationSession } from './agent-runner.js'
 import type { ValidationResult } from './types.js'
 import { assertFullValidation, cancelValidationProcesses } from './validate.js'
+import type { Language } from './identity.js'
 
 export interface MigrationSessionOptions {
+  language?: Language
   sample: string
   contextFile: string
   output: string
@@ -22,6 +23,7 @@ export interface MigrationSessionOptions {
   sampleDiff?: () => string
   deadlineMs?: number
 }
+
 export type MigrationOutcome = 'changed' | 'no-changes'
 export interface MigrationSessionResult {
   planHash: string
@@ -36,11 +38,14 @@ const RESPONSE_PREVIEW_LIMIT = 400
 
 function responseTail (value: string): string {
   const normalized = value.trim().replace(/\s+/g, ' ')
+
   if (!normalized) {
     return JSON.stringify('<empty>')
   }
+
   const preview =
     normalized.length > RESPONSE_PREVIEW_LIMIT ? `…${normalized.slice(-RESPONSE_PREVIEW_LIMIT)}` : normalized
+
   return JSON.stringify(preview)
 }
 
@@ -57,13 +62,17 @@ function outcomeFromSelfAudit (value: string): MigrationOutcome {
       ].join(' ')
     )
   }
+
   const outcome = /^Outcome:\s*(changed|no changes required)\s*$/im.exec(value)?.[1]?.toLowerCase()
+
   if (outcome === 'changed') {
     return 'changed'
   }
+
   if (outcome === 'no changes required') {
     return 'no-changes'
   }
+
   throw new SyncError(
     [
       'Implementer self-audit is missing required line "Outcome: changed" or "Outcome: no changes required";',
@@ -76,11 +85,13 @@ function summaryFromSelfAudit (value: string, outcome: MigrationOutcome): string
   if (outcome === 'no-changes') {
     return 'Verified that no sample code changes were required; synchronization state was updated.'
   }
+
   const summaries = Array.from(
     value.matchAll(/^(?:\*\*)?Summary:(?:\*\*)?[ \t]*(.+)$/gim),
     (match) => match[1]!.replace(/\s+/g, ' ').trim()
   )
   const summary = summaries.filter(Boolean).at(-1)
+
   return summary || undefined
 }
 
@@ -88,6 +99,7 @@ export function assertOutcomeMatchesSampleChanges (outcome: MigrationOutcome, ch
   if (outcome === 'changed' && changes.length === 0) {
     throw new SyncError('Implementer reported changes but the selected sample is unchanged')
   }
+
   if (outcome === 'no-changes' && changes.length > 0) {
     throw new SyncError('Implementer reported no changes but the selected sample was modified')
   }
@@ -96,6 +108,7 @@ export function assertOutcomeMatchesSampleChanges (outcome: MigrationOutcome, ch
 export async function runMigrationSession (options: MigrationSessionOptions): Promise<MigrationSessionResult> {
   let expired = false
   let rejectDeadline: (error: Error) => void = () => {}
+
   const deadline = new Promise<never>((_resolve, reject) => {
     rejectDeadline = reject
   })
@@ -109,11 +122,19 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
     options.deadlineMs ?? 30 * 60_000
   )
   const bounded = <T>(work: Promise<T>): Promise<T> => Promise.race([work, deadline])
-  const completedSelfAudit = async (value: string): Promise<{ selfAudit: string; outcome: MigrationOutcome }> => {
+  const completedSelfAudit = async (value: string): Promise<{
+    selfAudit: string
+    outcome: MigrationOutcome
+  }> => {
     try {
-      return { selfAudit: value, outcome: outcomeFromSelfAudit(value) }
+      return {
+        selfAudit: value,
+        outcome: outcomeFromSelfAudit(value)
+      }
     } catch {}
+
     let selfAudit: string
+
     try {
       selfAudit = await bounded(
         options.session.send(
@@ -132,9 +153,14 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
       options.session.setWriteAccess(false)
       throw error
     }
+
     try {
-      return { selfAudit, outcome: outcomeFromSelfAudit(selfAudit) }
+      return {
+        selfAudit,
+        outcome: outcomeFromSelfAudit(selfAudit)
+      }
     } catch {}
+
     options.session.setWriteAccess(false)
     selfAudit = await bounded(
       options.session.send(
@@ -150,21 +176,26 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
     )
     const outcome = outcomeFromSelfAudit(selfAudit)
     options.session.setWriteAccess(true)
-    return { selfAudit, outcome }
+
+    return {
+      selfAudit,
+      outcome
+    }
   }
+
   try {
     let plan = await bounded(
       options.session.send(
         [
           'Plan only. Proceed autonomously; do not ask for confirmation.',
           [
-            `Read source context ${options.contextFile}, inspect the existing destination sample, and invoke the migration`,
+            `Read source context ${options.contextFile}, inspect the destination sample (which may be empty), and invoke the migration`,
             'and manifest skills. Do not edit any files.',
           ].join(' '),
           [
             "The context's minimumAgentsSdkVersion is a floor, not the version to copy;",
-            'selectedAgentsSdkVersion is the resolved target for this run. Check the destination package references',
-            'and include an upgrade when they are below the selected line.',
+            'selectedAgentsSdkVersion is the resolved target for .NET; JS uses the frozen exact npm package map. Check dependencies',
+            'and include upgrades needed to match the selected language policy.',
           ].join(' '),
           [
             'Before finalizing, reconcile user-facing capabilities across source handlers, README/help text,',
@@ -181,6 +212,7 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
         'Planning migration'
       )
     )
+
     if (!hasMigrationPlan(plan)) {
       plan = await bounded(
         options.session.send(
@@ -194,6 +226,7 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
         )
       )
     }
+
     if (!hasMigrationPlan(plan)) {
       plan = await bounded(
         options.session.send(
@@ -206,6 +239,7 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
         )
       )
     }
+
     if (!hasMigrationPlan(plan)) {
       throw new SyncError(
         [
@@ -214,6 +248,7 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
         ].join(' ')
       )
     }
+
     const planHash = hash(plan)
     writeFileSync(path.join(options.output, 'migration-plan.md'), `${plan}\n`, 'utf8')
     options.session.setWriteAccess(true)
@@ -245,10 +280,12 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
     let outcome = formatted.outcome
     let validation = await bounded(options.validate())
     let repairPasses = 0
+
     if (!validation.passed) {
       if (!validation.repairable) {
         throw new SyncError(`Validation infrastructure failure: ${validation.errors.join('\n')}`)
       }
+
       selfAudit = await bounded(
         options.session.send(
           [
@@ -268,10 +305,13 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
       validation = await bounded(options.validate())
       repairPasses = 1
     }
-    assertFullValidation(validation, options.sample)
+
+    assertFullValidation(validation, options.sample, undefined, options.language ?? 'dotnet')
+
     if (options.sampleChanges) {
       const changes = options.sampleChanges()
       const mismatch = (outcome === 'changed') !== (changes.length > 0)
+
       if (mismatch) {
         const diff = options.sampleDiff?.() ?? ''
         const diffLimit = 16_000
@@ -297,10 +337,12 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
         selfAudit = formatted.selfAudit
         outcome = formatted.outcome
         validation = await bounded(options.validate())
-        assertFullValidation(validation, options.sample)
+        assertFullValidation(validation, options.sample, undefined, options.language ?? 'dotnet')
         repairPasses += 1
       }
+
       const finalChanges = options.sampleChanges()
+
       try {
         assertOutcomeMatchesSampleChanges(outcome, finalChanges)
       } catch {
@@ -309,7 +351,9 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
         )
       }
     }
+
     let summary = summaryFromSelfAudit(selfAudit, outcome)
+
     if (!summary) {
       options.session.setWriteAccess(false)
       const response = await bounded(
@@ -323,13 +367,23 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
         )
       )
       summary = summaryFromSelfAudit(response, outcome)
+
       if (!summary) {
         summary = `Updated ${options.sample} and passed automated validation.`
       }
     }
-    return { planHash, selfAudit, summary, outcome, validation, repairPasses }
+
+    return {
+      planHash,
+      selfAudit,
+      summary,
+      outcome,
+      validation,
+      repairPasses
+    }
   } finally {
     clearTimeout(timer)
+
     if (expired) {
       await options.session.abort().catch(() => {})
     }

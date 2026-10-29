@@ -1,25 +1,32 @@
-/** For Copilot Agents only: workflow reporting infrastructure. */
 /**
  * Turns structured synchronization results into CI-facing output.
  * It keeps workflow logs concise and builds short issue handoffs from publishable results.
  */
 import type { SyncResult } from './types.js'
 import { hash, stable } from './git.js'
+import { artifactName, targetLabel } from './identity.js'
 
-function safe (value: string): string {
+function escapeMarkdown (value: string): string {
   return value
     .replace(/[\r\n]+/g, ' ')
     .replace(/([\\`*_[\]!|])/g, '\\$1')
     .trim()
 }
-function code (value: string): string {
-  return `\`${safe(value).replaceAll('`', '')}\``
+
+function inlineCode (value: string): string {
+  return `\`${escapeMarkdown(value).replaceAll('`', '')}\``
 }
-function validation (result: SyncResult): string[] {
-  return Object.entries(result.validation?.checks ?? {}).map(
-    ([name, check]) =>
-      `- ${name}: **${check.status}**${check.errors.length ? ` — ${safe(check.errors.join('; '))}` : ''}`
-  )
+
+function validationLines (result: SyncResult): string[] {
+  return Object.entries(result.validation?.checks ?? {}).map(([name, check]) => {
+    const status = `- ${name}: **${check.status}**`
+
+    if (check.errors.length === 0) {
+      return status
+    }
+
+    return `${status} — ${escapeMarkdown(check.errors.join('; '))}`
+  })
 }
 
 function workflowCommandData (value: string): string {
@@ -34,28 +41,35 @@ export function githubErrorAnnotation (title: string, message: string): string {
   return `::error title=${workflowCommandProperty(title)}::${workflowCommandData(message)}`
 }
 
-export function failureReport (result: SyncResult): { stderr: string; annotation: string } | undefined {
+export function failureReport (result: SyncResult): {
+  stderr: string
+  annotation: string
+} | undefined {
   if (result.status !== 'failed') {
     return undefined
   }
+
   const message =
     result.error?.trim() ||
     result.diagnostics.find((item) => item.trim())?.trim() ||
     'Sample synchronization failed without a diagnostic.'
+
   return {
-    stderr: `Sample synchronization failed (${result.sample}): ${message}`,
-    annotation: githubErrorAnnotation(`${result.sample} synchronization failed`, message),
+    stderr: `Sample synchronization failed (${result.language}/${result.sample}): ${message}`,
+    annotation: githubErrorAnnotation(`${result.language}/${result.sample} synchronization failed`, message),
   }
 }
 
 export function issueTitle (results: SyncResult[]): string {
   if (results.length === 1) {
-    return `Publish Teams sample: ${results[0]!.sample.replaceAll('-', ' ')}`
+    return `Publish Teams sample: ${targetLabel(results[0]!)}`
   }
+
   if (results.length === 2) {
-    return `Publish Teams samples: ${results.map((result) => result.sample.replaceAll('-', ' ')).join(' and ')}`
+    return `Publish Teams samples: ${results.map(targetLabel).join(' and ')}`
   }
-  return `Publish ${results.length} synced Teams .NET samples`
+
+  return `Publish ${results.length} synced Teams samples`
 }
 
 export function handoffId (baseSha: string, results: SyncResult[]): string {
@@ -63,6 +77,7 @@ export function handoffId (baseSha: string, results: SyncResult[]): string {
     baseSha,
     samples: results.map((result) => ({
       sample: result.sample,
+      language: result.language,
       upstreamCommit: result.upstreamCommit,
       inputDigest: result.inputDigest,
       outputDigest: result.outputDigest,
@@ -80,19 +95,21 @@ export function handoffIssueBody (
   handoffArtifact: string
 ): string {
   const runId = /\/actions\/runs\/(\d+)/.exec(runUrl)?.[1]
+
   return [
     'Sync the Teams samples below into their Agents SDK counterparts. Use the prepared patches and migration evidence as a starting point; make any adjustments needed to complete the work.',
     '',
-    `- **Target:** ${code(baseBranch)} (prepared at ${code(baseSha)})`,
+    `- **Target:** ${inlineCode(baseBranch)} (prepared at ${inlineCode(baseSha)})`,
     `- **Workflow:** [validation results](${runUrl})`,
     `- **Artifact:** [prepared changes and evidence](${handoffUrl})`,
-    ...(runId ? [`- **Download:** ${code(`gh run download ${runId} --repo ${repository} --name ${handoffArtifact}`)}`] : []),
+    ...(runId ? [`- **Download:** ${inlineCode(`gh run download ${runId} --repo ${repository} --name ${handoffArtifact}`)}`] : []),
     '',
     '### Samples',
     '',
     ...results.map((result) => {
       const summary = result.summary!.replace(/[\r\n]+/g, ' ').trim()
-      return `- **${safe(result.sample)}:** ${summary}`
+
+      return `- **${escapeMarkdown(targetLabel(result))}:** ${summary}`
     }),
     '',
     '### Acceptance criteria',
@@ -108,21 +125,27 @@ export function handoffIssueBody (
 }
 
 export function workflowSummary (result: SyncResult): string {
-  const outcome =
-    result.status === 'no-changes'
-      ? ['No sample changes were required; only verified synchronization state will be recorded.', '']
-      : []
-  return [
-    `### ${safe(result.sample)}: ${result.status}`,
+  const lines = [
+    `### ${escapeMarkdown(targetLabel(result))}: ${result.status}`,
     '',
-    result.error ? safe(result.error) : '',
+    result.error ? escapeMarkdown(result.error) : '',
     '',
-    ...outcome,
-    `Diagnostic artifact: ${code(`teams-sample-sync-${result.sample}`)}`,
-    '',
-    ...(result.validation ? ['#### Validation', '', ...validation(result), ''] : []),
-    ...(result.diagnostics.length
-      ? ['#### Diagnostics', '', ...result.diagnostics.map((item) => `- ${safe(item)}`), '']
-      : []),
-  ].join('\n')
+  ]
+
+  if (result.status === 'no-changes') {
+    lines.push('No sample changes were required; only verified synchronization state will be recorded.', '')
+  }
+
+  lines.push(`Diagnostic artifact: ${inlineCode(artifactName(result))}`, '')
+
+  if (result.validation) {
+    lines.push('#### Validation', '', ...validationLines(result), '')
+  }
+
+  if (result.diagnostics.length > 0) {
+    const diagnostics = result.diagnostics.map((item) => `- ${escapeMarkdown(item)}`)
+    lines.push('#### Diagnostics', '', ...diagnostics, '')
+  }
+
+  return lines.join('\n')
 }

@@ -52,7 +52,12 @@ describe('workflow configuration', () => {
     assert.match(JSON.stringify(publish), /existing_number/)
     assert.doesNotMatch(JSON.stringify(publish), /git push origin/)
     assert.doesNotMatch(JSON.stringify(publish), /gh pr |publish-pr/)
-    const steps = publish.steps as Array<{ name?: string; id?: string; run?: string; if?: string }>
+    const steps = publish.steps as Array<{
+      name?: string
+      id?: string
+      run?: string
+      if?: string
+    }>
     const bundle = steps.findIndex((step) => step.name === 'Prepare consolidated handoff')
     const upload = steps.findIndex((step) => step.id === 'handoff')
     const issue = steps.findIndex((step) => step.name === 'Prepare handoff issue')
@@ -84,10 +89,17 @@ describe('workflow configuration', () => {
     for (const name of ['plan', 'migrate']) {
       assert.notEqual(record(record(jobs[name], name).permissions, `${name} permissions`).issues, 'write')
     }
-    const steps = publish.steps as Array<{ name?: string; run?: string; env?: unknown; 'continue-on-error'?: boolean }>
+    const steps = publish.steps as Array<{
+      name?: string
+      run?: string
+      env?: unknown
+      'continue-on-error'?: boolean
+    }>
     const handoff = steps.find((step) => step.name === 'Create or reuse handoff issue and assign Copilot')!
     const environment = record(handoff.env, 'handoff environment')
+    // eslint-disable-next-line no-template-curly-in-string -- Assert literal GitHub Actions syntax.
     assert.equal(environment.GH_TOKEN, '${{ secrets.COPILOT_ASSIGNMENT_TOKEN || github.token }}')
+    // eslint-disable-next-line no-template-curly-in-string -- Assert literal GitHub Actions syntax.
     assert.equal(environment.COPILOT_ASSIGNMENT_TOKEN, '${{ secrets.COPILOT_ASSIGNMENT_TOKEN }}')
     const script = handoff.run!
     const manualAssignment = script.match(/if \[ -z "\$COPILOT_ASSIGNMENT_TOKEN" \]; then([\s\S]*?)\n\s*fi/)
@@ -99,7 +111,7 @@ describe('workflow configuration', () => {
     assert.ok(manualAssignment.index! < script.indexOf('> .sync/issue/assignment-request.json'))
     assert.doesNotMatch(script, /test -n "\$GH_TOKEN"/)
     assert.notEqual(handoff['continue-on-error'], true)
-    assert.match(script, /Issue was not assigned to Copilot'; exit 1/)
+    assert.match(script, /Issue was not assigned to Copilot'\n\s*exit 1/)
   })
 
   it('rejects a moved base before issue preparation and immediately before Copilot assignment', () => {
@@ -108,10 +120,13 @@ describe('workflow configuration', () => {
       'sync workflow'
     )
     const publish = record(record(workflow.jobs, 'jobs').publish, 'publish')
-    const steps = publish.steps as Array<{ name?: string; run?: string }>
+    const steps = publish.steps as Array<{
+      name?: string
+      run?: string
+    }>
     const script = steps.find((step) => step.name === 'Create or reuse handoff issue and assign Copilot')!.run!
     const checks = [...script.matchAll(
-      /current_base="\$\(git ls-remote origin "refs\/heads\/\$BASE_BRANCH" \| cut -f1\)"\n\s*test "\$current_base" = "\$BASE_SHA" \|\| \{[^\n]*exit 1; \}/g
+      /current_base="\$\(git ls-remote origin "refs\/heads\/\$BASE_BRANCH" \| cut -f1\)"\n\s*if \[ "\$current_base" != "\$BASE_SHA" \]; then[\s\S]*?\n\s*fi/g
     )]
 
     assert.equal(checks.length, 2)
@@ -136,9 +151,10 @@ describe('workflow configuration', () => {
       with?: Record<string, unknown>
     }>
     const configuration = steps.find((step) => step.id === 'upstream')
-    assert.match(configuration!.run!, /targets\(process.cwd\(\)\).upstream/)
+    assert.match(configuration!.run!, /configuration\(process.cwd\(\)\).upstream/)
     assert.match(configuration!.run!, /ref=\$\{ref\}/)
     const fetch = steps.find((step) => step.name === 'Fetch upstream metadata without checking out code')!
+    // eslint-disable-next-line no-template-curly-in-string -- Assert literal GitHub Actions syntax.
     assert.equal(fetch.env!.UPSTREAM_REF, '${{ steps.upstream.outputs.ref }}')
     assert.match(fetch.run!, /git init --bare \.sync\/upstream/)
     assert.match(fetch.run!, /fetch --depth=1 origin "\$UPSTREAM_REF"/)
@@ -149,7 +165,11 @@ describe('workflow configuration', () => {
     assert.match(steps.find((step) => step.id === 'plan')!.run!, /--output \.sync\/plan.json/)
     assert.equal(steps.find((step) => step.with?.name === 'teams-sample-sync-plan')!.with!.path, '.sync/plan.json')
     const migrate = record(jobs.migrate, 'migrate')
-    const migrateSteps = migrate.steps as Array<{ run?: string; uses?: string; with?: Record<string, unknown> }>
+    const migrateSteps = migrate.steps as Array<{
+      run?: string
+      uses?: string
+      with?: Record<string, unknown>
+    }>
     const planDownload = migrateSteps.find((step) => step.uses?.startsWith('actions/download-artifact@'))
     assert.equal(planDownload!.with!.name, 'teams-sample-sync-plan')
     assert.equal(planDownload!.with!.path, '.sync')
@@ -157,7 +177,10 @@ describe('workflow configuration', () => {
     assert.doesNotMatch(JSON.stringify([steps, migrateSteps]), /\$PLAN_FILE/)
 
     const publish = record(jobs.publish, 'publish')
-    const publishSteps = publish.steps as Array<{ uses?: string; with?: Record<string, unknown> }>
+    const publishSteps = publish.steps as Array<{
+      uses?: string
+      with?: Record<string, unknown>
+    }>
     const downloads = publishSteps.filter((step) => step.uses?.startsWith('actions/download-artifact@'))
     assert.equal(downloads.length, 1)
     assert.equal(downloads[0]!.with!.pattern, 'teams-sample-sync-*')

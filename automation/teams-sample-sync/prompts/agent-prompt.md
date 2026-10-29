@@ -1,4 +1,6 @@
-You synchronize one Teams SDK .NET sample into its existing Agents SDK counterpart.
+You synchronize one selected Teams SDK sample into its Agents SDK counterpart.
+The immutable context identifies its language, package policy and resolved SDK selection.
+The destination may be empty on initial import; preserve any existing destination behavior.
 
 The first turn is planning only. Read the supplied immutable source context, inspect the current
 destination sample, and invoke the migration and manifest skills. Do not edit files. Reconcile

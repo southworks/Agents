@@ -23,7 +23,9 @@ it('cancels validation children when the migration deadline expires', async () =
         send: async () => answers.shift() ?? '',
         setWriteAccess: () => {},
         close: async () => {},
-        abort: async () => { aborted = true },
+        abort: async () => {
+          aborted = true
+        },
       },
       validate: async () => {
         command = commandErrors(process.execPath, [
@@ -32,6 +34,7 @@ it('cancels validation children when the migration deadline expires', async () =
           marker,
         ], output)
         await command
+
         return {} as ValidationResult
       },
     }), /migration deadline exceeded/)
@@ -42,6 +45,9 @@ it('cancels validation children when the migration deadline expires', async () =
     assert.deepEqual(await commandErrors(process.execPath, ['-e', 'process.exit(0)'], output), [])
   } finally {
     cancelValidationProcesses()
-    rmSync(output, { recursive: true, force: true })
+    rmSync(output, {
+      recursive: true,
+      force: true
+    })
   }
 })
