@@ -22,8 +22,9 @@ reference and the SDK proactive API. The conversation ID's message suffix is
 removed for continuation. Use `my-reminders`, `cancel-reminder [id]`, or the
 cancel/dismiss/snooze card actions. Only a reminder's creator or recipient can cancel it.
 
-The app manifest declares `remind` for mention, `my-reminders` for slash, and
-`reminder-help` for mention and slash. Keep `supportsTargetedMessages` enabled.
+The app manifest declares `remind`, `my-reminders`, `cancel-reminder`, and
+`reminder-help` for mention and slash, plus `add-reaction` and
+`remove-reaction` for mention only. Keep `supportsTargetedMessages` enabled.
 Slash replies preserve `targetedMessageInfo` for prompt preview. Group replies
 use the SDK's targeted activity treatment and explicit recipient.
 

@@ -62,29 +62,27 @@ public partial class BotTaskModulesAgent(
             cancellationToken);
     }
 
-    [TeamsTaskFetchRoute("AdaptiveCard", key: "data")]
-    public Task<TaskResponse> OnAdaptiveCardFetchAsync(
+    [TeamsTaskFetchRoute(rank: 100)]
+    public Task<TaskResponse> OnTaskFetchAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
         Request request,
         CancellationToken cancellationToken)
-        => Task.FromResult(CreateAdaptiveCardTask());
+    {
+        string dialogType = request.GetDataString("data");
+        TaskResponse response = dialogType switch
+        {
+            "AdaptiveCard" => CreateAdaptiveCardTask(),
+            "CustomForm" => CreateCustomFormTask(),
+            "MultiStep" => CreateMultiStepOneTask(),
+            _ => TaskResponse.CreateBuilder()
+                .WithType(TaskModuleResponseTypes.Message)
+                .WithMessage("Unknown dialog type")
+                .Build().Body!
+        };
 
-    [TeamsTaskFetchRoute("CustomForm", key: "data")]
-    public Task<TaskResponse> OnCustomFormFetchAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        Request request,
-        CancellationToken cancellationToken)
-        => Task.FromResult(CreateCustomFormTask());
-
-    [TeamsTaskFetchRoute("MultiStep", key: "data")]
-    public Task<TaskResponse> OnMultiStepFetchAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        Request request,
-        CancellationToken cancellationToken)
-        => Task.FromResult(CreateMultiStepOneTask());
+        return Task.FromResult(response);
+    }
 
     [TeamsTaskSubmitRoute("multi_step_1", key: "submissiontype", rank: 10)]
     public Task<TaskResponse> OnMultiStepOneSubmitAsync(
@@ -137,7 +135,7 @@ public partial class BotTaskModulesAgent(
             .Build().Body!;
     }
 
-    [TeamsTaskSubmitRoute(rank: 100)]
+    [TeamsTaskSubmitRoute("adaptive_card", key: "submissiontype", rank: 40)]
     public async Task<TaskResponse> OnAdaptiveCardSubmitAsync(
         ITeamsTurnContext turnContext,
         ITurnState turnState,
@@ -146,6 +144,32 @@ public partial class BotTaskModulesAgent(
     {
         string userText = request.GetDataString("usertext");
 
+        await turnContext.SendActivityAsync(
+            $"You submitted: {userText}",
+            cancellationToken: cancellationToken);
+
+        return TaskResponse.CreateBuilder()
+            .WithType(TaskModuleResponseTypes.Message)
+            .WithMessage("Thanks for submitting!")
+            .Build().Body!;
+    }
+
+    [TeamsTaskSubmitRoute(rank: 100)]
+    public async Task<TaskResponse> OnMissingTaskSubmitDataAsync(
+        ITeamsTurnContext turnContext,
+        ITurnState turnState,
+        Request request,
+        CancellationToken cancellationToken)
+    {
+        if (request.Data == null)
+        {
+            return TaskResponse.CreateBuilder()
+                .WithType(TaskModuleResponseTypes.Message)
+                .WithMessage("No data found in the activity value")
+                .Build().Body!;
+        }
+
+        string userText = request.GetDataString("usertext");
         await turnContext.SendActivityAsync(
             $"You submitted: {userText}",
             cancellationToken: cancellationToken);
@@ -170,7 +194,7 @@ public partial class BotTaskModulesAgent(
                     IsMultiline = true
                 }
             ],
-            Actions = [new SubmitAction { Title = "Submit" }]
+            Actions = [new SubmitAction().WithTitle("Submit").WithData(CreateSubmitData(("submissiontype", "adaptive_card")))]
         };
 
         return ContinueWith(

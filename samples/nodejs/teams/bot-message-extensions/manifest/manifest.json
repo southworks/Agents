@@ -30,6 +30,21 @@
         "team",
         "groupChat"
       ],
+      "commandLists": [
+        {
+          "scopes": [
+            "personal",
+            "team",
+            "groupChat"
+          ],
+          "commands": [
+            {
+              "title": "help",
+              "description": "Show usage guidance."
+            }
+          ]
+        }
+      ],
       "supportsFiles": false,
       "isNotificationOnly": false
     }

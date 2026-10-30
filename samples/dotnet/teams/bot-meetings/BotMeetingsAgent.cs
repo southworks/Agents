@@ -115,6 +115,9 @@ public partial class BotMeetingsAgent : AgentApplication
         string userId = meetingInfo.OrganizerId;
         string graphMeetingId = meetingInfo.GraphMeetingId;
 
+        // Allow transcript processing to complete after the meeting end event.
+        await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+
         string transcript = string.Empty;
         if (_graphClient is not null &&
             !string.IsNullOrEmpty(graphMeetingId) &&
