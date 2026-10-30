@@ -1,14 +1,16 @@
 # Teams sample synchronization
 
-This workflow synchronizes selected Teams SDK .NET samples into their existing Agents SDK
-counterparts. Its jobs are plan, migrate, and handoff. Migration has Copilot access but no
+This workflow synchronizes selected Teams SDK .NET samples into Agents SDK
+counterparts, including initial imports. Its jobs are plan, migrate, and handoff. Migration has Copilot access but no
 repository-write credential. The handoff job verifies the candidates, uploads their patches and
 migration evidence, and creates an issue for Copilot cloud agent. Copilot owns the resulting
 implementation and PR, including its title, description, and readiness.
 
 The workflow runs every Sunday at 00:00 UTC for all configured samples. Dispatch manual runs from
 the repository's default branch; other refs are skipped. Manual runs can select one
-sample or all samples and can enable or disable publication. Migrations run independently, but the
+language (`all`, `dotnet`), a sample or all samples, and publication. A named sample with
+`language=all` selects its configured language variants; an absent combination fails.
+Migrations run independently, but the
 selected samples publish as one coordinated set: if any migration fails, no handoff issue is created.
 Planning fetches `upstream.ref` from `config/targets.yml` into a bare Git repository, so no upstream
 code is checked out in the planning job. Migration jobs use the exact commit selected by the plan.
@@ -69,5 +71,59 @@ npm run build --prefix automation/teams-sample-sync
 dotnet test automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj
 ```
 
+The .NET contract host installs offline connector and user-token transports before
+each turn, as required by MSTeams 1.9. Unexpected Teams API requests fail explicitly.
+`AgentsSdkTestVersion` selects both the testing package and the Teams extension.
+To check host compatibility with 1.9 independently of sample migration:
+
+```sh
+dotnet test automation/teams-sample-sync/tests/contracts/TeamsSampleSync.ContractTests.csproj \
+  '-p:AgentsSdkTestVersion=1.9.*' --filter FullyQualifiedName~TeamsExtension_Initializes
+```
+
+The .NET Teams samples and contract suite now default to SDK 1.9. Run the complete
+suite above to check route signatures and payload behavior across all seven samples.
+When full validation fails, the terminal error reports the sample, failed checks,
+and their errors. The generic "Current full validation is required" message is
+reserved for partial, mismatched, or missing validation identity evidence.
+
+Profiles live in `config/targets.yml`. The .NET profile owns migration guidance,
+protected contracts, manifest assets and output exclusions. Verified state uses
+`state/dotnet/<sample>.lock.json`. Old unqualified .NET locks supply history only;
+the first run after this upgrade requires fresh validation. Other languages are
+not enabled in this layer.
+
+The workflow keeps its existing filename and uses qualified matrix/artifact IDs.
+It runs only from the default branch. Normal sample CI builds the Node examples
+and runs their protected contracts. For registered GitHub-native stacks, Actions
+evaluates PR branch filters against the stack trunk; verify the hosted checks on
+each layer. For a branch-only chain, run checks locally and after retargeting.
+
 The live Copilot smoke test is opt-in because it consumes usage. Set
 `TEAMS_SYNC_SDK_SMOKE=1` before running `npm run test:sdk-smoke --prefix automation/teams-sample-sync`.
+
+## Maintaining the automation
+
+Keep hand-written files below 500 physical lines. The scoped rules in
+`eslint.config.js` require braced control flow, readable object properties and
+spacing before returns. Run `npx eslint automation/teams-sample-sync` from the
+repository root alongside the build and tests above.
+
+| Responsibility | Start here |
+| --- | --- |
+| CLI commands and artifacts | `src/cli.ts`, `src/cli-io.ts` |
+| Configuration and safe target paths | `src/config.ts`, `src/identity.ts` |
+| Incremental decisions and frozen input fingerprints | `src/plan.ts`, `src/plan-inputs.ts`, `src/state.ts` |
+| Copilot permissions and migration protocol | `src/agent-runner.ts`, `src/sync-session.ts`, `src/guard.ts` |
+| Validation orchestration and language adapters | `src/validate.ts`, `src/languages.ts`, `src/*-validation.ts` |
+| Source capabilities and manifest requirements | `src/dotnet-capabilities.ts`, `src/manifest-capabilities.ts`, `src/manifest.ts` |
+| Patch verification and coordinated handoff | `src/verify-patch.ts`, `src/publish-bundle.ts`, `src/handoff-bundle.ts` |
+
+Keep real SDK behavior checks in `tests/js-contracts` and `tests/contracts`.
+Use `tests/unit` for deterministic policy checks and `tests/integration` for the
+offline candidate pipeline. Shared session doubles live in `tests/fixtures`;
+outcome reconciliation and manifest validation have their own test modules.
+
+`scripts/build.mjs` removes stale compiled output before invoking TypeScript.
+Build scripts participate in the validator input fingerprint, just like source.
+Readability edits therefore trigger conservative revalidation of verified samples.

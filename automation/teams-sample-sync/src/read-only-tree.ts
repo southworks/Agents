@@ -1,5 +1,7 @@
 /** Removes an owned snapshot tree without following links outside it. */
-import { chmodSync, existsSync, lstatSync, readdirSync, rmSync } from 'node:fs'
+import {
+  chmodSync, existsSync, lstatSync, readdirSync, rmSync
+} from 'node:fs'
 import path from 'node:path'
 
 function unlock (entry: string): void {
