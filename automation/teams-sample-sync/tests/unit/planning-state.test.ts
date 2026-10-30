@@ -11,6 +11,7 @@ import { parse, stringify } from 'yaml'
 import { digestDirectory } from '../../src/git.js'
 import { createPlan } from '../../src/plan.js'
 import { createState, statePath } from '../../src/state.js'
+import { JS_SDK_PACKAGES } from '../../src/js-versions.js'
 import type { Configuration, PlanSample, ValidationResult } from '../../src/types.js'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
@@ -75,7 +76,7 @@ function saveVerifiedState (root: string, entry: PlanSample): void {
     language: entry.language,
     sample: entry.sample
   }
-  const destination = 'dotnet'
+  const destination = entry.language === 'js' ? 'nodejs' : 'dotnet'
   const validation: ValidationResult = {
     version: 3,
     ...identity,
@@ -94,6 +95,73 @@ function saveVerifiedState (root: string, entry: PlanSample): void {
 }
 
 describe('incremental planning with namespaced state', () => {
+  it('plans same-name language variants independently and honors language selection', () => {
+    const { root, upstream } = fixture()
+    try {
+      const configFile = path.join(root, 'automation/teams-sample-sync/config/targets.yml')
+      const configured = parse(readFileSync(configFile, 'utf8')) as Configuration
+      const dotnet = configured.profiles.dotnet!
+      configured.profiles.js = {
+        ...dotnet,
+        destinationRoot: 'samples/nodejs/teams',
+        packagePolicy: {
+          nodeVersion: '24',
+          minimumAgentsSdkVersion: '1.9.1'
+        },
+        samples: {
+          'bot-cards': {
+            ...dotnet.samples['bot-cards']!,
+            source: 'bot-cards/nodejs/bot-cards'
+          },
+        },
+      }
+      writeFileSync(configFile, stringify(configured))
+      write(root, 'samples/nodejs/teams/bot-cards/index.ts', 'Node destination')
+      write(upstream, 'samples/TeamsSDK/bot-cards/nodejs/bot-cards/index.ts', 'Node source')
+      commit(upstream)
+      const selections = {
+        ...versions,
+        js: {
+          minimumAgentsSdkVersion: '1.9.1',
+          selectedAgentsSdkVersion: '1.9.1',
+          releaseTag: 'npm:1.9.1',
+          packages: Object.fromEntries(JS_SDK_PACKAGES.map((name) => [name, '1.9.1'])),
+        },
+      }
+      const initial = createPlan(root, upstream, selections, 'bot-cards')
+      assert.deepEqual(initial.matrix.map((item) => item.id), ['dotnet--bot-cards', 'js--bot-cards'])
+      saveVerifiedState(root, initial.samples[id]!)
+      assert.deepEqual(createPlan(root, upstream, selections).matrix.map((item) => item.id), ['js--bot-cards'])
+      assert.deepEqual(createPlan(root, upstream, selections, 'bot-cards', 'dotnet').matrix, [])
+      assert.deepEqual(createPlan(root, upstream, selections, 'bot-cards', 'js').matrix.map((item) => item.id), ['js--bot-cards'])
+      saveVerifiedState(root, initial.samples['js--bot-cards']!)
+      assert.deepEqual(createPlan(root, upstream, selections).matrix, [])
+      write(upstream, 'samples/TeamsSDK/bot-cards/nodejs/bot-cards/index.ts', 'Changed Node behavior')
+      commit(upstream)
+      const changed = createPlan(root, upstream, selections)
+      assert.deepEqual(changed.matrix.map((item) => item.id), ['js--bot-cards'])
+      saveVerifiedState(root, changed.samples['js--bot-cards']!)
+      write(root, 'samples/nodejs/teams/bot-cards/index.ts', 'manual JS drift')
+      assert.deepEqual(createPlan(root, upstream, selections).matrix.map((item) => item.id), ['js--bot-cards'])
+      write(root, 'samples/nodejs/teams/bot-cards/index.ts', 'Node destination')
+      const newer = {
+        ...selections,
+        js: {
+          ...selections.js,
+          selectedAgentsSdkVersion: '1.9.2',
+          releaseTag: 'npm:1.9.2',
+          packages: Object.fromEntries(JS_SDK_PACKAGES.map((name) => [name, '1.9.2'])),
+        }
+      }
+      assert.deepEqual(createPlan(root, upstream, newer).matrix.map((item) => item.id), ['js--bot-cards'])
+    } finally {
+      rmSync(root, {
+        recursive: true,
+        force: true
+      })
+    }
+  })
+
   it('recognizes unchanged targets, output drift, and migration input changes', () => {
     const { root, upstream } = fixture()
     try {

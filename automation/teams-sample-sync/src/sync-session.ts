@@ -194,7 +194,7 @@ export async function runMigrationSession (options: MigrationSessionOptions): Pr
           ].join(' '),
           [
             "The context's minimumAgentsSdkVersion is a floor, not the version to copy;",
-            'selectedAgentsSdkVersion is the resolved target release line. Check dependencies',
+            'selectedAgentsSdkVersion is the resolved target for .NET; JS uses the frozen exact npm package map. Check dependencies',
             'and include upgrades needed to match the selected language policy.',
           ].join(' '),
           [

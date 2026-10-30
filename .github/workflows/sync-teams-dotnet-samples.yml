@@ -11,7 +11,7 @@ on:
         required: true
         type: choice
         default: all
-        options: [all, dotnet]
+        options: [all, dotnet, js]
       sample:
         description: Selected sample or all
         required: true
@@ -134,7 +134,8 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: automation/teams-sample-sync/package-lock.json
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      - if: matrix.language == 'dotnet'
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
       - run: npm ci --prefix "$SYNC_TOOL" && npm run build --prefix "$SYNC_TOOL"

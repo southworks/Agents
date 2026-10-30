@@ -108,7 +108,7 @@ export function createPlan (
     const inventory = (git(upstream, ['ls-tree', '-d', '--name-only', `${commit}:${configured.upstream.root}`]) as string)
       .split(/\r?\n/)
       .filter((name) => name !== '' && name.toLowerCase() !== 'archived')
-    const sourceVariant = 'dotnet'
+    const sourceVariant = language === 'js' ? 'nodejs' : 'dotnet'
     const unconfiguredSamples = inventory.filter((name) => !(name in configured.samples)).sort()
 
     for (const sample of unconfiguredSamples) {
