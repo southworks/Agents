@@ -41,7 +41,7 @@ jobs:
               CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }})
             fi
           fi
-          
+
           # Check if any files are in samples folder
           HAS_SAMPLES=false
           while IFS= read -r file; do
@@ -50,8 +50,24 @@ jobs:
               break
             fi
           done <<< "$CHANGED_FILES"
-          
+
           echo "samples_changed=$HAS_SAMPLES" >> $GITHUB_OUTPUT
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install lint dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run repository lint
+        run: npm run lint
 
   build-dotnet:
     needs: check_path
@@ -88,11 +104,8 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Run lint
-        run: npm run lint
+      - name: Install root build dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Build all Node samples
         run: |
