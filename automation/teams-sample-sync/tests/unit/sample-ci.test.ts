@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { parse } from 'yaml'
+import { configuration } from '../../src/config.js'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
 
@@ -15,4 +16,5 @@ test('sample CI explicitly builds nested Teams packages and runs their protected
   assert.match(script, /samples\/nodejs\/\*\/ samples\/nodejs\/teams\/\*\//)
   assert.doesNotMatch(script, /find |\*\*\/|node_modules/)
   assert.match(JSON.stringify(build.steps), /tests\/js-contracts/)
+  assert.deepEqual(Object.keys(configuration(repo).profiles), ['dotnet', 'js'])
 })

@@ -25,6 +25,7 @@ export interface CopilotConfiguration {
 
 export interface PackagePolicy {
   targetFramework?: string
+  nodeVersion?: string
   minimumAgentsSdkVersion: string
 }
 
@@ -32,6 +33,7 @@ export interface AgentsSdkVersionSelection {
   minimumAgentsSdkVersion: string
   selectedAgentsSdkVersion: string
   releaseTag: string
+  packages?: Record<string, string>
 }
 
 export interface LanguageProfile {

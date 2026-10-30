@@ -86,3 +86,78 @@ profiles:
           distribution: sample
           packageDirectory: manifest
           placeholderConvention: double-braces
+
+  js:
+    destinationRoot: samples/nodejs/teams
+    canonicalSample: samples/nodejs/quickstart
+    manifestAssets: samples/nodejs/proactive/appManifest
+    migrationSkill: agent-plugins/agents-for-js/skills/teams-sdk-to-agents-sdk-typescript-migration
+    syncSkill: automation/teams-sample-sync/skills/sync-teams-samples-to-agents-sdk
+    contractDirectory: automation/teams-sample-sync/tests/js-contracts
+    outputDigestExcludes:
+      - node_modules/**
+      - dist/**
+      - coverage/**
+      - '*.tsbuildinfo'
+
+    packagePolicy:
+      nodeVersion: '24'
+      minimumAgentsSdkVersion: '1.9.1'
+
+    samples:
+      agent-targeted-messages:
+        source: agent-targeted-messages/nodejs/agent-targeted-messages
+        destination: agent-targeted-messages
+        manifest:
+          distribution: sample
+          packageDirectory: manifest
+          placeholderConvention: double-braces
+
+      bot-ai-messages:
+        source: bot-ai-messages/nodejs/bot-ai-messages
+        destination: bot-ai-messages
+        manifest:
+          distribution: sample
+          packageDirectory: manifest
+          placeholderConvention: double-braces
+
+      bot-attachments:
+        source: bot-attachments/nodejs/bot-attachments
+        destination: bot-attachments
+        manifest:
+          distribution: sample
+          packageDirectory: manifest
+          placeholderConvention: double-braces
+
+      bot-cards:
+        source: bot-cards/nodejs/bot-cards
+        destination: bot-cards
+        manifest:
+          distribution: sample
+          packageDirectory: manifest
+          placeholderConvention: double-braces
+
+      bot-meetings:
+        source: bot-meetings/nodejs/bot-meetings
+        destination: bot-meetings
+        manifest:
+          distribution: sample
+          packageDirectory: manifest
+          placeholderConvention: double-braces
+
+      bot-message-extensions:
+        source: bot-message-extensions/nodejs/bot-message-extensions
+        destination: bot-message-extensions
+        manifest:
+          expectedLinkDomains: [en.wikipedia.org]
+          distribution: sample
+          packageDirectory: manifest
+          placeholderConvention: double-braces
+
+      bot-task-modules:
+        source: bot-task-modules/nodejs/bot-task-modules
+        destination: bot-task-modules
+        manifest:
+          distribution: sample
+          packageDirectory: manifest
+          placeholderConvention: double-braces

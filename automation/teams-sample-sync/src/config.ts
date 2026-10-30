@@ -147,7 +147,11 @@ function parseProfile (raw: unknown, name: Language): LanguageProfile {
 
   const packagePolicy: LanguageProfile['packagePolicy'] = { minimumAgentsSdkVersion: text(policy.minimumAgentsSdkVersion, `${name}.minimumAgentsSdkVersion`), }
 
-  packagePolicy.targetFramework = text(policy.targetFramework, `${name}.targetFramework`)
+  if (name === 'dotnet') {
+    packagePolicy.targetFramework = text(policy.targetFramework, `${name}.targetFramework`)
+  } else {
+    packagePolicy.nodeVersion = text(policy.nodeVersion, `${name}.nodeVersion`)
+  }
 
   const result: LanguageProfile = {
     destinationRoot: text(value.destinationRoot, `${name}.destinationRoot`),
@@ -161,10 +165,14 @@ function parseProfile (raw: unknown, name: Language): LanguageProfile {
     samples,
   }
 
-  const minimumPattern = DOTNET_VERSION_LINE
+  const minimumPattern = name === 'dotnet' ? DOTNET_VERSION_LINE : EXACT_VERSION
 
   if (!minimumPattern.test(result.packagePolicy.minimumAgentsSdkVersion)) {
     throw new SyncError(`Invalid minimum Agents SDK version for ${name}`)
+  }
+
+  if (name === 'js' && result.packagePolicy.nodeVersion !== '24') {
+    throw new SyncError('JS migration runtime must use Node 24')
   }
 
   for (const [key, candidate] of Object.entries(result)) {

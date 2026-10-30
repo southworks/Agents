@@ -9,7 +9,7 @@ This CI caller uses one persistent implementation session. Preserve the source b
 the smallest necessary changes inside the selected sample. Invoke the public migration skill
 before editing code and the manifest skill when updating the Teams app package.
 The context identifies the language and frozen SDK selection. For .NET, use its
-resolved release line. The minimum is
+resolved release line; for JS/TS, use its exact npm package map. The minimum is
 a floor. Apply the selected migration skill's package conventions rather than
 copying the minimum into dependencies or imposing one language's version syntax
 on another. Initial imports may have an empty destination.

@@ -31,15 +31,46 @@ function withConfiguration (edit: (value: Configuration) => void, check: (root: 
 }
 
 describe('language profiles and target identity', () => {
-  it('resolves the .NET profile and qualified identity', () => {
-    assert.deepEqual(selectedLanguages(repo), ['dotnet'])
-    assert.equal(targets(repo).destinationRoot, 'samples/dotnet/teams')
-    const dotnet = {
-      language: 'dotnet',
-      sample: 'bot-cards'
-    } as const
-    assert.equal(targetId(dotnet), 'dotnet--bot-cards')
-    assert.equal(artifactName(dotnet), 'teams-sample-sync-dotnet--bot-cards')
+  it('resolves independent profiles for the same sample name', () => {
+    withConfiguration((value) => {
+      const dotnet = value.profiles.dotnet!
+      value.profiles.js = {
+        ...dotnet,
+        destinationRoot: 'samples/nodejs/teams',
+        packagePolicy: {
+          minimumAgentsSdkVersion: '1.9.1',
+          nodeVersion: '24'
+        },
+      }
+    }, (root) => {
+      assert.deepEqual(selectedLanguages(root), ['dotnet', 'js'])
+      assert.equal(targets(root, 'dotnet').destinationRoot, 'samples/dotnet/teams')
+      assert.equal(targets(root, 'js').destinationRoot, 'samples/nodejs/teams')
+      const dotnet = {
+        language: 'dotnet',
+        sample: 'bot-cards'
+      } as const
+      const js = {
+        language: 'js',
+        sample: 'bot-cards'
+      } as const
+      assert.notEqual(targetId(dotnet), targetId(js))
+      assert.equal(artifactName(js), 'teams-sample-sync-js--bot-cards')
+    })
+  })
+
+  it('rejects destinations that overlap across languages', () => {
+    withConfiguration((value) => {
+      const dotnet = value.profiles.dotnet!
+      value.profiles.js = {
+        ...dotnet,
+        destinationRoot: dotnet.destinationRoot + '/bot-cards',
+        packagePolicy: {
+          minimumAgentsSdkVersion: '1.9.1',
+          nodeVersion: '24'
+        },
+      }
+    }, (root) => assert.throws(() => configuration(root), /Overlapping destination/))
   })
 
   it('rejects overlapping samples within one profile', () => {
@@ -53,9 +84,8 @@ describe('language profiles and target identity', () => {
       value.profiles.dotnet!.samples['bot-cards']!.source = '../escape'
     }, (root) => assert.throws(() => configuration(root), /unsafe path/))
     assert.throws(() => selectedLanguages(repo, 'python'), /Unsupported language/)
-    assert.throws(() => selectedLanguages(repo, 'js'), /Unsupported language/)
     assert.throws(() => targetId({
-      language: 'dotnet',
+      language: 'js',
       sample: '../escape'
     }), /Invalid sample name/)
   })

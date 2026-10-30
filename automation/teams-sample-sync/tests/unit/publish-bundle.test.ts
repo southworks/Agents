@@ -90,6 +90,45 @@ function writeResult (directory: string, value: SyncResult): void {
 }
 
 describe('coordinated publication gate', () => {
+  it('requires both same-name language variants before handing off a mixed run', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'teams-sync-mixed-results-'))
+    try {
+      const mixed = structuredClone(plan)
+      const sample = samples[0]!
+      mixed.matrix = [plan.matrix[0]!, {
+        language: 'js',
+        sample,
+        id: `js--${sample}`,
+        upstreamCommit
+      }]
+      mixed.samples[`js--${sample}`] = {
+        ...plan.samples[`dotnet--${sample}`]!,
+        language: 'js'
+      }
+      writeResult(directory, result(sample))
+      assert.throws(() => publishableResults(mixed, directory, baseSha), /Missing migration result/)
+      const js = result(sample, { language: 'js' })
+      js.validation!.language = 'js'
+      js.validation!.checks.packages = {
+        status: 'passed',
+        errors: []
+      }
+      writeResult(directory, js)
+      assert.deepEqual(publishableResults(mixed, directory, baseSha).map((item) => item.language), ['dotnet', 'js'])
+      writeResult(directory, {
+        ...js,
+        publishable: false,
+        status: 'failed'
+      })
+      assert.throws(() => publishableResults(mixed, directory, baseSha), /not publishable/)
+    } finally {
+      rmSync(directory, {
+        recursive: true,
+        force: true
+      })
+    }
+  })
+
   it('accepts all planned results in plan order', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'teams-sync-results-'))
     try {
@@ -174,12 +213,9 @@ describe('coordinated publication gate', () => {
           language: 'dotnet',
           sample: samples[1]!
         }), 'sync-result.json'),
-        JSON.stringify({
-          ...result(samples[1]!),
-          language: 'js'
-        })
+        JSON.stringify(result(samples[1]!, { language: 'js' }))
       )
-      assert.throws(() => publishableResults(plan, directory, baseSha), /Unsupported language: js/)
+      assert.throws(() => publishableResults(plan, directory, baseSha), /not publishable/)
       writeResult(directory, result(samples[1]!, { inputDigest: 'different-input' }))
       assert.throws(() => publishableResults(plan, directory, baseSha), /not publishable/)
       const missingContracts = result(samples[1]!)

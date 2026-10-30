@@ -17,6 +17,8 @@
     "ajv": "8.20.0",
     "fast-xml-parser": "5.11.1",
     "minimatch": "10.2.6",
+    "semver": "7.7.4",
+    "typescript-parser": "npm:typescript@6.0.3",
     "yaml": "2.9.0"
   },
   "overrides": {
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "22.10.2",
+    "@types/semver": "7.7.1",
     "tsx": "4.20.5",
     "typescript": "7.0.2"
   }

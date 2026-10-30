@@ -1,6 +1,8 @@
 /** Bounded validation processes and shared cancellation generation. */
 import { spawn, spawnSync } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 import { SyncError } from './config.js'
 import type { Language } from './identity.js'
 
@@ -81,7 +83,25 @@ export async function commandErrors (
   const generation = validationGeneration
 
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    let executable = command
+    let arguments_ = args
+
+    if (command === 'npm' && process.platform === 'win32') {
+      const cli = process.env.npm_execpath?.endsWith('npm-cli.js')
+        ? process.env.npm_execpath
+        : path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js')
+
+      if (!existsSync(cli)) {
+        reject(new SyncError('Cannot locate npm-cli.js for bounded Windows validation'))
+
+        return
+      }
+
+      executable = process.execPath
+      arguments_ = [cli, ...args]
+    }
+
+    const child = spawn(executable, arguments_, {
       cwd,
       detached: process.platform !== 'win32',
       env: sanitizedChildEnvironment(),
@@ -166,12 +186,12 @@ function terminate (child: ReturnType<typeof spawn>): void {
   child.kill('SIGKILL')
 }
 
-export async function httpSmoke (sampleRoot: string, project: string, _language: Language = 'dotnet'): Promise<string[]> {
+export async function httpSmoke (sampleRoot: string, project: string, language: Language = 'dotnet'): Promise<string[]> {
   const generation = validationGeneration
   const port = 41000 + Math.floor(Math.random() * 10000)
   const url = `http://127.0.0.1:${port}`
-  const command = 'dotnet'
-  const args = ['run', '--project', project, '--no-build', '--no-restore', '--urls', url]
+  const command = language === 'dotnet' ? 'dotnet' : process.execPath
+  const args = language === 'dotnet' ? ['run', '--project', project, '--no-build', '--no-restore', '--urls', url] : [project]
   const child = spawn(command, args, {
     cwd: sampleRoot,
     env: sanitizedChildEnvironment({

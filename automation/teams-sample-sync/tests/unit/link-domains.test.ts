@@ -11,15 +11,15 @@ import { checkManifest } from '../../src/manifest.js'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
 
-test('.NET manifests reject unrelated, missing, extra and wildcard link domains against trusted policy', async () => {
+test('both language variants reject unrelated, missing, extra and wildcard link domains against trusted policy', async () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'teams-sync-link-domains-'))
   try {
-    const manifest = JSON.parse(readFileSync(path.join(repo, 'samples/dotnet/teams/bot-message-extensions/manifest/manifest.json'), 'utf8'))
+    const manifest = JSON.parse(readFileSync(path.join(repo, 'samples/nodejs/teams/bot-message-extensions/manifest/manifest.json'), 'utf8'))
     mkdirSync(path.join(root, 'manifest'))
     for (const icon of ['color.png', 'outline.png']) {
       writeFileSync(path.join(root, 'manifest', icon), 'icon')
     }
-    for (const language of ['dotnet'] as const) {
+    for (const language of ['dotnet', 'js'] as const) {
       const policy = targets(repo, language).samples['bot-message-extensions']!.manifest
       assert.deepEqual(policy.expectedLinkDomains, ['en.wikipedia.org'])
       for (const domains of [[], ['unrelated.example.org'], ['*.wikipedia.org'], ['en.wikipedia.org', 'other.example.org'], ['en.wikipedia.org']]) {
@@ -29,7 +29,7 @@ test('.NET manifests reject unrelated, missing, extra and wildcard link domains 
         }]
         writeFileSync(path.join(root, 'manifest/manifest.json'), JSON.stringify(manifest))
         const errors = await checkManifest(root, policy, async () => ({ type: 'object' }), () => ({
-          bot: true,
+          bot: false,
           composeExtensions: true,
           queryCommands: [],
           linkHandlerEvidence: 'Link handler',
@@ -38,7 +38,7 @@ test('.NET manifests reject unrelated, missing, extra and wildcard link domains 
       }
       const { expectedLinkDomains: _expected, ...missingPolicy } = policy
       const errors = await checkManifest(root, missingPolicy, async () => ({ type: 'object' }), () => ({
-        bot: true,
+        bot: false,
         composeExtensions: true,
         queryCommands: [],
         linkHandlerEvidence: 'Link handler',
