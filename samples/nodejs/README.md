@@ -24,3 +24,4 @@
 |Teams cards|Nested forms, actions and visibility|[bot-cards](teams/bot-cards/README.md)|
 |Teams message extensions|Wikipedia search and link unfurling|[bot-message-extensions](teams/bot-message-extensions/README.md)|
 |Teams task modules|Cards, custom HTML forms and chained dialogs|[bot-task-modules](teams/bot-task-modules/README.md)|
+|Teams targeted messages|Private reminders, snooze and reactions|[agent-targeted-messages](teams/agent-targeted-messages/README.md)|
