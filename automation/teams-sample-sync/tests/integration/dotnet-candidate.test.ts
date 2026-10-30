@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
+import { removeFixtureDirectory } from '../fixtures/temporary-directory.js'
 import { migrateCandidate } from '../../src/candidate.js'
 import { targetId } from '../../src/identity.js'
 import { createPlan } from '../../src/plan.js'
@@ -74,9 +75,6 @@ test('offline .NET import produces a verified patch and qualified state, then a 
     } else {
       process.env.GITHUB_TOKEN = originalToken
     }
-    rmSync(temp, {
-      recursive: true,
-      force: true
-    })
+    removeFixtureDirectory(temp)
   }
 })
