@@ -4,8 +4,9 @@
  * It records the pinned commit, source changes, previous source snapshot, selected destination, and policy,
  * then makes the context read-only so implementation cannot silently change the plan's input.
  */
-import { chmodSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { removeReadOnlyTree } from './read-only-tree.js'
 import { protection, targets, SyncError } from './config.js'
 import { digestDirectory, git, hash, materializeTree, tree, upstreamChanges } from './git.js'
 import { readPriorState } from './state.js'
@@ -98,7 +99,7 @@ export function createContext (repo: string, upstream: string, plan: Plan, sampl
   }
   const previousTree = previousCommit ? (tree(upstream, previousCommit, sourcePath) ?? null) : null
   const root = path.join(repo, '.sync', 'context')
-  rmSync(root, { recursive: true, force: true })
+  removeReadOnlyTree(root)
   const previousRoot = path.join(root, 'previous-upstream')
   mkdirSync(previousRoot, { recursive: true })
   if (previousCommit && previousTree) {
