@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
+} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
@@ -16,10 +18,10 @@ describe('Copilot handoff bundle', () => {
 
     try {
       const planFile = path.join(root, 'plan.json')
-      writeFileSync(planFile, '{"version":3}\n')
+      writeFileSync(planFile, '{"version":4}\n')
 
       for (const sample of samples) {
-        const directory = path.join(resultsDirectory, `teams-sample-sync-${sample}`)
+        const directory = path.join(resultsDirectory, `teams-sample-sync-dotnet--${sample}`)
         mkdirSync(directory, { recursive: true })
         for (const name of [
           'change.patch',
@@ -31,6 +33,7 @@ describe('Copilot handoff bundle', () => {
           writeFileSync(path.join(directory, name), `${sample}: ${name}\n`)
         }
         results.push({
+          language: 'dotnet',
           sample,
           summary: `Updated ${sample}.`,
           upstreamCommit: 'b'.repeat(40),
@@ -46,18 +49,21 @@ describe('Copilot handoff bundle', () => {
       })
 
       assert.deepEqual(readdirSync(output).sort(), ['plan.json', 'samples'])
-      assert.deepEqual(readdirSync(path.join(output, 'samples')).sort(), samples)
-      assert.equal(readFileSync(path.join(output, 'plan.json'), 'utf8'), '{"version":3}\n')
+      assert.deepEqual(readdirSync(path.join(output, 'samples')).sort(), samples.map((sample) => `dotnet--${sample}`))
+      assert.equal(readFileSync(path.join(output, 'plan.json'), 'utf8'), '{"version":4}\n')
       assert.equal(existsSync(path.join(output, 'pr-body.md')), false)
       assert.equal(existsSync(path.join(output, 'handoff.json')), false)
       assert.equal(existsSync(path.join(output, 'pr-title.txt')), false)
       assert.equal(existsSync(path.join(output, 'agent-instructions.md')), false)
       assert.equal(
-        readFileSync(path.join(output, 'samples', samples[1]!, 'self-audit.md'), 'utf8'),
+        readFileSync(path.join(output, 'samples', `dotnet--${samples[1]!}`, 'self-audit.md'), 'utf8'),
         'bot-meetings: self-audit.md\n'
       )
     } finally {
-      rmSync(root, { recursive: true, force: true })
+      rmSync(root, {
+        recursive: true,
+        force: true
+      })
     }
   })
 })
