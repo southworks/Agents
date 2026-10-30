@@ -5,6 +5,26 @@ description: Migrate a JavaScript or TypeScript application using the Microsoft 
 
 # Teams SDK to Agents SDK for TypeScript
 
+## Overview
+
+Migrate the Teams SDK App runtime to Agents SDK AgentApplication. For applications
+using botbuilder, use the Bot Framework migration skill instead. Honor read-only
+review requests and caller-provided validation tools.
+
+## Core rules
+
+- Preserve commands, text matching, responses and state transitions, except that
+  user-facing references to the migrated runtime must say "agent", not "bot".
+  Apply this to README text, catalog descriptions, greetings and other messages.
+  Keep platform terms such as Azure Bot, bot ID and `bots[]`, and preserve existing
+  source-derived paths and identifiers unless the caller requests a rename.
+- Preserve explicit customer SDK selections and authentication models. Do not
+  introduce a new major version or prerelease without an applicable policy.
+- Verify signatures and payloads against the installed selected-version types
+  and implementation; similarly named APIs across SDKs are not interchangeable.
+- Use the application's logging conventions, include operation context and the
+  full Error, and avoid logging credentials or sensitive payloads.
+
 Read the source handlers, startup, dependencies, environment configuration and
 manifest before changing code. Inventory each command, invoke payload, response,
 state transition and external call. Preserve command precedence and visibility,
@@ -29,6 +49,28 @@ For synchronization, `context.migration.packages` is the frozen exact npm packag
 map. Declare those versions directly. The minimum is a floor, not the version to
 copy. Do not translate NuGet floating versions into npm syntax. Node 24 is the
 sync runtime; inspect published engines for customer applications.
+
+## Migration steps
+
+1. Inventory source handlers, dispatch precedence, payloads, state, external calls
+   and setup. Record behaviors that need real Teams or tenant validation.
+2. Scaffold the caller's destination, preserving existing layout and assets.
+   In sample sync, use the configured destination and factory/startup convention below.
+3. Replace dependencies and bootstrap with the selected Agents runtime. Keep
+   server startup separate from the application factory and preserve static pages.
+4. Migrate handlers using the mappings below; test actual dispatch and response
+   envelopes, including unknown commands, empty inputs and failure paths.
+5. Migrate configuration without changing the authentication model. Use an ignored
+   `.env` for local credentials and a checked-in template with placeholders. Keep
+   identity values consistent across connections, manifest placeholders and Graph
+   configuration. Initialize optional external clients lazily so missing credentials
+   do not prevent local startup; report missing configuration when the feature is used.
+6. Reconcile the manifest using `teams-app-manifest`. Preserve valid metadata,
+   use approved placeholders, and do not guess scopes, domains or permissions.
+   Report unresolved decisions as `needs-policy` in automated sync. Return manifest
+   evidence in the caller's report; do not create `manifest-evidence.md` by default.
+7. Verify the final candidate as described below, separating local evidence from
+   portal, identity, permission and live Teams checks.
 
 ## Application and route mapping
 
@@ -78,6 +120,11 @@ Keep Adaptive Card execute responses, task responses and compose-extension
 responses in their proper envelopes. Sending a normal reply does not replace the
 required invoke response.
 
+For lifecycle events, AI metadata, Graph authentication and long-running invokes,
+read [feature migration guidance](references/feature-migration.md) when those
+features appear in the source. It describes behavior to preserve, not .NET APIs
+or a requirement to add features the source does not have.
+
 ## State, external services and assets
 
 Keep sample-local state scoped to the application factory. MemoryStorage and
@@ -87,8 +134,8 @@ Inject external services where useful so tests can cover behavior without
 Graph, file-transfer, Wikipedia or Teams credentials.
 
 Use the Agents connection configuration conventions instead of copying Teams
-runtime authentication bootstrap. Acquire Graph tokens through the configured
-connection/authorization helpers. Never put secrets into manifests or test data.
+runtime authentication bootstrap. Preserve delegated versus app-only Graph access using the appropriate configured
+connection/authorization helper (see the feature reference). Never put secrets into manifests or test data.
 Keep static task-module pages available under the URLs returned by handlers.
 
 After code migration, use the standalone `teams-app-manifest` skill to reconcile
@@ -98,6 +145,34 @@ proves feature coverage.
 Meeting event handlers also require manifest RSC grants and `webApplicationInfo`;
 participant events require bot registration subscriptions in the Teams Developer
 Portal. Verify these prerequisites separately from injected route tests.
+
+## Verification
+
+Outside automation, install dependencies using the project's package manager,
+compile/typecheck the application, and run its behavior tests. Start the server
+with the documented configuration and verify its health endpoint (normally
+`GET /` on port 3978). Check required static pages as well as startup. Run the
+manifest skill's schema, asset and capability checks. A successful build does not
+prove routing, invoke envelopes or tenant behavior.
+
+In automation, use the supplied validation tool instead of requesting unavailable
+shell access. Require current full validation after the last change. Tests must
+preserve Agents-specific behavior, including terminology; matching upstream text
+verbatim is not a reason to replace "Agent" with "Bot" or weaken an existing test.
+Report failed, blocked and untested checks explicitly.
+
+## Common mistakes
+
+| Mistake | Correction |
+| --- | --- |
+| Copying upstream "Bot" greetings | Preserve the greeting's intent with "Agent" terminology |
+| Treating a TypeScript cast as a runtime wrapper | Construct TeamsTurnContext where required |
+| Letting a catch-all shadow commands | Verify route ranks and overlapping selectors |
+| Sending a normal reply instead of an invoke response | Use the proper route and response envelope |
+| Waiting for a long upload before invoke acknowledgment | Queue work and use proactive continuation |
+| Replacing app-only Graph calls with delegated calls | Preserve the original permission model |
+| Copying .NET AI models or rejecting all plain JS entities | Verify JS helpers and serialized wire fields |
+| Considering schema validity sufficient | Reconcile implemented capabilities and run behavioral tests |
 
 ## Automated sample synchronization
 

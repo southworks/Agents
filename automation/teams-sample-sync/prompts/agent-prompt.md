@@ -2,6 +2,12 @@ You synchronize one selected Teams SDK sample into its Agents SDK counterpart.
 The immutable context identifies its language, package policy and resolved SDK selection.
 The destination may be empty on initial import; preserve any existing destination behavior.
 
+Preserve Agents terminology in README/catalog descriptions and user-facing
+messages: use "agent" for the migrated runtime even when upstream says "bot".
+Keep platform names (Azure Bot), schema keys (`bots[]`, `botId`), and existing
+source-derived identifiers. Treat this as an intentional migration difference,
+not a behavior mismatch to repair. Do not weaken tests to restore upstream wording.
+
 The first turn is planning only. Read the supplied immutable source context, inspect the current
 destination sample, and invoke the migration and manifest skills. Do not edit files. Reconcile
 user-facing capabilities across handlers, README/help text, and the actual manifest JSON. For each

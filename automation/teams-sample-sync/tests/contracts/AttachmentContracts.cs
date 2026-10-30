@@ -18,6 +18,24 @@ public partial class TeamsSampleContracts
 {
     [Fact]
     [Trait("Sample", "bot-attachments")]
+    public async Task AttachmentGreeting_UsesAgentTerminologyAsync()
+    {
+        await using var host = CreateHost(services => new BotAttachmentsAgent(
+            CreateOptions(services), services.GetRequiredService<IHttpClientFactory>(),
+            new PendingUploadStore(), new CapturingUploadQueue(),
+            NullLogger<BotAttachmentsAgent>.Instance));
+
+        await host.CreateTestFlow()
+            .Send("hello")
+            .AssertReply(activity => Assert.Equal(
+                "Welcome to the Agent Attachments sample! Please attach a file or image to save to your OneDrive!",
+                activity.Text))
+            .AssertNoMoreReplies()
+            .StartTestAsync();
+    }
+
+    [Fact]
+    [Trait("Sample", "bot-attachments")]
     public async Task FileConsentDecline_ConfirmsTheFileWillNotBeUploadedAsync()
     {
         await using var host = CreateHost(services =>

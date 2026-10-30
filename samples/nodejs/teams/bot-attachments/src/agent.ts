@@ -2,9 +2,10 @@
 // Licensed under the MIT License.
 import { randomUUID } from 'node:crypto'
 import { Activity } from '@microsoft/agents-activity'
-import { AgentApplication, MemoryStorage } from '@microsoft/agents-hosting'
+import { AgentApplication, Conversation, MemoryStorage } from '@microsoft/agents-hosting'
 import { TeamsAgentExtension } from '@microsoft/agents-hosting-extensions-msteams'
 import { downloadAttachment, uploadToOneDrive } from './files.js'
+import { UploadQueue } from './upload-queue.js'
 
 interface FileContext {
   filename?: string
@@ -17,6 +18,7 @@ export function createAgent (services: {
 } = {}) {
   const download = services.download ?? downloadAttachment
   const upload = services.upload ?? uploadToOneDrive
+  const queue = new UploadQueue()
   const pendingUploads = new Map<string, Buffer>()
   const app = new AgentApplication({ storage: new MemoryStorage() })
   const teams = new TeamsAgentExtension(app)
@@ -31,21 +33,26 @@ export function createAgent (services: {
         return
       }
       await context.sendActivity(`Accepted. Uploading <b>${details.filename}</b>...`)
-      try {
-        await upload(consent.uploadInfo.uploadUrl, content)
-        await context.sendActivity(Activity.fromObject({
-          type: 'message',
-          text: `<b>${consent.uploadInfo.name}</b> has been successfully uploaded.`,
-          attachments: [{
-            contentType: 'application/vnd.microsoft.teams.card.file.info',
-            name: consent.uploadInfo.name,
-            contentUrl: consent.uploadInfo.contentUrl,
-            content: { uniqueId: consent.uploadInfo.uniqueId, fileType: consent.uploadInfo.fileType },
-          }],
-        }))
-      } catch (error) {
-        console.error('File upload failed:', error)
-      }
+      const conversation = new Conversation(context)
+      conversation.reference = structuredClone(conversation.reference)
+      const adapter = context.adapter
+      const info = structuredClone(consent.uploadInfo)
+      const uploadUrl = consent.uploadInfo.uploadUrl
+      queue.enqueue(async () => {
+        await upload(uploadUrl, content)
+        await app.proactive.continueConversation(adapter, conversation, async (continued) => {
+          await continued.sendActivity(Activity.fromObject({
+            type: 'message',
+            text: `<b>${info.name}</b> has been successfully uploaded.`,
+            attachments: [{
+              contentType: 'application/vnd.microsoft.teams.card.file.info',
+              name: info.name,
+              contentUrl: info.contentUrl,
+              content: { uniqueId: info.uniqueId, fileType: info.fileType },
+            }],
+          }))
+        })
+      })
     })
     extension.fileConsent.onDecline(async (context, _state, consent) => {
       const details = (consent.context ?? {}) as FileContext
@@ -82,5 +89,5 @@ export function createAgent (services: {
       }],
     }))
   })
-  return app
+  return Object.assign(app, { waitForUploads: () => queue.drain() })
 }

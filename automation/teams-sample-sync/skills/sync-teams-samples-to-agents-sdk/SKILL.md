@@ -14,6 +14,12 @@ a floor. Apply the selected migration skill's package conventions rather than
 copying the minimum into dependencies or imposing one language's version syntax
 on another. Initial imports may have an empty destination.
 
+Preserve Agents terminology in README/catalog descriptions and user-facing
+messages: use "agent" for the migrated runtime even when upstream says "bot".
+Keep platform names (Azure Bot), schema keys (`bots[]`, `botId`), and existing
+source-derived identifiers. Treat this as an intentional migration difference,
+not a behavior mismatch to repair. Do not weaken tests to restore upstream wording.
+
 The first turn is read-only planning. Before finalizing the plan, reconcile every user-facing
 capability across source handlers, README/help text, the destination implementation, and the
 actual destination manifest JSON. For commands, record the exact title, slash or mention surface,

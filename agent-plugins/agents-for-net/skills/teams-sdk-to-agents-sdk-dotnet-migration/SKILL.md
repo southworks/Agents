@@ -318,24 +318,7 @@ Also run the schema, package, evidence, and external-configuration checks requir
 | `.AddMention(member, addText: false)`                     | build a `Mention` entity + assign `activity.Entities = [mention]` |
 | `context.Api` (Teams REST client)                         | `ITeamsTurnContext.Client` (preferred) or `TeamsExtension.GetTeamsClient(turnContext)` (needs `[TeamsExtension]`) |
 
-### Mention example
-
-```csharp
-// Teams SDK
-var activity = new MessageActivity()
-    .WithText($"Hello <at>{member.Name}</at>")
-    .AddMention(member, addText: false);
-await context.Send(activity);
-```
-```csharp
-// Agents SDK
-var mention = new Mention { Mentioned = member, Text = $"<at>{member.Name}</at>" };
-var activity = Activity.CreateMessageActivity().WithText($"Hello {mention.Text}");
-activity.Entities = [mention];
-await turnContext.SendActivityAsync(activity, ct);
-```
-
----
+For mention-bearing replies, see [mention examples](references/mentions.md).
 
 ## Teams-specific event mapping (requires `[TeamsExtension]`)
 
@@ -503,7 +486,15 @@ try/catch on `ArgumentException` as a backstop).
 | Left `builder.AddTeams()` / `webApp.UseTeams()` | Replace with `AddAgentDefaults().AddAgent<T>()...` and `app.UseAgents()` + `app.MapDefaultAgentEndpoints()` |
 | Kept `context.Send(...)` / `IContext<T>` | Use `turnContext.SendActivityAsync(...)` / `ITurnContext` |
 | Kept flat `Teams:*` auth config | Replace with `Connections` + `TokenValidation` (SingleTenant ClientSecret by default) |
-| Left `TargetFramework` at `net10.0` with `ImplicitUsings` | Use `net8.0`, disable implicit usings, add explicit `using`s |
+| Used a framework or implicit-usings setting inconsistent with repository policy | Use the configured target framework (currently `net10.0`), disable implicit usings, and add explicit `using`s |
 | `Missing MessageFactory / ActivityTypes` compile errors | Add `using Microsoft.Agents.Builder;` and `using Microsoft.Agents.Core.Models;` |
 
 ---
+
+## Automated sample synchronization
+
+Follow the caller's read-only planning and frozen-plan protocol. Edit only the
+selected sample; protected contracts and automation remain outside its write scope.
+Use current full `validate_sample` evidence after the final change. Preserve Agents
+terminology even when upstream says "bot"; never weaken contracts to restore it.
+Report blocked behavior and remaining credentialed checks explicitly.

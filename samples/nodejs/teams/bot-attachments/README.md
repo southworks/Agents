@@ -26,3 +26,9 @@ node automation/teams-sample-sync/tests/js-contracts/bot-attachments.test.mjs sa
 ```
 
 Test file download, the consent dialog, OneDrive upload and rendering of the final file-info card in Teams. Pending uploads use in-memory buffers and are lost on restart.
+
+Accepted uploads run in a tracked in-memory queue so the consent invoke can be
+acknowledged before the transfer finishes. Completion uses a new proactive turn.
+Queued work is lost on restart; a production application should use durable work
+storage when delivery must survive restarts. The factory exposes `waitForUploads()`
+for tests or an orderly shutdown to wait for outstanding work.

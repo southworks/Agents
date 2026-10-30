@@ -50,11 +50,13 @@ test('downloaded files request consent, and accepted uploads return file-info ca
     },
   }
   const accepted = await harness.turn(consent)
+  await harness.app.waitForUploads()
+  assert.equal(harness.continued.length, 1)
   assert.deepEqual(uploads, [{
     url: 'https://example.invalid/upload',
     content: 'notes'
   }])
-  const file = accepted.sent.find((activity) => activity.attachments)?.attachments[0]
+  const file = harness.sent.find((activity) => activity.attachments)?.attachments[0]
   assert.equal(file.contentType, 'application/vnd.microsoft.teams.card.file.info')
   assert.equal(file.content.uniqueId, 'file-1')
   assert.equal(accepted.invoke.value.status, 200)
@@ -92,7 +94,7 @@ test('decline clears the pending upload and ordinary messages return help', asyn
   })
   assert.equal(uploads, 0)
   const help = await harness.turn({ text: 'hello' })
-  assert.match(help.sent[0].text, /Attachments sample/)
+  assert.equal(help.sent[0].text, 'Welcome to the Agent Attachments sample!')
 })
 
 test('failed uploads do not retain reusable pending content', async (context) => {
@@ -116,6 +118,7 @@ test('failed uploads do not retain reusable pending content', async (context) =>
   }
   await harness.turn(consent)
   await harness.turn(consent)
+  await harness.app.waitForUploads()
   assert.equal(attempts, 1)
 })
 
@@ -139,4 +142,41 @@ test('file transfer helpers preserve byte content, upload headers and failure st
   context.mock.method(globalThis, 'fetch', async () => new Response('', { status: 403 }))
   await assert.rejects(downloadAttachment('https://example.invalid/denied'), /Download failed with status 403/)
   await assert.rejects(uploadToOneDrive('https://example.invalid/denied', bytes), /Upload failed with status 403/)
+})
+
+
+test('consent acknowledges before a blocked upload finishes, then continues proactively', async () => {
+  let release
+  const blocked = new Promise((resolve) => { release = resolve })
+  const harness = await sampleHarness({
+    download: async () => Buffer.from('notes'),
+    upload: async () => blocked,
+  })
+  const context = await requestConsent(harness)
+  let timer
+  try {
+    const accepted = await Promise.race([
+      harness.turn({
+        type: 'invoke',
+        name: 'fileConsent/invoke',
+        value: {
+          action: 'accept',
+          context,
+          uploadInfo: { uploadUrl: 'https://example.invalid/upload', name: 'notes.txt' },
+        },
+      }),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Consent waited for the upload')), 1000)
+      }),
+    ])
+    assert.equal(accepted.invoke.value.status, 200)
+    assert.equal(accepted.sent.some((activity) => activity.attachments?.length), false)
+    release()
+    await harness.app.waitForUploads()
+    assert.equal(harness.continued.length, 1)
+    assert.ok(harness.sent.some((activity) => activity.attachments?.[0].contentType === 'application/vnd.microsoft.teams.card.file.info'))
+  } finally {
+    clearTimeout(timer)
+    release()
+  }
 })
