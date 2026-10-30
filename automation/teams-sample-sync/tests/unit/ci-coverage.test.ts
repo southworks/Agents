@@ -20,6 +20,10 @@ test('repository lint runs even when a PR changes no sample files', () => {
   assert.equal(samples.on.pull_request.paths, undefined)
   assert.ok(lint.steps.some((step: { run?: string }) => step.run === 'npm run lint'))
   assert.equal(samples.permissions.contents, 'read')
+  const buildSteps = samples.jobs['build-node'].steps as Array<{ name?: string; run?: string }>
+  const install = buildSteps.findIndex((step) => step.run?.startsWith('npm ci'))
+  const build = buildSteps.findIndex((step) => step.name === 'Build all Node samples')
+  assert.ok(install >= 0 && install < build, 'Legacy samples need the root TypeScript build dependency')
 })
 
 test('automation CI covers engine changes and frozen guidance, assets and contracts', () => {

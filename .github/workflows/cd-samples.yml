@@ -104,6 +104,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Install root build dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
       - name: Build all Node samples
         run: |
           for dir in samples/nodejs/*/; do
