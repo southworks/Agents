@@ -1,0 +1,23 @@
+{
+  "version": 3,
+  "language": "js",
+  "sample": "bot-ai-messages",
+  "upstreamCommit": "b9aedfea98e3505acbcf68a3931be05a780d6149",
+  "sourceTree": "233563e287f1fa11504f6a61342dbff3086894fd",
+  "inputDigest": "sha256:b35be59f8d2b135604d4a64e5007bdbd3036572ce6d0305df612dcde23e57881",
+  "outputDigest": "sha256:c6288be0d3dd7fce4c2c47fbffe82b9698177bab6c64d5d1ff2df8e1cb467840",
+  "componentDigests": {
+    "sourceTree": "233563e287f1fa11504f6a61342dbff3086894fd",
+    "target": "sha256:a3e58226c5aea46ffcf3d9b7d2785eb8f62e79c2a773e578524e9b1ada9e1b8a",
+    "protection": "sha256:0d0446df068b289cd1893540973ddc05e6407a800a27f46a01cb2d69ffe4a345",
+    "migrationSkill": "sha256:3a6ffd6d2b90a4c88e04ef7f267c89a0618a2c6c15939a19ca4bf3fc8edae216",
+    "manifestSkill": "sha256:b63aba0a092fdb6cb120601fc03252f9830fda759d8d6be77729168286816f86",
+    "syncSkill": "sha256:a5968b0f1ce8fd0194edaa1923f2577dc078f4a6fd2f0749076db7386faad6b4",
+    "canonicalSample": "sha256:cc15d81ad91fc1709d8d6ff5decf497e380c27affc5094f03025ef51a18b739f",
+    "manifestAssets": "sha256:cc9d7730822069fcff21d64b9a2538c1f621ff9cd8cdb9003d4f76b9d158c038",
+    "copilot": "sha256:f2fbc365eb532e30c69edc879408480bbc1734734e1bed001820a8abdb3fb3e2",
+    "packagePolicy": "sha256:4aab670d7563b52fe8a4e4dcd534e1611a0e1444e7bac01cb93457b23925eba7",
+    "validator": "sha256:d743ac433241a64d2d883a8c847100a3511539512a4cf32e392af6bb0dcc1abd"
+  },
+  "status": "verified"
+}

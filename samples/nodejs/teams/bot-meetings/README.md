@@ -11,8 +11,11 @@ npm run build
 Provision a Teams-managed bot in the [Teams Developer Portal](https://dev.teams.microsoft.com),
 as described by the [upstream setup](https://github.com/OfficeDev/Microsoft-Teams-Samples/tree/b9aedfea98e3505acbcf68a3931be05a780d6149/samples/TeamsSDK/bot-meetings#setup-instructions).
 Under **Tools → Bot management**, enable the **Participant Join** and **Participant Leave**
-meeting event subscriptions. Copy `env.TEMPLATE` to `.env`, fill the bot's Entra
-app credentials, run `npm start`, and expose port 3978 over HTTPS. Set the bot's
+meeting event subscriptions. Copy `env.TEMPLATE` to `.env`, set
+`connections__serviceConnection__settings__clientId`,
+`connections__serviceConnection__settings__clientSecret`, and
+`connections__serviceConnection__settings__tenantId` for the Entra app used by the
+service connection, run `npm start`, and expose port 3978 over HTTPS. Set the bot's
 messaging endpoint to `https://YOUR_HOST/api/messages`. Never commit credentials.
 
 Fill the placeholders in `manifest/manifest.json`, zip it with the two icons,
