@@ -87,7 +87,9 @@ describe('workflow configuration', () => {
     const steps = publish.steps as Array<{ name?: string; run?: string; env?: unknown; 'continue-on-error'?: boolean }>
     const handoff = steps.find((step) => step.name === 'Create or reuse handoff issue and assign Copilot')!
     const environment = record(handoff.env, 'handoff environment')
+    // eslint-disable-next-line no-template-curly-in-string -- Assert literal GitHub Actions syntax.
     assert.equal(environment.GH_TOKEN, '${{ secrets.COPILOT_ASSIGNMENT_TOKEN || github.token }}')
+    // eslint-disable-next-line no-template-curly-in-string -- Assert literal GitHub Actions syntax.
     assert.equal(environment.COPILOT_ASSIGNMENT_TOKEN, '${{ secrets.COPILOT_ASSIGNMENT_TOKEN }}')
     const script = handoff.run!
     const manualAssignment = script.match(/if \[ -z "\$COPILOT_ASSIGNMENT_TOKEN" \]; then([\s\S]*?)\n\s*fi/)
@@ -139,6 +141,7 @@ describe('workflow configuration', () => {
     assert.match(configuration!.run!, /targets\(process.cwd\(\)\).upstream/)
     assert.match(configuration!.run!, /ref=\$\{ref\}/)
     const fetch = steps.find((step) => step.name === 'Fetch upstream metadata without checking out code')!
+    // eslint-disable-next-line no-template-curly-in-string -- Assert literal GitHub Actions syntax.
     assert.equal(fetch.env!.UPSTREAM_REF, '${{ steps.upstream.outputs.ref }}')
     assert.match(fetch.run!, /git init --bare \.sync\/upstream/)
     assert.match(fetch.run!, /fetch --depth=1 origin "\$UPSTREAM_REF"/)
