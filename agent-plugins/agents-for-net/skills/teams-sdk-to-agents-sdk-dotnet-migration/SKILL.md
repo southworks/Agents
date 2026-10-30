@@ -94,6 +94,13 @@ explicit `using` directives (matches Agents SDK sample convention).
 
 ---
 
+## SDK 1.9 payload compatibility
+
+For the 1.9 release line, read [SDK 1.9 Teams payloads](references/sdk-1.9-teams-payloads.md)
+before changing handlers. A package upgrade alone is insufficient: file consent, dialogs,
+message extensions, and meeting payloads changed. Verify against the installed version;
+do not copy 1.8 `Microsoft.Teams.Api.*` models or guess types in the Agents routing namespace.
+
 ## Namespace Replacements
 
 | Teams SDK (`teams.net`)                          | Agents SDK                                       |
@@ -102,7 +109,8 @@ explicit `using` directives (matches Agents SDK sample convention).
 | `Microsoft.Teams.Apps`                           | `Microsoft.Agents.Builder`, `Microsoft.Agents.Builder.App` |
 | `Microsoft.Teams.Apps.Activities`                | `Microsoft.Agents.Builder.App` (routing)         |
 | `Microsoft.Teams.Api.Activities`                 | `Microsoft.Agents.Core.Models`                   |
-| `Microsoft.Teams.Api` (models)                   | `Microsoft.Agents.Core.Models`                   |
+| `Microsoft.Teams.Api` (activity/card models)     | `Microsoft.Agents.Core.Models`                   |
+| `Microsoft.Teams.Api` (Teams route payloads, SDK 1.9) | `Microsoft.Teams.Apps.Files`, `.TaskModules`, `.MessageExtensions`, `.Meetings`, `.Clients` � see the version-specific guide |
 | *(Teams-specific)* `Microsoft.Teams.Apps.Activities.Events` etc. | `Microsoft.Agents.Extensions.MSTeams.*` |
 
 ---
@@ -310,24 +318,7 @@ Also run the schema, package, evidence, and external-configuration checks requir
 | `.AddMention(member, addText: false)`                     | build a `Mention` entity + assign `activity.Entities = [mention]` |
 | `context.Api` (Teams REST client)                         | `ITeamsTurnContext.Client` (preferred) or `TeamsExtension.GetTeamsClient(turnContext)` (needs `[TeamsExtension]`) |
 
-### Mention example
-
-```csharp
-// Teams SDK
-var activity = new MessageActivity()
-    .WithText($"Hello <at>{member.Name}</at>")
-    .AddMention(member, addText: false);
-await context.Send(activity);
-```
-```csharp
-// Agents SDK
-var mention = new Mention { Mentioned = member, Text = $"<at>{member.Name}</at>" };
-var activity = Activity.CreateMessageActivity().WithText($"Hello {mention.Text}");
-activity.Entities = [mention];
-await turnContext.SendActivityAsync(activity, ct);
-```
-
----
+For mention-bearing replies, see [mention examples](references/mentions.md).
 
 ## Teams-specific event mapping (requires `[TeamsExtension]`)
 
@@ -347,8 +338,8 @@ Teams route handlers. Each Teams SDK `teamsApp.On*` maps to a route attribute:
 | `OnMeetingLeave`                         | `[TeamsMeetingParticipantsLeaveRoute]`                               |
 | `OnFileConsent` (Accept branch)          | `[TeamsFileConsentAcceptRoute]`                                      |
 | `OnFileConsent` (Decline branch)         | `[TeamsFileConsentDeclineRoute]`                                     |
-| `OnTaskFetch`                            | `[TeamsTaskFetchRoute("value")]` → returns `Microsoft.Teams.Api.TaskModules.Response` |
-| `OnTaskSubmit`                           | `[TeamsTaskSubmitRoute("value")]` → returns `Microsoft.Teams.Api.TaskModules.Response` |
+| `OnTaskFetch`                            | `[TeamsTaskFetchRoute("value")]` → returns `Microsoft.Teams.Apps.TaskModules.TaskModuleResponse` |
+| `OnTaskSubmit`                           | `[TeamsTaskSubmitRoute("value")]` → returns `Microsoft.Teams.Apps.TaskModules.TaskModuleResponse` |
 | `OnMessageExtensionQuery`                | `[TeamsQueryRoute("commandId")]`                                     |
 | `OnMessageExtensionSubmitAction`         | `[TeamsSubmitActionRoute("commandId")]`                              |
 | `OnMessageExtensionFetchTask`            | `[TeamsFetchActionRoute("commandId")]`                              |
@@ -365,15 +356,15 @@ Teams route handler signature (note `ITeamsTurnContext`, and the extra deseriali
 parameter whose type depends on the event):
 
 ```csharp
-// Meeting start/end payload is Microsoft.Teams.Api.Meetings.MeetingDetails
+// Meeting start/end payload is Microsoft.Teams.Apps.Clients.MeetingDetails
 [TeamsMeetingStartRoute]
 public async Task OnMeetingStartAsync(ITeamsTurnContext turnContext, ITurnState turnState,
-    Microsoft.Teams.Api.Meetings.MeetingDetails meeting, CancellationToken ct) { ... }
+    Microsoft.Teams.Apps.Clients.MeetingDetails meeting, CancellationToken ct) { ... }
 
-// Participant join/leave payload is Microsoft.Agents.Extensions.MSTeams.Models.MeetingParticipantsEventDetails
+// SDK 1.9 join/leave payloads are MeetingParticipantJoinValue / MeetingParticipantLeaveValue
 [TeamsMeetingParticipantsJoinRoute]
 public async Task OnJoinAsync(ITeamsTurnContext turnContext, ITurnState turnState,
-    MeetingParticipantsEventDetails participants, CancellationToken ct) { ... }
+    Microsoft.Teams.Apps.Meetings.MeetingParticipantJoinValue participants, CancellationToken ct) { ... }
 ```
 
 `teamsApp.OnInstall(...)` represents only a new installation. Since
@@ -495,7 +486,15 @@ try/catch on `ArgumentException` as a backstop).
 | Left `builder.AddTeams()` / `webApp.UseTeams()` | Replace with `AddAgentDefaults().AddAgent<T>()...` and `app.UseAgents()` + `app.MapDefaultAgentEndpoints()` |
 | Kept `context.Send(...)` / `IContext<T>` | Use `turnContext.SendActivityAsync(...)` / `ITurnContext` |
 | Kept flat `Teams:*` auth config | Replace with `Connections` + `TokenValidation` (SingleTenant ClientSecret by default) |
-| Left `TargetFramework` at `net10.0` with `ImplicitUsings` | Use `net8.0`, disable implicit usings, add explicit `using`s |
+| Used a framework or implicit-usings setting inconsistent with repository policy | Use the configured target framework (currently `net10.0`), disable implicit usings, and add explicit `using`s |
 | `Missing MessageFactory / ActivityTypes` compile errors | Add `using Microsoft.Agents.Builder;` and `using Microsoft.Agents.Core.Models;` |
 
 ---
+
+## Automated sample synchronization
+
+Follow the caller's read-only planning and frozen-plan protocol. Edit only the
+selected sample; protected contracts and automation remain outside its write scope.
+Use current full `validate_sample` evidence after the final change. Preserve Agents
+terminology even when upstream says "bot"; never weaken contracts to restore it.
+Report blocked behavior and remaining credentialed checks explicitly.
