@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Agents.Builder;
 using Microsoft.Agents.Core.Models;
-using Microsoft.Agents.Extensions.MSTeams;
 using Microsoft.Teams.Cards;
 using Microsoft.Teams.Common;
 
@@ -15,7 +14,7 @@ namespace Microsoft.Teams.Samples.BotCards.Handlers;
 public static class Cards
 {
     public static Task SendAdaptiveCardActionsAsync(
-        ITeamsTurnContext turnContext,
+        ITurnContext turnContext,
         CancellationToken cancellationToken)
     {
         var adaptiveCard = new AdaptiveCard
@@ -106,7 +105,7 @@ public static class Cards
     }
 
     public static Task SendToggleVisibilityCardAsync(
-        ITeamsTurnContext turnContext,
+        ITurnContext turnContext,
         CancellationToken cancellationToken)
     {
         var adaptiveCard = new AdaptiveCard

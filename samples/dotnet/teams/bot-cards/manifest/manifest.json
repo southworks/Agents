@@ -29,6 +29,25 @@
         "team",
         "groupChat"
       ],
+      "commandLists": [
+        {
+          "scopes": [
+            "personal",
+            "team",
+            "groupChat"
+          ],
+          "commands": [
+            {
+              "title": "card actions",
+              "description": "Sends an adaptive card showcasing several card actions."
+            },
+            {
+              "title": "toggle visibility",
+              "description": "Sends a card demonstrating Action.ToggleVisibility."
+            }
+          ]
+        }
+      ],
       "supportsFiles": false,
       "isNotificationOnly": false
     }
