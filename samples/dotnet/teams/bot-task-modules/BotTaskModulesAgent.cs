@@ -5,12 +5,12 @@ using Microsoft.Agents.Builder;
 using Microsoft.Agents.Builder.App;
 using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
-using Microsoft.Agents.Extensions.MSTeams;
-using Microsoft.Agents.Extensions.MSTeams.App;
-using Microsoft.Agents.Extensions.MSTeams.TaskModules;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Teams.Apps.Schema;
+using Microsoft.Teams.Apps.TaskModules;
 using Microsoft.Teams.Cards;
 using Microsoft.Teams.Common;
+using System.Text.Json;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -18,27 +18,28 @@ using System.Threading.Tasks;
 using Action = Microsoft.Teams.Cards.Action;
 using AdaptiveCard = Microsoft.Teams.Cards.AdaptiveCard;
 using CoreAttachment = Microsoft.Agents.Core.Models.Attachment;
-using ContinueTask = Microsoft.Teams.Api.TaskModules.ContinueTask;
-using MessageTask = Microsoft.Teams.Api.TaskModules.MessageTask;
-using Request = Microsoft.Teams.Api.TaskModules.Request;
-using Size = Microsoft.Teams.Api.TaskModules.Size;
-using TaskAttachment = Microsoft.Teams.Api.Attachment;
-using TaskInfo = Microsoft.Teams.Api.TaskModules.TaskInfo;
-using TaskResponse = Microsoft.Teams.Api.TaskModules.Response;
+using TaskModuleTask = Microsoft.Teams.Apps.TaskModules.Response;
+using TaskResponse = Microsoft.Teams.Apps.TaskModules.TaskModuleResponse;
 
 namespace Microsoft.Teams.Samples.BotTaskModules;
 
-[TeamsExtension]
-public partial class BotTaskModulesAgent(
-    AgentApplicationOptions options,
-    IConfiguration configuration) : AgentApplication(options)
+public partial class BotTaskModulesAgent : AgentApplication
 {
-    private readonly string _botEndpoint = configuration["BotEndpoint"]
-        ?? throw new InvalidOperationException("BotEndpoint must be configured.");
+    private readonly string _botEndpoint;
 
-    [TeamsMessageRoute]
-    public System.Threading.Tasks.Task OnMessageAsync(
-        ITeamsTurnContext turnContext,
+    public BotTaskModulesAgent(
+        AgentApplicationOptions options,
+        IConfiguration configuration) : base(options)
+    {
+        _botEndpoint = configuration["BotEndpoint"]
+            ?? throw new InvalidOperationException("BotEndpoint must be configured.");
+
+        OnActivity(ActivityTypes.Message, OnMessageAsync, rank: RouteRank.Last);
+        OnActivity(ActivityTypes.Invoke, OnTaskModuleInvokeAsync, rank: RouteRank.Last);
+    }
+
+    private System.Threading.Tasks.Task OnMessageAsync(
+        ITurnContext turnContext,
         ITurnState turnState,
         CancellationToken cancellationToken)
     {
@@ -65,89 +66,73 @@ public partial class BotTaskModulesAgent(
             cancellationToken);
     }
 
-    [TeamsTaskFetchRoute("AdaptiveCard", key: "data")]
-    public Task<TaskResponse> OnAdaptiveCardFetchAsync(
-        ITeamsTurnContext turnContext,
+    private async Task OnTaskModuleInvokeAsync(
+        ITurnContext turnContext,
         ITurnState turnState,
-        Request request,
-        CancellationToken cancellationToken)
-        => Task.FromResult(CreateAdaptiveCardTask());
-
-    [TeamsTaskFetchRoute("CustomForm", key: "data")]
-    public Task<TaskResponse> OnCustomFormFetchAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        Request request,
-        CancellationToken cancellationToken)
-        => Task.FromResult(CreateCustomFormTask());
-
-    [TeamsTaskFetchRoute("MultiStep", key: "data")]
-    public Task<TaskResponse> OnMultiStepFetchAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        Request request,
-        CancellationToken cancellationToken)
-        => Task.FromResult(CreateMultiStepOneTask());
-
-    [TeamsTaskSubmitRoute("multi_step_1", key: "submissiontype", rank: 10)]
-    public Task<TaskResponse> OnMultiStepOneSubmitAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        Request request,
         CancellationToken cancellationToken)
     {
-        string name = request.GetDataString("name");
-        return Task.FromResult(CreateMultiStepTwoTask(name));
-    }
+        if (!string.Equals(turnContext.Activity.Name, "task/fetch", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(turnContext.Activity.Name, "task/submit", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
 
-    [TeamsTaskSubmitRoute("multi_step_2", key: "submissiontype", rank: 20)]
-    public async Task<TaskResponse> OnMultiStepTwoSubmitAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        Request request,
-        CancellationToken cancellationToken)
-    {
-        string name = request.GetDataString("name");
-        string email = request.GetDataString("email");
+        JsonElement root = ToCardJsonElement(turnContext.Activity.Value);
+        TaskResponse responseBody;
 
-        await turnContext.SendActivityAsync(
-            $"Hi {name}, thanks for submitting! Your email is {email}",
-            cancellationToken: cancellationToken);
+        if (string.Equals(turnContext.Activity.Name, "task/fetch", StringComparison.OrdinalIgnoreCase))
+        {
+            string dialogType = GetDataValue(root, "data") ?? string.Empty;
+            responseBody = dialogType switch
+            {
+                "AdaptiveCard" => CreateAdaptiveCardTask(),
+                "CustomForm" => CreateCustomFormTask(),
+                "MultiStep" => CreateMultiStepOneTask(),
+                _ => Message("Unknown dialog type")
+            };
+        }
+        else
+        {
+            string submissionType = GetDataValue(root, "submissiontype") ?? string.Empty;
+            string name = GetDataValue(root, "name") ?? "Unknown";
+            string email = GetDataValue(root, "email") ?? "Unknown";
+            string userText = GetDataValue(root, "usertext") ?? string.Empty;
 
-        return new TaskResponse(new MessageTask("Multi-step form completed!"));
-    }
+            switch (submissionType)
+            {
+                case "multi_step_1":
+                    responseBody = CreateMultiStepTwoTask(name);
+                    break;
+                case "multi_step_2":
+                    await turnContext.SendActivityAsync(
+                        $"Hi {name}, thanks for submitting! Your email is {email}",
+                        cancellationToken: cancellationToken);
+                    responseBody = Message("Multi-step form completed!");
+                    break;
+                case "custom_form":
+                    await turnContext.SendActivityAsync(
+                        $"Hi {name}, thanks for submitting! Your email is {email}",
+                        cancellationToken: cancellationToken);
+                    responseBody = Message("Form submitted successfully");
+                    break;
+                default:
+                    await turnContext.SendActivityAsync(
+                        $"You submitted: {userText}",
+                        cancellationToken: cancellationToken);
+                    responseBody = Message("Thanks for submitting!");
+                    break;
+            }
+        }
 
-    [TeamsTaskSubmitRoute("custom_form", key: "submissiontype", rank: 30)]
-    public async Task<TaskResponse> OnCustomFormSubmitAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        Request request,
-        CancellationToken cancellationToken)
-    {
-        string name = request.GetDataString("name");
-        string email = request.GetDataString("email");
-
-        await turnContext.SendActivityAsync(
-            $"Hi {name}, thanks for submitting! Your email is {email}",
-            cancellationToken: cancellationToken);
-
-        return new TaskResponse(new MessageTask("Form submitted successfully"));
-    }
-
-    [TeamsTaskSubmitRoute(rank: 100)]
-    public async Task<TaskResponse> OnAdaptiveCardSubmitAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        Request request,
-        CancellationToken cancellationToken)
-    {
-        string userText = request.GetDataString("usertext");
-
-        await turnContext.SendActivityAsync(
-            $"You submitted: {userText}",
-            cancellationToken: cancellationToken);
-
-        return new TaskResponse(new MessageTask("Thanks for submitting!"));
+        await turnContext.SendActivityAsync(new Activity
+        {
+            Type = ActivityTypes.InvokeResponse,
+            Value = new InvokeResponse
+            {
+                Status = 200,
+                Body = responseBody
+            }
+        }, cancellationToken);
     }
 
     private static TaskResponse CreateAdaptiveCardTask()
@@ -171,21 +156,26 @@ public partial class BotTaskModulesAgent(
             "Adaptive Card: Inputs",
             400,
             200,
-            new TaskAttachment(ContentTypes.AdaptiveCard, content: dialogCard));
+            TeamsAttachment.CreateBuilder().WithAdaptiveCard(ToCardJson(dialogCard)).Build());
     }
 
     private TaskResponse CreateCustomFormTask()
     {
-        var taskInfo = new TaskInfo
+        return new TaskResponse
         {
-            Title = "Custom Form",
-            Width = new Union<int, Size>(510),
-            Height = new Union<int, Size>(450),
-            Url = $"{_botEndpoint}/customform",
-            FallbackUrl = $"{_botEndpoint}/customform"
+            Task = new TaskModuleTask
+            {
+                Type = TaskModuleResponseTypes.Continue,
+                Value = new
+                {
+                    title = "Custom Form",
+                    url = $"{_botEndpoint}/customform",
+                    fallbackUrl = $"{_botEndpoint}/customform",
+                    height = 450,
+                    width = 510
+                }
+            }
         };
-
-        return new TaskResponse(new ContinueTask(taskInfo));
     }
 
     private static TaskResponse CreateMultiStepOneTask()
@@ -219,7 +209,7 @@ public partial class BotTaskModulesAgent(
             "Multi-step Form",
             400,
             300,
-            new TaskAttachment(ContentTypes.AdaptiveCard, content: stepOneCard));
+            TeamsAttachment.CreateBuilder().WithAdaptiveCard(ToCardJson(stepOneCard)).Build());
     }
 
     private static TaskResponse CreateMultiStepTwoTask(string name)
@@ -255,7 +245,7 @@ public partial class BotTaskModulesAgent(
             "Multi-step Form: Step 2",
             400,
             300,
-            new TaskAttachment(ContentTypes.AdaptiveCard, content: stepTwoCard));
+            TeamsAttachment.CreateBuilder().WithAdaptiveCard(ToCardJson(stepTwoCard)).Build());
     }
 
     private static Union<string, SubmitActionData> CreateSubmitData(
@@ -282,16 +272,46 @@ public partial class BotTaskModulesAgent(
         string title,
         int width,
         int height,
-        TaskAttachment card)
+        TeamsAttachment card)
     {
-        var taskInfo = new TaskInfo
-        {
-            Title = title,
-            Width = new Union<int, Size>(width),
-            Height = new Union<int, Size>(height),
-            Card = card
-        };
+        var response = TaskResponse.CreateBuilder()
+            .WithType(TaskModuleResponseTypes.Continue)
+            .WithTitle(title)
+            .WithHeight(height)
+            .WithWidth(width)
+            .WithCard(card)
+            .Build();
+        return response.Body ?? throw new InvalidOperationException("Task module continue response body is required.");
+    }
 
-        return new TaskResponse(new ContinueTask(taskInfo));
+    private static TaskResponse Message(string text)
+    {
+        var response = TaskResponse.CreateBuilder()
+            .WithType(TaskModuleResponseTypes.Message)
+            .WithMessage(text)
+            .Build();
+        return response.Body ?? throw new InvalidOperationException("Task module message response body is required.");
+    }
+
+    private static JsonElement ToCardJson(AdaptiveCard card) => JsonDocument.Parse(card.Serialize()).RootElement;
+
+    private static JsonElement ToCardJsonElement(object? value)
+        => value is JsonElement element
+            ? element
+            : JsonSerializer.SerializeToElement(value);
+
+    private static string? GetDataValue(JsonElement root, string key)
+    {
+        if (!root.TryGetProperty("data", out JsonElement data))
+        {
+            return null;
+        }
+
+        if (data.TryGetProperty(key, out JsonElement value) && value.ValueKind == JsonValueKind.String)
+        {
+            return value.GetString();
+        }
+
+        return null;
     }
 }
