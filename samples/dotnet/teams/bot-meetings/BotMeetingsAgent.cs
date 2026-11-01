@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,17 +14,12 @@ using Microsoft.Agents.Builder;
 using Microsoft.Agents.Builder.App;
 using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
-using Microsoft.Agents.Extensions.MSTeams;
-using Microsoft.Agents.Extensions.MSTeams.Meetings;
-using Microsoft.Agents.Extensions.MSTeams.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Graph;
-using Microsoft.Teams.Api.Meetings;
 using Microsoft.Teams.Cards;
 
 namespace BotMeetings;
 
-[TeamsExtension]
 public partial class BotMeetingsAgent : AgentApplication
 {
     private readonly GraphServiceClient? _graphClient;
@@ -32,88 +28,117 @@ public partial class BotMeetingsAgent : AgentApplication
         : base(options)
     {
         _graphClient = CreateGraphClient(configuration.GetSection("Graph"));
+
+        OnActivity(ActivityTypes.Event, OnMeetingEventAsync);
     }
 
-    [TeamsMeetingParticipantsJoinRoute]
-    public async Task OnMeetingParticipantsJoinAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        MeetingParticipantsEventDetails participants,
+    private Task OnMeetingEventAsync(ITurnContext turnContext, ITurnState turnState, CancellationToken cancellationToken)
+    {
+        JsonElement payload = ReadPayload(turnContext.Activity?.Value);
+        return turnContext.Activity?.Name switch
+        {
+            "application/vnd.microsoft.meetingStart" => SendMeetingStartCardAsync(turnContext, payload, cancellationToken),
+            "application/vnd.microsoft.meetingEnd" => SendMeetingEndCardAsync(turnContext, payload, cancellationToken),
+            "application/vnd.microsoft.meetingParticipantJoin" => SendMeetingParticipantJoinCardAsync(turnContext, payload, cancellationToken),
+            "application/vnd.microsoft.meetingParticipantLeave" => SendMeetingParticipantLeaveCardAsync(turnContext, payload, cancellationToken),
+            _ => Task.CompletedTask
+        };
+    }
+
+    private Task SendMeetingParticipantJoinCardAsync(
+        ITurnContext turnContext,
+        JsonElement payload,
         CancellationToken cancellationToken)
     {
-        var participant = participants.Members.FirstOrDefault();
-        if (string.IsNullOrEmpty(participant?.User?.AadObjectId))
+        JsonElement? member = GetFirstMember(payload);
+        string aadObjectId = GetString(member, "user", "aadObjectId") ?? string.Empty;
+        if (string.IsNullOrEmpty(aadObjectId))
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        string member = participant.User.Name ?? string.Empty;
-        string role = participant.Meeting?.Role ?? "a participant";
-        var card = new AdaptiveCard
-        {
-            Schema = "http://adaptivecards.io/schemas/adaptive-card.json",
-            Body =
-            [
-                new TextBlock($"{member} has joined the meeting as {role}.")
-                {
-                    Wrap = true,
-                    Weight = TextWeight.Bolder
-                }
-            ]
-        };
-
-        await SendCardAsync(turnContext, card, cancellationToken);
+        string memberName = GetString(member, "user", "name") ?? string.Empty;
+        string role = GetString(member, "meeting", "role") ?? "a participant";
+        return SendCardAsync(
+            turnContext,
+            new AdaptiveCard
+            {
+                Schema = "http://adaptivecards.io/schemas/adaptive-card.json",
+                Body =
+                [
+                    new TextBlock($"{memberName} has joined the meeting as {role}.")
+                    {
+                        Wrap = true,
+                        Weight = TextWeight.Bolder
+                    }
+                ]
+            },
+            cancellationToken);
     }
 
-    [TeamsMeetingStartRoute]
-    public async Task OnMeetingStartAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        MeetingDetails meeting,
+    private Task SendMeetingStartCardAsync(
+        ITurnContext turnContext,
+        JsonElement payload,
         CancellationToken cancellationToken)
     {
-        var card = new AdaptiveCard
-        {
-            Schema = "http://adaptivecards.io/schemas/adaptive-card.json",
-            Body =
-            [
-                new TextBlock("The meeting has started.")
-                {
-                    Wrap = true,
-                    Weight = TextWeight.Bolder,
-                    Size = TextSize.Large
-                },
-                new TextBlock($"**Title:** {meeting.Title}")
-                {
-                    Wrap = true
-                },
-                new TextBlock($"**Start Time:** {meeting.ScheduledStartTime}")
-                {
-                    Wrap = true
-                }
-            ],
-            Actions =
-            [
-                new OpenUrlAction(meeting.JoinUrl)
-                {
-                    Title = "Join Meeting"
-                }
-            ]
-        };
+        string title = GetString(payload, "title") ?? string.Empty;
+        string startTime = GetString(payload, "scheduledStartTime")
+            ?? GetString(payload, "startTime")
+            ?? string.Empty;
+        string joinUrl = GetString(payload, "joinUrl") ?? string.Empty;
 
-        await SendCardAsync(turnContext, card, cancellationToken);
+        return SendCardAsync(
+            turnContext,
+            new AdaptiveCard
+            {
+                Schema = "http://adaptivecards.io/schemas/adaptive-card.json",
+                Body =
+                [
+                    new TextBlock("The meeting has started.")
+                    {
+                        Wrap = true,
+                        Weight = TextWeight.Bolder,
+                        Size = TextSize.Large
+                    },
+                    new TextBlock($"**Title:** {title}")
+                    {
+                        Wrap = true
+                    },
+                    new TextBlock($"**Start Time:** {startTime}")
+                    {
+                        Wrap = true
+                    }
+                ],
+                Actions =
+                [
+                    new OpenUrlAction(joinUrl)
+                    {
+                        Title = "Join Meeting"
+                    }
+                ]
+            },
+            cancellationToken);
     }
 
-    [TeamsMeetingEndRoute]
-    public async Task OnMeetingEndAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        MeetingDetails meeting,
+    private async Task SendMeetingEndCardAsync(
+        ITurnContext turnContext,
+        JsonElement payload,
         CancellationToken cancellationToken)
     {
-        var meetingInfo = await turnContext.Client.Meetings.GetByIdAsync(meeting.Id);
-        string userId = meetingInfo?.Organizer?.AadObjectId ?? string.Empty;
-        string? graphMeetingId = meetingInfo?.Details?.MSGraphResourceId;
+        string userId = GetString(payload, "organizer", "aadObjectId")
+            ?? GetString(payload, "organizer", "user", "aadObjectId")
+            ?? string.Empty;
+        string joinUrl = GetString(payload, "joinUrl") ?? string.Empty;
+        string graphMeetingId = GetString(payload, "msGraphResourceId") ?? string.Empty;
+        if (string.IsNullOrEmpty(graphMeetingId) &&
+            _graphClient is not null &&
+            !string.IsNullOrEmpty(joinUrl) &&
+            !string.IsNullOrEmpty(userId))
+        {
+            graphMeetingId = await GetOnlineMeetingIdAsync(userId, joinUrl, cancellationToken);
+        }
+
+        await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
 
         string transcript = string.Empty;
         if (_graphClient is not null &&
@@ -130,7 +155,7 @@ public partial class BotMeetingsAgent : AgentApplication
             }
         }
 
-        var cardBody = new List<CardElement>
+        var body = new List<CardElement>
         {
             new TextBlock("The meeting has ended.")
             {
@@ -138,7 +163,7 @@ public partial class BotMeetingsAgent : AgentApplication
                 Weight = TextWeight.Bolder,
                 Size = TextSize.Large
             },
-            new TextBlock($"**End Time:** {meeting.ScheduledEndTime}")
+            new TextBlock($"**End Time:** {GetString(payload, "scheduledEndTime") ?? GetString(payload, "endTime") ?? string.Empty}")
             {
                 Wrap = true
             },
@@ -155,13 +180,13 @@ public partial class BotMeetingsAgent : AgentApplication
             {
                 if (!string.IsNullOrWhiteSpace(line))
                 {
-                    cardBody.Add(new TextBlock(line) { Wrap = true });
+                    body.Add(new TextBlock(line) { Wrap = true });
                 }
             }
         }
         else
         {
-            cardBody.Add(new TextBlock("Transcript not available for this meeting.") { Wrap = true });
+            body.Add(new TextBlock("Transcript not available for this meeting.") { Wrap = true });
         }
 
         await SendCardAsync(
@@ -169,38 +194,54 @@ public partial class BotMeetingsAgent : AgentApplication
             new AdaptiveCard
             {
                 Schema = "http://adaptivecards.io/schemas/adaptive-card.json",
-                Body = cardBody
+                Body = body
             },
             cancellationToken);
     }
 
-    [TeamsMeetingParticipantsLeaveRoute]
-    public async Task OnMeetingParticipantsLeaveAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        MeetingParticipantsEventDetails participants,
+    private Task SendMeetingParticipantLeaveCardAsync(
+        ITurnContext turnContext,
+        JsonElement payload,
         CancellationToken cancellationToken)
     {
-        string? member = participants.Members.FirstOrDefault()?.User?.Name;
-        if (string.IsNullOrEmpty(member))
+        JsonElement? member = GetFirstMember(payload);
+        string memberName = GetString(member, "user", "name") ?? string.Empty;
+        if (string.IsNullOrEmpty(memberName))
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        var card = new AdaptiveCard
-        {
-            Schema = "http://adaptivecards.io/schemas/adaptive-card.json",
-            Body =
-            [
-                new TextBlock($"{member} has left the meeting.")
-                {
-                    Wrap = true,
-                    Weight = TextWeight.Bolder
-                }
-            ]
-        };
+        return SendCardAsync(
+            turnContext,
+            new AdaptiveCard
+            {
+                Schema = "http://adaptivecards.io/schemas/adaptive-card.json",
+                Body =
+                [
+                    new TextBlock($"{memberName} has left the meeting.")
+                    {
+                        Wrap = true,
+                        Weight = TextWeight.Bolder
+                    }
+                ]
+            },
+            cancellationToken);
+    }
 
-        await SendCardAsync(turnContext, card, cancellationToken);
+    private async Task<string> GetOnlineMeetingIdAsync(
+        string userId,
+        string joinWebUrl,
+        CancellationToken cancellationToken)
+    {
+        string escapedJoinUrl = joinWebUrl.Replace("'", "''", StringComparison.Ordinal);
+
+        var meetings = await _graphClient!.Users[userId]
+            .OnlineMeetings
+            .GetAsync(
+                requestConfiguration: config => config.QueryParameters.Filter = $"JoinWebUrl eq '{escapedJoinUrl}'",
+                cancellationToken: cancellationToken);
+
+        return meetings?.Value?.FirstOrDefault()?.Id ?? string.Empty;
     }
 
     private async Task<string> GetMeetingTranscriptAsync(
@@ -271,7 +312,7 @@ public partial class BotMeetingsAgent : AgentApplication
     }
 
     private static Task SendCardAsync(
-        ITeamsTurnContext turnContext,
+        ITurnContext turnContext,
         AdaptiveCard card,
         CancellationToken cancellationToken)
         => turnContext.SendActivityAsync(
@@ -308,4 +349,71 @@ public partial class BotMeetingsAgent : AgentApplication
         => !string.IsNullOrWhiteSpace(value) &&
            !value.Contains("{{", StringComparison.Ordinal) &&
            !value.StartsWith("<", StringComparison.Ordinal);
+
+    private static JsonElement ReadPayload(object? payload)
+    {
+        if (payload is JsonElement element)
+        {
+            return element;
+        }
+
+        if (payload is null)
+        {
+            return JsonDocument.Parse("{}").RootElement;
+        }
+
+        return JsonDocument.Parse(JsonSerializer.Serialize(payload)).RootElement;
+    }
+
+    private static JsonElement? GetFirstMember(JsonElement payload)
+    {
+        if (!TryGetProperty(payload, "members", out JsonElement members) ||
+            members.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        foreach (JsonElement item in members.EnumerateArray())
+        {
+            return item;
+        }
+
+        return null;
+    }
+
+    private static string? GetString(JsonElement? payload, params string[] path)
+    {
+        if (payload is null)
+        {
+            return null;
+        }
+
+        JsonElement current = payload.Value;
+        foreach (string segment in path)
+        {
+            if (!TryGetProperty(current, segment, out JsonElement child))
+            {
+                return null;
+            }
+
+            current = child;
+        }
+
+        return current.ToString();
+    }
+
+    private static bool TryGetProperty(JsonElement payload, string propertyName, out JsonElement value)
+    {
+        foreach (JsonProperty property in payload.EnumerateObject())
+        {
+            if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
+    }
 }

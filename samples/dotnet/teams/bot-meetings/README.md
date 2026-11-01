@@ -107,7 +107,7 @@ Ensure the app manifest's bot entry supports meetings:
 }
 ```
 
-In `manifest/manifest.json`, set `id` to the Teams app ID, `bots[0].botId` to the client ID, and `validDomains` to your tunnel domain. Then upload the manifest to the existing app and download its package:
+In `manifest/manifest.json`, set `id` to the Teams app ID, `bots[0].botId` and `webApplicationInfo.id` to the client ID, and `validDomains` to your tunnel domain. Then upload the manifest to the existing app and download its package:
 
 ```bash
 teams app manifest upload manifest/manifest.json <teams-app-id>
