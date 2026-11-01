@@ -15,7 +15,6 @@ using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
 using Microsoft.Agents.Extensions.MSTeams;
 using Microsoft.Agents.Extensions.MSTeams.App;
-using Microsoft.Teams.Api.Messages;
 using Microsoft.Teams.Cards;
 using Microsoft.Teams.Common;
 using AdaptiveCard = Microsoft.Teams.Cards.AdaptiveCard;
@@ -23,7 +22,6 @@ using TeamsAction = Microsoft.Teams.Cards.Action;
 
 namespace AgentTargetedMessages;
 
-[TeamsExtension]
 public partial class AgentTargetedMessagesAgent(
     AgentApplicationOptions options,
     ReminderService reminderService) : AgentApplication(options)
@@ -384,11 +382,11 @@ public partial class AgentTargetedMessagesAgent(
             return;
         }
 
-        await turnContext.Client.Conversations.Reactions.AddAsync(
+        await turnContext.Client.Conversations.AddReactionAsync(
             turnContext.Activity.Conversation.Id,
             turnContext.Activity.Id,
-            new ReactionType(reactionType),
-            cancellationToken);
+            reactionType,
+            cancellationToken: cancellationToken);
         await turnContext.SendActivityAsync(
             $"Added a **{reactionType}** reaction to your message!",
             cancellationToken: cancellationToken);
@@ -412,11 +410,11 @@ public partial class AgentTargetedMessagesAgent(
             return;
         }
 
-        await turnContext.Client.Conversations.Reactions.DeleteAsync(
+        await turnContext.Client.Conversations.DeleteReactionAsync(
             turnContext.Activity.Conversation.Id,
             turnContext.Activity.Id,
-            new ReactionType(reactionType),
-            cancellationToken);
+            reactionType,
+            cancellationToken: cancellationToken);
         await turnContext.SendActivityAsync(
             $"Removed the **{reactionType}** reaction from your message!",
             cancellationToken: cancellationToken);
@@ -662,12 +660,13 @@ public partial class AgentTargetedMessagesAgent(
     {
         if (isTargeted)
         {
-            activity.Recipient = CopyAccount(recipient);
-            await turnContext.SendTargetedActivityAsync(activity, cancellationToken);
+            ChannelAccount targetRecipient = CopyAccount(recipient);
+            activity.Recipient = targetRecipient;
+            await turnContext.SendTargetedActivityAsync(activity, targetRecipient, cancellationToken);
         }
         else
         {
-            await turnContext.SendActivityAsync(activity, cancellationToken);
+            await turnContext.SendActivityAsync(activity, cancellationToken: cancellationToken);
         }
     }
 
@@ -744,3 +743,6 @@ public partial class AgentTargetedMessagesAgent(
         public string? Error { get; init; }
     }
 }
+
+[TeamsExtension]
+internal sealed partial class TeamsExtensionAnchor(AgentApplicationOptions options) : AgentApplication(options);
