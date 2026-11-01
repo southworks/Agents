@@ -12,99 +12,130 @@ using Microsoft.Agents.Builder;
 using Microsoft.Agents.Builder.App;
 using Microsoft.Agents.Builder.State;
 using Microsoft.Agents.Core.Models;
-using Microsoft.Agents.Extensions.MSTeams;
-using Microsoft.Agents.Extensions.MSTeams.App;
-using Microsoft.Agents.Extensions.MSTeams.MessageExtensions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Teams.Api;
-using Microsoft.Teams.Api.Cards;
+using Microsoft.Teams.Apps.MessageExtensions;
+using Microsoft.Teams.Apps.Schema;
 using Microsoft.Teams.Cards;
-using MsgExt = Microsoft.Teams.Api.MessageExtensions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using AdaptiveCard = Microsoft.Teams.Cards.AdaptiveCard;
 
 namespace BotMessageExtensions;
 
-[TeamsExtension]
-public partial class BotMessageExtensionsAgent(
+public class BotMessageExtensionsAgent(
     AgentApplicationOptions options,
     IHttpClientFactory httpClientFactory) : AgentApplication(options)
 {
-    [TeamsQueryRoute("wikipediaSearch")]
-    public async Task<MsgExt.Response> OnWikipediaSearchAsync(
-        ITeamsTurnContext turnContext,
+    [ActivityRoute(ActivityTypes.Invoke)]
+    public async Task OnInvokeAsync(
+        ITurnContext turnContext,
         ITurnState turnState,
-        MsgExt.Query query,
         CancellationToken cancellationToken)
     {
+        if (string.Equals(turnContext.Activity.Name, "composeExtension/query", StringComparison.OrdinalIgnoreCase))
+        {
+            MessageExtensionQuery query = DeserializeValue<MessageExtensionQuery>(turnContext.Activity.Value) ?? new MessageExtensionQuery();
+            MessageExtensionResponse response = await OnWikipediaSearchAsync(query, cancellationToken);
+            await SendInvokeResponseAsync(turnContext, response, cancellationToken);
+            return;
+        }
+
+        if (string.Equals(turnContext.Activity.Name, "composeExtension/queryLink", StringComparison.OrdinalIgnoreCase))
+        {
+            MessageExtensionQueryLink? query = DeserializeValue<MessageExtensionQueryLink>(turnContext.Activity.Value);
+            MessageExtensionResponse response = CardResultResponse(CreateLinkPreviewCard(query?.Url?.ToString() ?? string.Empty));
+            await SendInvokeResponseAsync(turnContext, response, cancellationToken);
+        }
+    }
+
+    [MessageRoute]
+    public async Task OnMessageAsync(
+        ITurnContext turnContext,
+        ITurnState turnState,
+        CancellationToken cancellationToken)
+    {
+        string text = turnContext.Activity.Text ?? string.Empty;
+        if (text.Contains("help", StringComparison.OrdinalIgnoreCase))
+        {
+            await turnContext.SendActivityAsync(
+                "Hi! I'm the Search Messaging Extension Agent!\n\n" +
+                "Use me in the compose area to search for Wikipedia articles\n",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        await turnContext.SendActivityAsync(
+            $"You said: {turnContext.Activity.Text}\n\nType 'help' to learn more.",
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task<MessageExtensionResponse> OnWikipediaSearchAsync(
+        MessageExtensionQuery query,
+        CancellationToken cancellationToken)
+    {
+        string commandId = query.CommandId ?? string.Empty;
         string searchQuery = query.Parameters?.FirstOrDefault()?.Value?.ToString() ?? string.Empty;
+        Logger.LogInformation("Query: command={CommandId}, query={SearchQuery}", commandId, searchQuery);
 
-        Logger.LogInformation("Query: command=wikipediaSearch, query={SearchQuery}", searchQuery);
-
-        List<MsgExt.Attachment> attachments = (await SearchWikipediaAsync(searchQuery, cancellationToken))
+        List<TeamsAttachment> attachments = (await SearchWikipediaAsync(searchQuery, cancellationToken))
             .Select(result =>
             {
-                string title = result["title"]?.ToString() ?? "No Title";
-                string snippet = Regex.Replace(result["snippet"]?.ToString() ?? string.Empty, "<[^>]+>", string.Empty);
-                return CreateAttachment(CreateWikipediaCard(result), title, snippet);
+                return CreateAttachment(CreateWikipediaCard(result));
             })
             .ToList();
 
         if (attachments.Count == 0)
         {
-            return new MsgExt.Response
-            {
-                ComposeExtension = new MsgExt.Result
-                {
-                    Type = MsgExt.ResultType.Message,
-                    Text = $"No results found for '{searchQuery}'"
-                }
-            };
+            return MessageExtensionResponse.CreateBuilder()
+                .WithType(MessageExtensionResponseTypes.Message)
+                .WithText($"No results found for '{searchQuery}'")
+                .Build().Body!;
         }
 
-        return new MsgExt.Response
+        return MessageExtensionResponse.CreateBuilder()
+            .WithType(MessageExtensionResponseTypes.Result)
+            .WithAttachmentLayout(TeamsAttachmentLayouts.List)
+            .WithAttachments([.. attachments])
+            .Build().Body!;
+    }
+
+    private static async Task SendInvokeResponseAsync(
+        ITurnContext turnContext,
+        MessageExtensionResponse response,
+        CancellationToken cancellationToken)
+    {
+        IActivity invokeResponseActivity = new Activity
         {
-            ComposeExtension = new MsgExt.Result
+            Type = ActivityTypes.InvokeResponse,
+            Value = new InvokeResponse
             {
-                Type = MsgExt.ResultType.Result,
-                AttachmentLayout = Microsoft.Teams.Api.Attachment.Layout.List,
-                Attachments = attachments
+                Status = 200,
+                Body = response
             }
         };
+
+        await turnContext.SendActivityAsync(invokeResponseActivity, cancellationToken);
     }
 
-    [TeamsQueryLinkRoute]
-    public Task<MsgExt.Response> OnQueryLinkAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        AppBasedQueryLink? query,
-        CancellationToken cancellationToken)
+    private static T? DeserializeValue<T>(object? value) where T : class
     {
-        return Task.FromResult(CardResultResponse(CreateLinkPreviewCard(query?.Url ?? string.Empty)));
-    }
+        if (value is null)
+        {
+            return null;
+        }
 
-    [TeamsMessageRoute(textRegex: "(?i)help", rank: 1)]
-    public async Task OnHelpAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        CancellationToken cancellationToken)
-    {
-        await turnContext.SendActivityAsync(
-            "Hi! I'm the Search Messaging Extension Agent!\n\n" +
-            "Use me in the compose area to search for Wikipedia articles\n",
-            cancellationToken: cancellationToken);
-    }
+        if (value is T typedValue)
+        {
+            return typedValue;
+        }
 
-    [TeamsMessageRoute]
-    public async Task OnMessageAsync(
-        ITeamsTurnContext turnContext,
-        ITurnState turnState,
-        CancellationToken cancellationToken)
-    {
-        await turnContext.SendActivityAsync(
-            $"You said: {turnContext.Activity.Text}\n\nType 'help' to learn more.",
-            cancellationToken: cancellationToken);
+        if (value is JObject jsonObject)
+        {
+            return jsonObject.ToObject<T>();
+        }
+
+        string serialized = JsonConvert.SerializeObject(value);
+        return JsonConvert.DeserializeObject<T>(serialized);
     }
 
     private static AdaptiveCard CreateWikipediaCard(JToken result)
@@ -183,39 +214,26 @@ public partial class BotMessageExtensionsAgent(
             Logger.LogError(exception, "Wikipedia search failed");
             return [];
         }
-        catch (JsonException exception)
+        catch (Newtonsoft.Json.JsonException exception)
         {
             Logger.LogError(exception, "Wikipedia search response could not be parsed");
             return [];
         }
     }
 
-    private static MsgExt.Attachment CreateAttachment(AdaptiveCard card, string title, string text)
+    private static TeamsAttachment CreateAttachment(AdaptiveCard card)
     {
-        return new MsgExt.Attachment(ContentType.AdaptiveCard)
-        {
-            Content = card,
-            Preview = new Microsoft.Teams.Api.Attachment(new Microsoft.Teams.Api.Cards.ThumbnailCard
-            {
-                Title = title,
-                Text = text
-            })
-        };
+        return TeamsAttachment.CreateBuilder()
+            .WithAdaptiveCard(System.Text.Json.JsonSerializer.SerializeToElement(card))
+            .Build();
     }
 
-    private static MsgExt.Response CardResultResponse(AdaptiveCard card)
+    private static MessageExtensionResponse CardResultResponse(AdaptiveCard card)
     {
-        return new MsgExt.Response
-        {
-            ComposeExtension = new MsgExt.Result
-            {
-                Type = MsgExt.ResultType.Result,
-                AttachmentLayout = Microsoft.Teams.Api.Attachment.Layout.List,
-                Attachments =
-                [
-                    new MsgExt.Attachment(ContentType.AdaptiveCard) { Content = card }
-                ]
-            }
-        };
+        return MessageExtensionResponse.CreateBuilder()
+            .WithType(MessageExtensionResponseTypes.Result)
+            .WithAttachmentLayout(TeamsAttachmentLayouts.List)
+            .WithAttachments(CreateAttachment(card))
+            .Build().Body!;
     }
 }
