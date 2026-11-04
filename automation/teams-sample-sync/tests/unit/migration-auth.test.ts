@@ -1,12 +1,51 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { withMigrationCredentialFallback, type MigrationAttempt } from '../../src/migration-auth.js'
+import {
+  existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
+} from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { isolateAuthenticationFailure, withMigrationCredentialFallback, type MigrationAttempt } from '../../src/migration-auth.js'
 
 const rejected: MigrationAttempt = {
   code: 1,
   planningCompleted: false,
   error: 'get_model_list: {"status":403,"body":"Organization does not have the Allow use of Copilot CLI billed to the organization policy enabled"}',
 }
+
+test('retry cannot see the previous failure and retains both attempts after completion', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'auth-retry-test-'))
+  const output = path.join(root, 'output')
+  mkdirSync(output)
+  writeFileSync(path.join(output, 'sync-result.json'), 'primary failure')
+  writeFileSync(path.join(output, 'agent-log.txt'), 'primary log')
+
+  try {
+    const code = await withMigrationCredentialFallback('automatic', 'pat', async (token) => {
+      if (token === 'automatic') {
+        return rejected
+      }
+
+      assert.equal(existsSync(output), false)
+      mkdirSync(output)
+      writeFileSync(path.join(output, 'sync-result.json'), 'retry success')
+
+      return {
+        code: 0,
+        planningCompleted: true
+      }
+    }, () => {}, () => isolateAuthenticationFailure(output))
+    assert.equal(code, 0)
+    assert.equal(readFileSync(path.join(output, 'sync-result.json'), 'utf8'), 'retry success')
+    assert.equal(readFileSync(path.join(output, 'authentication-attempt/sync-result.json'), 'utf8'), 'primary failure')
+    assert.equal(readFileSync(path.join(output, 'authentication-attempt/agent-log.txt'), 'utf8'), 'primary log')
+  } finally {
+    rmSync(root, {
+      recursive: true,
+      force: true
+    })
+  }
+})
 
 test('organization billing rejection retries once with the PAT', async () => {
   const tokens: Array<string | undefined> = []

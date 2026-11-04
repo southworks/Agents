@@ -5,7 +5,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { selectedLanguages, targets, SyncError } from './config.js'
 import { migrateCandidate } from './candidate.js'
-import { withMigrationCredentialFallback } from './migration-auth.js'
+import { isolateAuthenticationFailure, withMigrationCredentialFallback } from './migration-auth.js'
 import {
   emitFailure,
   parseArgs,
@@ -76,7 +76,7 @@ export async function main (argv = process.argv.slice(2)): Promise<number> {
             ...result,
             planningCompleted: existsSync(path.join(output, 'migration-plan.md')),
           }
-        })
+        }, undefined, () => isolateAuthenticationFailure(output))
       } finally {
         if (primary === undefined) {
           delete process.env.GITHUB_TOKEN

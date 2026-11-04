@@ -83,6 +83,11 @@ both migration and assignment, this must be a personal fine-grained PAT with acc
 Copilot Requests permission and repository permissions to assign Copilot. With the automatic
 token, the organization must enable "Allow use of Copilot CLI billed to the organization".
 Other failures never switch billing identity. A missing or rejected PAT leaves the run failed.
+Before retrying, the runtime moves the initial failure artifacts outside the agent's repository
+view. They are restored under the result artifact's `authentication-attempt/` directory only
+after the retry finishes. The retry therefore cannot confuse an earlier authentication failure
+with its own authorization or implementation status. Permission rejections and failed tool
+calls are recorded in `agent-log.txt`, with credential values redacted.
 
 The optional Actions secret `COPILOT_ASSIGNMENT_TOKEN` enables automatic assignment. When configured,
 the workflow uses this GitHub user token to create or update the issue and assign Copilot. The token

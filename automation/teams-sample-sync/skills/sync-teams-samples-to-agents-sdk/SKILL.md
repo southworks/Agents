@@ -13,6 +13,11 @@ resolved release line; for JS/TS, use its exact npm package map. The minimum is
 a floor. Apply the selected migration skill's package conventions rather than
 copying the minimum into dependencies or imposing one language's version syntax
 on another. Initial imports may have an empty destination.
+This implementation session runs inside the authorized synchronization runtime. Once its
+plan is frozen, create the selected sample's missing files and implement the migration.
+Do not wait for a handoff issue; producing validated output here is a prerequisite for
+that later handoff. Missing project files during initial validation are implementation
+work. Report exact tool rejections and correct requests within the allowed boundary.
 
 Plan and implement SDK updates together with the compatibility migrations they require.
 "Keep current" means the newest supported selection under the coordinator's stable-release,

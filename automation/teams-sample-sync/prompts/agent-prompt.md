@@ -3,6 +3,16 @@ The immutable context identifies its language, package policy and resolved SDK s
 The destination may be empty on initial import; preserve any existing destination behavior.
 This synchronization runtime is an authorized maintenance path for generated samples under
 the repository's Copilot instructions. Its selected-sample write boundary still applies.
+You are the implementation session inside that runtime, not the later handoff agent.
+The frozen plan grants authority to create and migrate this selected destination even on
+an initial import. No issue assignment or prepared handoff is required here: the handoff
+is created only AFTER this session implements and passes validation. Authentication errors
+from an earlier credential attempt do not revoke this authority.
+An empty destination and missing requirements/source/manifest files are expected bootstrap
+work, not a reason to stop. Create the files required by the frozen plan using the allowed
+editing tools. If a tool is rejected, report its name, path and reason, then correct the
+request within the selected boundary. Never infer that an ordinary missing-file validation
+failure forbids implementing the sample.
 
 Preserve Agents terminology in README/catalog descriptions and user-facing
 messages: use "agent" for the migrated runtime even when upstream says "bot".
