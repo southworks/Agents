@@ -8,6 +8,22 @@ import { configuration } from '../../src/config.js'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
 
+test('Python workflow jobs use a runner supported by the pinned interpreters', () => {
+  for (const file of ['sync-teams-dotnet-samples.yml', 'ci-teams-sample-sync.yml', 'cd-samples.yml']) {
+    const workflow = parse(readFileSync(path.join(repo, '.github/workflows', file), 'utf8'))
+
+    for (const [name, job] of Object.entries(workflow.jobs) as Array<[string, {
+      'runs-on': string
+      steps: Array<{ uses?: string }>
+    }]>) {
+      if (job.steps.some((step) => step.uses?.startsWith('actions/setup-python@') ||
+        step.uses === './.github/actions/setup-teams-sync-python')) {
+        assert.equal(job['runs-on'], 'ubuntu-24.04', `${file}: ${name}`)
+      }
+    }
+  }
+})
+
 test('Python sample CI preserves top-level coverage and explicitly validates Teams on supported runtimes', () => {
   const workflow = parse(readFileSync(path.join(repo, '.github/workflows/cd-samples.yml'), 'utf8'))
   assert.deepEqual(workflow.jobs['build-python'].strategy.matrix['python-version'], ['3.10', '3.x'])

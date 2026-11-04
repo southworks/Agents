@@ -129,7 +129,7 @@ jobs:
     needs: check_path
     if: ${{ needs.check_path.outputs.samples_changed == 'true' }}
     name: cd-samples-python
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # Preserve installer availability for the Python 3.10 minimum.
 
     strategy:
       matrix:
@@ -162,7 +162,7 @@ jobs:
     needs: check_path
     if: ${{ needs.check_path.outputs.samples_changed == 'true' }}
     name: cd-samples-python-teams
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # Python 3.11.14 has no Ubuntu 26.04 installer.
     strategy:
       matrix:
         python-version: ['3.11.14', '3.x']
