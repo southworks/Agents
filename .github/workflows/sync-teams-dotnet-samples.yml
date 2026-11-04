@@ -149,6 +149,7 @@ jobs:
       - name: Migrate and validate
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          TEAMS_SYNC_COPILOT_FALLBACK_TOKEN: ${{ secrets.COPILOT_ASSIGNMENT_TOKEN }}
           SYNC_SAMPLE: ${{ matrix.sample }}
           SYNC_LANGUAGE: ${{ matrix.language }}
           SYNC_ID: ${{ matrix.id }}

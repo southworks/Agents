@@ -76,6 +76,14 @@ prepared base and verified outputs match. An already assigned issue is left unto
 issue is updated with the current artifact before assignment. If the target branch moves before
 assignment, rerun synchronization to prepare changes against the current base.
 
+The migration step first uses the automatic `github.token` for Copilot CLI authentication.
+Only a model-list HTTP 403 naming the organization CLI billing policy, before the migration
+plan is frozen, triggers one retry using the optional `COPILOT_ASSIGNMENT_TOKEN` secret. To serve
+both migration and assignment, this must be a personal fine-grained PAT with account-level
+Copilot Requests permission and repository permissions to assign Copilot. With the automatic
+token, the organization must enable "Allow use of Copilot CLI billed to the organization".
+Other failures never switch billing identity. A missing or rejected PAT leaves the run failed.
+
 The optional Actions secret `COPILOT_ASSIGNMENT_TOKEN` enables automatic assignment. When configured,
 the workflow uses this GitHub user token to create or update the issue and assign Copilot. The token
 must have permission to assign Copilot in this repository. If assignment fails, the handoff fails
