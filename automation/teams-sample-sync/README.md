@@ -1,6 +1,6 @@
 # Teams sample synchronization
 
-This workflow synchronizes selected Teams SDK .NET and JavaScript/TypeScript samples into Agents SDK
+This workflow synchronizes selected Teams SDK .NET, JavaScript/TypeScript, and Python samples into Agents SDK
 counterparts, including initial imports. Its jobs are plan, migrate, and handoff. Migration has Copilot access but no
 repository-write credential. The handoff job verifies the candidates, uploads their patches and
 migration evidence, and creates an issue for Copilot cloud agent. Copilot owns the resulting
@@ -8,7 +8,7 @@ implementation and PR, including its title, description, and readiness.
 
 Synchronization owns all maintenance of generated Teams samples in every language profile
 defined in `config/targets.yml`, currently under `samples/dotnet/teams` and
-`samples/nodejs/teams`. This includes SDK versions, lockfiles, shared-helper copies,
+`samples/nodejs/teams` and `samples/python/teams`. This includes SDK versions, lockfiles, shared-helper copies,
 and compatibility repairs, and applies to future language profiles. The repository's
 [Copilot instructions](../../.github/copilot-instructions.md) apply to ordinary tasks and review;
 workflow-generated handoff issues with prepared patches and migration evidence authorize
@@ -33,7 +33,7 @@ missing or incompatible canonical input rather than fetching an unpinned replace
 
 The workflow runs every Sunday at 00:00 UTC for all configured samples. Dispatch manual runs from
 the repository's default branch; other refs are skipped. Manual runs can select one
-language (`all`, `dotnet`, `js`), a sample or all samples, and publication. A named sample with
+language (`all`, `dotnet`, `js`, `python`), a sample or all samples, and publication. A named sample with
 `language=all` selects its configured language variants; an absent combination fails.
 Migrations run independently, but the
 selected samples publish as one coordinated set: if any migration fails, no handoff issue is created.
@@ -119,9 +119,9 @@ When full validation fails, the terminal error reports the sample, failed checks
 and their errors. The generic "Current full validation is required" message is
 reserved for partial, mismatched, or missing validation identity evidence.
 
-Profiles live in `config/targets.yml`. Both languages configure the same seven sample names.
+Profiles live in `config/targets.yml`. All three languages configure the same seven sample names.
 Their state paths are separate: `state/dotnet/<sample>.lock.json` and
-`state/js/<sample>.lock.json`. Old unqualified .NET locks supply upstream history
+`state/js/<sample>.lock.json` and `state/python/<sample>.lock.json`. Old unqualified .NET locks supply upstream history
 only; the first run after this upgrade revalidates them. A JS target never reads a
 legacy .NET lock. Shared automation changes conservatively revalidate both languages.
 
@@ -129,8 +129,45 @@ JavaScript/TypeScript samples live in `samples/nodejs/teams/<sample>`. The resol
 freezes compatible stable exact versions of four Agents SDK npm packages in the
 minimum version's major; it checks dependency/peer ranges and Node 24 support.
 Each profile owns its guidance, protected contracts, manifest asset source and
-generated-output exclusions. Python will need its own adapter/profile and runtime
-setup; it is not enabled here.
+generated-output exclusions. Python has an adapter and trusted validation tooling,
+and seven configured initial-import targets. This delivers workflow support. Running the
+workflow, executing generated-sample contracts and verifying initial imports are separate
+execution steps; the configured targets do not imply completed Python sample migrations.
+
+Python synchronization pins CPython 3.11.14, pip 26.1.1 and packaging 26.2. The
+Teams extension 1.9.0 requires Python 3.11 even though the other SDK distributions
+support 3.10. Selection uses release-specific PyPI metadata and PEP 440/508 policy;
+the frozen identity covers all five required SDK distributions. Trusted pip resolves
+wheels from PyPI, produces exact version/hash evidence, and installs each candidate
+in a new validation-owned environment. Sample requirement options, alternate indexes,
+direct URLs, local paths, project build configuration and executable .pth files are
+rejected. Candidate bytecode is rejected before protected execution.
+
+See [trusted Python tooling](scripts/PYTHON.md) for environment setup. With the
+trusted interpreter selected, run all offline Python policies using:
+
+```sh
+.sync/python-tools/bin/python -I -m unittest discover -s automation/teams-sample-sync/scripts -p 'test_python_*.py'
+```
+
+Use `.sync/python-tools/Scripts/python.exe` on Windows. Set `TEAMS_SYNC_PYTHON` to
+the absolute trusted interpreter path if it is elsewhere. The SDK policy helper
+rejects a runtime that differs from the configured patch version.
+
+Python Teams sample CI explicitly discovers `samples/python/teams/*`, while the
+existing immediate Python samples retain their 3.10/current coverage. Teams CI tests
+3.11.14 and current Python; it resolves runtime-specific wheels into temporary hash
+locks without editing generated files. This broader compatibility matrix differs from
+the reproducible synchronization runtime. Validate an available generated sample with:
+
+```sh
+.sync/python-tools/bin/python -I automation/teams-sample-sync/scripts/python_sample_ci.py samples/python/teams/bot-cards automation/teams-sample-sync/tests/python-contracts
+```
+
+Protected suites use real SDK dispatch with offline service transports. Missing, empty,
+skipped or expected-failure suites fail. Local mocked results do not establish Teams
+installation, permissions, Graph transcript access, file consent or proactive delivery
+in a tenant. Keep those manual checks pending until performed.
 
 The JS validator prepares the npm lockfile, installs with lifecycle scripts disabled,
 checks the installed SDK versions, compiles fresh output, runs protected contracts,

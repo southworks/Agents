@@ -10,12 +10,16 @@ on:
       - '.claude-plugin/marketplace.json'
       - 'samples/dotnet/teams/**'
       - 'samples/nodejs/teams/**'
+      - 'samples/python/teams/**'
       - 'samples/dotnet/quickstart/**'
       - 'samples/nodejs/quickstart/**'
       - 'samples/nodejs/proactive/appManifest/**'
+      - 'samples/python/quickstart/**'
+      - 'samples/python/proactive/appManifest/**'
       - '.github/workflows/ci-teams-sample-sync.yml'
       - '.github/workflows/sync-teams-dotnet-samples.yml'
       - '.github/workflows/cd-samples.yml'
+      - '.github/actions/setup-teams-sync-python/**'
       - 'eslint.config.js'
       - 'package.json'
       - 'package-lock.json'
@@ -45,6 +49,10 @@ jobs:
           cache-dependency-path: automation/teams-sample-sync/package-lock.json
       - name: Install automation dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Set up trusted Python policy runtime
+        uses: ./.github/actions/setup-teams-sync-python
+      - name: Test trusted Python policies
+        run: '"$RUNNER_TEMP/teams-python-tools/bin/python" -I -m unittest discover -s scripts -p "test_python_*.py"'
       - name: Build automation
         run: npm run build
       - name: Typecheck and test automation
