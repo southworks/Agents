@@ -1,0 +1,74 @@
+# Released Python SDK 1.9.0 implementation notes
+
+These notes were checked against installed 1.9.0 distributions and the protected
+contracts. Apply them to the frozen 1.9.0 selection; recheck APIs for another release.
+Source paths below are relative to the installed environment's site-packages,
+not guessed paths in the SDK GitHub repository.
+
+## Application construction and injected dependencies
+
+`microsoft_agents/hosting/core/app/agent_application.py` accepts keyword-only
+`connection_manager` or `authorization`. Supply one, not both. The public
+`connection_manager` property has no setter. An adapter alone is insufficient.
+
+```python
+def create_agent(dependencies=None):
+    deps = dependencies or {}
+    manager = deps.get("connection_manager")
+    if manager is None:
+        manager = MsalConnectionManager(**configuration)
+    adapter = deps.get("adapter")
+    if adapter is None:
+        adapter = CloudAdapter(connection_manager=manager)
+    app = AgentApplication(
+        storage=MemoryStorage(), adapter=adapter, connection_manager=manager
+    )
+    teams = TeamsAgentExtension(app)
+    # Register handlers here and return app.
+```
+
+Never use `deps.get("connection_manager", MsalConnectionManager(**configuration))`:
+Python evaluates the default constructor even when the injected manager exists.
+Never assign `app.connection_manager = ...`. Keep the chosen manager and adapter
+consistent across authorization, application construction and background continuation.
+The offline harness supplies a manager that rejects actual credential requests.
+
+## Credential-free readiness, authenticated messages
+
+Do not construct an MSAL manager with absent configuration before the host can
+serve `GET /`. Create the credential-dependent agent lazily for message processing
+or use a supported explicit configuration. Retain the canonical JWT authorization
+for `/api/messages`; exposing readiness must not make message processing anonymous.
+If wrapping middleware to bypass readiness, match exactly `GET /` and delegate
+every other request to the SDK JWT middleware. Do not catch startup errors and
+silently substitute an unauthenticated message host.
+
+## Unknown message-extension commands
+
+The Teams namespace handles configured command IDs. An unregistered ID still
+needs the protected no-results response. In the released core application,
+`app.invoke()` with no selector registers a last-ranked invoke fallback. Filter
+that fallback by `context.activity.name == "composeExtension/query"`, then send
+one `invokeResponse` with status 200 and a body containing
+`{"composeExtension": {"type": "result", "attachmentLayout": "list", "attachments": []}}`.
+Do not return a bare dictionary from a generic core invoke handler and assume it
+will be serialized: unlike the Teams wrapper, that handler must send the response.
+Specific registered commands must retain precedence over the fallback.
+
+## Graph transcripts and manifest
+
+The Graph client's request adapter exposes its base URL. Ensure transcript metadata
+and content requests use that base URL and the complete users/onlineMeetings path.
+A relative URL alone fails the protected transport contract. Preserve the configured
+Graph API version and select the newest transcript before requesting content with
+`Accept: text/vtt`. Verify the actual request URL through the protected test; using
+the correct identifiers alone does not establish correct transport.
+
+Every bot manifest requires `bots[].scopes`. Derive scopes from the source,
+configured manifest policy, and sample behavior; do not omit the property when
+uncertain. Resolve missing scope evidence in the frozen plan. Keep compose command
+IDs and declared domains aligned with the actual registered routes.
+
+Run the complete protected suite after repairs. Fixing factory construction only
+removes the first blocker; attachment transfers, reminders, invokes and Graph
+behavior still need to pass their individual assertions.

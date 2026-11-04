@@ -7,6 +7,7 @@ import {
   appendFileSync,
   existsSync,
   lstatSync,
+  mkdirSync,
   readFileSync,
   realpathSync
 } from 'node:fs'
@@ -294,6 +295,8 @@ export class CopilotAgentRunner {
     }
 
     const log = createCopilotLog((value) => appendFileSync(this.logFile, value, 'utf8'))
+    const toolOutput = path.join(this.repo, '.sync', 'tool-output', path.basename(path.dirname(this.logFile)))
+    mkdirSync(toolOutput, { recursive: true })
     const prompt = readFileSync(path.join(this.repo, 'automation/teams-sample-sync/prompts/agent-prompt.md'), 'utf8')
     const names = tools.map((tool) => tool.name)
     const availableTools = new ToolSet().addBuiltIn([
@@ -325,6 +328,7 @@ export class CopilotAgentRunner {
       availableTools,
       excludedTools: ['shell', 'bash', 'terminal'],
       enableConfigDiscovery: false,
+      largeOutput: { outputDirectory: toolOutput },
       hooks: {
         onPreToolUse: (input) => {
           this.guard()

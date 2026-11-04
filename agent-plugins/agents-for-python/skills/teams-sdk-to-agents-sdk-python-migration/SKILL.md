@@ -32,6 +32,11 @@ Do not substitute the older similarly named hosting-teams distribution.
 
 ## Application construction and hosting
 
+For the 1.9.0 selection, first read [released API pitfalls](references/sdk-1.9.md).
+It records the constructor, injection, readiness, invoke and Graph failures found by real
+synchronization contracts, with source locations inside the released distributions.
+Do not guess repository directory layouts or release-tag URLs as substitutes for those APIs.
+
 Use the configured canonical Python quickstart as the local hosting reference. Construct
 MemoryStorage, MsalConnectionManager, CloudAdapter, Authorization, and AgentApplication
 with compatible selected-version signatures and the existing connection configuration.

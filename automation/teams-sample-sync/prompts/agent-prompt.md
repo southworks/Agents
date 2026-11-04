@@ -13,6 +13,10 @@ work, not a reason to stop. Create the files required by the frozen plan using t
 editing tools. If a tool is rejected, report its name, path and reason, then correct the
 request within the selected boundary. Never infer that an ordinary missing-file validation
 failure forbids implementing the sample.
+Large tool outputs are written beneath `.sync/tool-output/` in this repository. Read the
+exact file returned by the tool when its response is truncated. Do not search `/tmp` or
+the CLI's private session-state directories. If validation reports missing API signatures,
+use the migration skill's release-specific reference instead of guessing GitHub source URLs.
 
 Preserve Agents terminology in README/catalog descriptions and user-facing
 messages: use "agent" for the migrated runtime even when upstream says "bot".

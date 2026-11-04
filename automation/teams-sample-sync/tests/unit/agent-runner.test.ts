@@ -98,6 +98,15 @@ describe('Copilot agent runner', () => {
       assert.equal(denied.kind, 'reject')
       assert.match(readFileSync(path.join(repo, 'agent.log'), 'utf8'), /Permission denied.*frozen plan/)
       assert.equal(config?.model, 'auto')
+      const toolOutput = config?.largeOutput?.outputDirectory
+      assert.ok(toolOutput)
+      assert.equal(path.relative(repo, toolOutput).startsWith('..'), false)
+      writeFileSync(path.join(toolOutput, 'validation.txt'), 'contract failure details')
+      assert.equal(permissionFor(repo, 'sample', false, [], {
+        kind: 'read',
+        path: path.join(toolOutput, 'validation.txt'),
+        intention: 'Read validation details'
+      }).kind, 'approve-once')
       assert.equal(config?.tools?.length, 1)
       assert.equal(config?.tools?.[0]?.name, 'validate_sample')
       const availableTools = config?.availableTools as ToolSet

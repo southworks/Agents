@@ -88,6 +88,11 @@ view. They are restored under the result artifact's `authentication-attempt/` di
 after the retry finishes. The retry therefore cannot confuse an earlier authentication failure
 with its own authorization or implementation status. Permission rejections and failed tool
 calls are recorded in `agent-log.txt`, with credential values redacted.
+Large Copilot tool responses are stored under `.sync/tool-output/` inside the repository,
+so the implementation session can inspect the exact returned file without access to the
+runner's general temporary directory or private CLI state. Selected-sample write confinement
+continues to apply. Python 1.9.0 migration guidance includes release-specific constructor,
+dependency injection, readiness, invoke fallback and Graph request notes.
 
 The optional Actions secret `COPILOT_ASSIGNMENT_TOKEN` enables automatic assignment. When configured,
 the workflow uses this GitHub user token to create or update the issue and assign Copilot. The token
