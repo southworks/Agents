@@ -1,0 +1,34 @@
+[
+  {
+    "name": "microsoft-365-agents-python-task-modules",
+    "source": "officeDev",
+    "title": "Task Modules with a Python Agent",
+    "shortDescription": "This sample demonstrates Adaptive Card, custom URL, and multi-step task modules in a Microsoft Teams agent.",
+    "url": "https://github.com/OfficeDev/Microsoft-Teams-Samples/tree/main/samples/TeamsSDK/bot-task-modules/python",
+    "longDescription": [
+      "This sample demonstrates Adaptive Card, custom URL, and multi-step task modules in a Microsoft Teams agent."
+    ],
+    "creationDateTime": "2026-02-18",
+    "products": [
+      "Teams"
+    ],
+    "metadata": [
+      {
+        "key": "TEAMS-SAMPLE-SOURCE",
+        "value": "OfficeDev"
+      },
+      {
+        "key": "TEAMS-SERVER-LANGUAGE",
+        "value": "python"
+      },
+      {
+        "key": "TEAMS-SERVER-PLATFORM",
+        "value": "python"
+      },
+      {
+        "key": "TEAMS-FEATURES",
+        "value": "bot"
+      }
+    ]
+  }
+]

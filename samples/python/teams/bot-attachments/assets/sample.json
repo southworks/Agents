@@ -1,0 +1,64 @@
+[
+  {
+    "name": "officedev-microsoft-teams-samples-bot-attachments-python",
+    "source": "officeDev",
+    "title": "Agent Attachments",
+    "shortDescription": "This sample demonstrates file attachment consent and OneDrive uploads using the Microsoft 365 Agents SDK.",
+    "url": "https://github.com/microsoft/Agents/tree/main/samples/python/teams/bot-attachments",
+    "longDescription": [
+      "This sample demonstrates file attachment handling in Microsoft Teams using an agent built with the Microsoft 365 Agents SDK. The agent downloads received files, requests permission with a file consent card, uploads accepted files to OneDrive, and sends a file info card. Declined requests are handled gracefully."
+    ],
+    "creationDateTime": "2026-01-30",
+    "updateDateTime": "2026-01-30",
+    "products": [
+      "Teams"
+    ],
+    "metadata": [
+      {
+        "key": "TEAMS-SAMPLE-SOURCE",
+        "value": "OfficeDev"
+      },
+      {
+        "key": "TEAMS-SERVER-LANGUAGE",
+        "value": "python"
+      },
+      {
+        "key": "TEAMS-SERVER-PLATFORM",
+        "value": "python"
+      },
+      {
+        "key": "TEAMS-FEATURES",
+        "value": "agent attachments"
+      }
+    ],
+    "thumbnails": [
+      {
+        "type": "image",
+        "order": 100,
+        "url": "https://raw.githubusercontent.com/OfficeDev/Microsoft-Teams-Samples/main/samples/TeamsSDK/bot-attachments/bot-attachments.gif",
+        "alt": "Agent attachments with file consent and OneDrive upload"
+      }
+    ],
+    "authors": [
+      {
+        "gitHubAccount": "OfficeDev",
+        "pictureUrl": "https://avatars.githubusercontent.com/u/6789362?s=200&v=4",
+        "name": "OfficeDev"
+      }
+    ],
+    "references": [
+      {
+        "name": "Teams developer documentation",
+        "url": "https://aka.ms/TeamsPlatformDocs"
+      },
+      {
+        "name": "Teams developer questions",
+        "url": "https://aka.ms/TeamsPlatformFeedback"
+      },
+      {
+        "name": "Teams development videos",
+        "url": "https://aka.ms/sample-ref-teams-vids-from-microsoft"
+      }
+    ]
+  }
+]

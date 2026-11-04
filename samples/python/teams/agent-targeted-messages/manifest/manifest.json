@@ -1,0 +1,53 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.29/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.29",
+  "version": "1.0.0",
+  "id": "${{AAD_APP_CLIENT_ID}}",
+  "developer": {
+    "name": "Microsoft, Inc.",
+    "websiteUrl": "https://example.com",
+    "privacyUrl": "https://example.com/privacy",
+    "termsOfUseUrl": "https://example.com/terms"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "Targeted Reminders",
+    "full": "Targeted Reminder Agent"
+  },
+  "description": {
+    "short": "A Teams agent that sends private targeted reminders.",
+    "full": "Create, list, and cancel reminders delivered as private targeted messages in Teams channels and group chats."
+  },
+  "accentColor": "#FFFFFF",
+  "bots": [
+    {
+      "botId": "${{AAD_APP_CLIENT_ID}}",
+      "scopes": ["team", "groupChat"],
+      "supportsTargetedMessages": true,
+      "commandLists": [
+        {
+          "scopes": ["team", "groupChat"],
+          "triggers": ["slash", "mention"],
+          "commands": [
+            {"title": "remind", "description": "Set a reminder for yourself or a mentioned teammate."},
+            {"title": "my-reminders", "description": "List reminders you created or that are assigned to you."},
+            {"title": "cancel-reminder", "description": "Cancel a reminder by its ID."},
+            {"title": "reminder-help", "description": "Show reminder and reaction command help."},
+            {"title": "help", "description": "Alias for reminder-help."}
+          ]
+        },
+        {
+          "scopes": ["team", "groupChat"],
+          "triggers": ["mention"],
+          "commands": [
+            {"title": "add-reaction", "description": "Add a reaction to a message."},
+            {"title": "remove-reaction", "description": "Remove a reaction from a message."}
+          ]
+        }
+      ]
+    }
+  ]
+}
