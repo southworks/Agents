@@ -1,0 +1,23 @@
+{
+  "version": 3,
+  "language": "python",
+  "sample": "bot-cards",
+  "upstreamCommit": "b9aedfea98e3505acbcf68a3931be05a780d6149",
+  "sourceTree": "a84f93e73cbbfc3181678203d9e09dd824a756d4",
+  "inputDigest": "sha256:1af09dc1a82536e3b1c1d90a128817bf6f69e3f76fd873b4c5c33d7d8f4bb105",
+  "outputDigest": "sha256:c658b4ff39405dacc20965e342cd93fe2b5f7322f9247c9e8bca34153ce673b1",
+  "componentDigests": {
+    "sourceTree": "a84f93e73cbbfc3181678203d9e09dd824a756d4",
+    "target": "sha256:3ff61aa4c5af45abc3999b83662cb6193e197e267b946fb7b5b60ef187ae0581",
+    "protection": "sha256:de2fb800ca0996dc427db13832877c092d8f20c7a839925cf8533ee6adc166bd",
+    "migrationSkill": "sha256:43727bde0f0cd76f7daec587a4dc427edc0ba5527bc04af71d60ef00e1036dfa",
+    "manifestSkill": "sha256:b63aba0a092fdb6cb120601fc03252f9830fda759d8d6be77729168286816f86",
+    "syncSkill": "sha256:c052855fa4ee3cadace50211af54e4333611d797a476891eb34a2493ca708987",
+    "canonicalSample": "sha256:2a2dc001035312a6357c3e7ca67d8e6d8ecdc42a610ad17bfc4f68a29c1c24fb",
+    "manifestAssets": "sha256:cc9d7730822069fcff21d64b9a2538c1f621ff9cd8cdb9003d4f76b9d158c038",
+    "copilot": "sha256:f2fbc365eb532e30c69edc879408480bbc1734734e1bed001820a8abdb3fb3e2",
+    "packagePolicy": "sha256:43bb20bef34beaaa0f450f15291e794bce593f9894abbfcf39fa638a962992d5",
+    "validator": "sha256:f4f0bfde612bd29b351c817af07b0e4d69c67746fc7d37730a7f5c3b74d26ecf"
+  },
+  "status": "verified"
+}
