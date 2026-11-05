@@ -2,11 +2,18 @@
 
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import sys
 
 
 def environment_digest(root):
+    # Graph SDK paths exceed MAX_PATH even when the environment root is short.
+    # Use the same extended paths as installation for traversal and file reads.
+    root = root.absolute()
+    if os.name == "nt" and not str(root).startswith("\\\\?\\"):
+        root = Path("\\\\?\\" + str(root))
+
     digest = sha256()
     for file in sorted(root.rglob("*")):
         if file.is_symlink():

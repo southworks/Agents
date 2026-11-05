@@ -60,7 +60,7 @@ export async function defaultSdkFactory (): Promise<SdkClient> {
   return new CopilotClient({ connection: RuntimeConnection.forStdio({ path: executable }) })
 }
 
-function diagnosticText (value: string): string {
+export function diagnosticText (value: string): string {
   for (const [key, secret] of Object.entries(process.env)) {
     if (/TOKEN|SECRET|PASSWORD|API_KEY/i.test(key) && secret) {
       value = value.replaceAll(secret, '[REDACTED]')

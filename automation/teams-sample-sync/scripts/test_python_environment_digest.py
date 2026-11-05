@@ -1,4 +1,6 @@
 import importlib.util
+import os
+import shutil
 from pathlib import Path
 import tempfile
 import unittest
@@ -10,6 +12,24 @@ SPEC.loader.exec_module(POLICY)
 
 
 class EnvironmentDigestTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "Windows extended-path regression")
+    def test_long_installed_package_paths_are_fingerprinted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            installed = Path("\\\\?\\" + str(root))
+            package = installed / ("generated_api_" + "x" * 110) / ("request_builder_" + "y" * 110)
+            package.mkdir(parents=True)
+            source = package / "request.py"
+            source.write_text("original", encoding="utf-8")
+
+            try:
+                original = POLICY.environment_digest(root)
+                self.assertEqual(original, POLICY.environment_digest(installed))
+                source.write_text("changed", encoding="utf-8")
+                self.assertNotEqual(original, POLICY.environment_digest(root))
+            finally:
+                shutil.rmtree(package.parent)
+
     def test_modified_added_and_removed_files_change_fingerprint(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
