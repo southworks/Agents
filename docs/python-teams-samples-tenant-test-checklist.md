@@ -6,6 +6,39 @@ Owner: the user. Run these checks after the fresh samples pass local validation.
 
 Record the tested Git commit, sample, date, tenant type, installation scope and public host. Mark each scenario passed, failed or blocked, and retain a short observation or screenshot. Keep tokens, passwords, signed upload URLs and personal conversation data out of the report.
 
+## Wrap-up and results
+
+Sample creation and local verification are complete. There are no known remaining
+local implementation blockers. Live tenant validation is the remaining acceptance
+gate; it does not require generating the samples again.
+
+Work through this order so basic hosting and authentication are established before
+Graph, transfers and multi-user behavior. Change a status only after recording the
+actual result; a missing setup requirement is blocked, not passed.
+
+| Order | Sample | Tenant status | Failure or missing prerequisite |
+| --- | --- | --- | --- |
+| 1 | Cards | Not run | None reported |
+| 2 | AI messages | Not run | None reported |
+| 3 | Message extensions | Not run | None reported |
+| 4 | Task modules | Not run | None reported |
+| 5 | Attachments | Not run | None reported |
+| 6 | Targeted messages | Not run | None reported |
+| 7 | Meetings | Not run | None reported |
+
+For the first run, use cards to verify Azure Bot/Entra configuration, the public
+messaging endpoint, Teams installation and authenticated delivery. If it fails,
+record that single failure before moving to the next sample. An environment issue
+shared by all samples should be resolved once before repeating those checks.
+
+Report template:
+
+- Tested commit and sample:
+- Teams client, installation scope and public host type:
+- Scenario and expected behavior:
+- Actual behavior and sanitized error/log:
+- Result: passed, failed or blocked:
+
 ## Prepare each sample
 
 1. Start from the exact reviewed candidate revision and read that sample's README. Use a fresh Python environment and its documented dependency/lock installation steps.
