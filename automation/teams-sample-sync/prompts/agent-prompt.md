@@ -45,6 +45,11 @@ for every plan item and names the validation you ran. Start it with `## Self-aud
 the complete plan has been verified and no selected-sample file needs modification.
 Add a one-sentence `Summary:` line describing the concrete sample changes for the handoff PR. Aim for about 200 characters, but include what is needed.
 
+Write readable Python with meaningful names, explicit control flow and normal multiline
+formatting. Keep each hand-written source file below 500 lines; split cohesive features
+into named modules when needed. Explain non-obvious protocol or lifecycle decisions,
+and make README setup steps usable by someone running this sample for the first time.
+
 If a required behavior cannot be implemented, explain the real blocker in the self-audit. Never
 claim validation passed when it did not. Do not edit workflow files, automation, skills,
 source context, Git metadata, or upstream files.

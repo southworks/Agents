@@ -49,8 +49,12 @@ The Teams namespace handles configured command IDs. An unregistered ID still
 needs the protected no-results response. In the released core application,
 `app.invoke()` with no selector registers a last-ranked invoke fallback. Filter
 that fallback by `context.activity.name == "composeExtension/query"`, then send
-one `invokeResponse` with status 200 and a body containing
-`{"composeExtension": {"type": "result", "attachmentLayout": "list", "attachments": []}}`.
+one `invokeResponse` with status 200 and a `composeExtension` message containing
+`{"type": "message", "text": "No results found for '<query>'"}`. Extract the query
+from the invoke parameters, as the recognized command does for empty search results.
+This preserves the pinned source's no-results message and the protected contract;
+an empty result-list envelope is not equivalent. The source's unknown-command path
+has an uninitialized variable, so extend the no-results behavior to that path.
 Do not return a bare dictionary from a generic core invoke handler and assume it
 will be serialized: unlike the Teams wrapper, that handler must send the response.
 Specific registered commands must retain precedence over the fallback.
