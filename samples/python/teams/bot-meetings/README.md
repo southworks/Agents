@@ -49,8 +49,9 @@ Teams and add the agent to a meeting. `GET /` is a public readiness check;
 ## Configure meeting events and Graph
 
 Teams meeting event delivery requires a Teams-managed bot, not an Azure Bot
-resource. In the Teams Developer Portal, enable the **Participant Join** and
-**Participant Leave** subscriptions.
+resource. In the Teams Developer Portal, enable the **Meeting Start**,
+**Meeting End**, **Participant Join**, and **Participant Leave** subscriptions
+so all four handlers in this sample receive events.
 
 For app-only transcript lookup, add the following Microsoft Graph **application
 permissions** to the Entra app registration and grant tenant-wide admin consent:

@@ -31,6 +31,6 @@
     }
   ],
   "validDomains": [
-    "${{BOT_DOMAIN}}"
+    "<<BOT_DOMAIN>>"
   ]
 }

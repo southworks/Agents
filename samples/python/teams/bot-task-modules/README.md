@@ -34,7 +34,7 @@ commands.
 3. Copy `.env.TEMPLATE` to `.env` and set the Azure Bot connection values.
    `BOT_ENDPOINT` must be the public HTTPS Dev Tunnel base URL when testing the
    custom form in Teams. Set `BOT_DOMAIN` to the hostname from `BOT_ENDPOINT`,
-   without the scheme or path; this value replaces `${{BOT_DOMAIN}}` in the
+   without the scheme or path; replace `<<BOT_DOMAIN>>` in the
    manifest's `validDomains` before packaging.
 
 4. Start the agent:

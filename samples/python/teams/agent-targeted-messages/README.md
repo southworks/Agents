@@ -34,9 +34,11 @@ The lock file is resolved for Python 3.11.14 on Linux. Other operating systems r
 | --- | --- | --- |
 | Mention | `remind` | Set a reminder for yourself or a mentioned person, for example `remind me in 5 minutes to check email`. |
 | Mention | `cancel-reminder` | Cancel a reminder by ID. |
-| Mention | `add-reaction` | Add a reaction to a regular message. |
-| Mention | `remove-reaction` | Remove a reaction from a regular message. |
+| Mention | `add-reaction` | Add a reaction to a regular message, or to the quoted/replied-to message. |
+| Mention | `remove-reaction` | Remove a reaction from a regular message, or from the quoted/replied-to message. |
 | Slash | `my-reminders` | List active reminders created by or assigned to you. |
 | Slash or mention | `reminder-help` | Show help and suggested actions. |
 
-Card actions let the recipient cancel, dismiss, or snooze a delivered reminder. Reminders are held in memory and are lost when the process restarts.
+Reminders can target yourself or a mentioned person and work in channels and group chats. Time expressions support seconds (`30 seconds`, `30 secs`, `30s`), minutes (`5 minutes`, `5 mins`, `5m`), and hours (`1 hour`, `2 hrs`, `1h`). The agent sends private targeted confirmations, reminder lists, and deliveries. Recipients can cancel a reminder from its confirmation card, or dismiss and snooze a delivered reminder. Reactions are limited to regular messages; reaction commands do not work through slash messages. Supported reaction types include `like`, `heart`, `1f440_eyes`, `2705_whiteheavycheckmark`, `launch`, and `1f4cc_pushpin`.
+
+Reminders are held in memory and are lost when the process restarts.

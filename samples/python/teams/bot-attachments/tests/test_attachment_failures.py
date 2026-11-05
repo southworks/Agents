@@ -79,3 +79,39 @@ class AttachmentFailureTests(unittest.IsolatedAsyncioTestCase):
             "image to save to your OneDrive.",
         )
         downloader.assert_awaited_once_with("https://example.invalid/download")
+
+    async def test_unsupported_attachment_sends_agent_welcome_through_sdk_dispatch(self):
+        downloader = AsyncMock()
+        connection_manager = OfflineConnections()
+        adapter = CapturingAdapter()
+        app = create_agent({
+            "connection_manager": connection_manager,
+            "adapter": adapter,
+            "download": downloader,
+        })
+        activity = Activity.model_validate({
+            "type": "message",
+            "id": "unsupported-attachment",
+            "channelId": "msteams",
+            "serviceUrl": "https://example.invalid",
+            "conversation": {"id": "conversation-1", "conversationType": "personal"},
+            "from": {"id": "user-1", "name": "Alice"},
+            "recipient": {"id": "agent-1", "name": "Sample Agent"},
+            "attachments": [{
+                "contentType": "image/jpeg",
+                "name": "photo.jpg",
+                "content": "not a Teams file-download attachment",
+            }],
+        })
+        context = TurnContext(adapter, activity)
+        try:
+            await app.on_turn(context)
+        finally:
+            await context._aclose()
+
+        self.assertEqual(
+            adapter.sent[0]["text"],
+            "Welcome to the Agent Attachments sample! Please attach a file or "
+            "image to save to your OneDrive.",
+        )
+        downloader.assert_not_awaited()

@@ -242,10 +242,21 @@ def create_agent(dependencies: dict[str, Any] | None = None) -> AgentApplication
             "- `my-reminders` - View your active reminders\n"
             "- `cancel-reminder [id]` - Cancel a specific reminder\n"
             "- `reminder-help` - Show this help message\n\n"
+            "**Supported Time Formats:**\n"
+            "- Seconds: `30 seconds`, `30 secs`, `30s`\n"
+            "- Minutes: `5 minutes`, `5 mins`, `5m`\n"
+            "- Hours: `1 hour`, `2 hrs`, `1h`\n\n"
+            "**How It Works:**\n"
+            "- Reminders are delivered as targeted messages visible only to the recipient\n"
+            "- Works in both channels and group chats\n"
+            "- Set reminders for yourself or mention another person\n"
+            "- Cancel from the confirmation card, or dismiss or snooze delivered reminders\n\n"
             "**Reactions:**\n"
             "- `add-reaction [type]` - Add a reaction to a message\n"
             "- `remove-reaction [type]` - Remove a reaction from a message\n"
-            "Reactions cannot be used from slash-command messages."
+            "- Reactions cannot be used from slash-command messages\n"
+            "- Supported types: `like`, `heart`, `1f440_eyes`, `2705_whiteheavycheckmark`, `launch`, `1f4cc_pushpin`\n"
+            "- Reacting to an agent message is acknowledged"
         )
         response = _targeted_payload(context, text=text)
         response["suggestedActions"] = _commands(user_id, [
