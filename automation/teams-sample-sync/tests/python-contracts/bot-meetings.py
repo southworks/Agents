@@ -76,14 +76,46 @@ class MeetingContracts(unittest.IsolatedAsyncioTestCase):
 
     async def test_exhausted_retries_return_clear_fallback(self):
         transcript = AsyncMock(return_value="")
+        wait = AsyncMock()
         app = sample_application({
             "meeting_info": AsyncMock(return_value={"organizer": {"aadObjectId": "user-1"}}),
-            "transcript": transcript, "wait": AsyncMock(),
+            "transcript": transcript, "wait": wait,
         })
         sent = await dispatch(app, event("End", {}, {
             "meeting": {"id": "meeting-1", "details": {"msGraphResourceId": "graph-id"}},
         }))
         self.assertEqual(transcript.await_count, 3)
+        self.assertEqual([call.args[0] for call in wait.await_args_list], [30, 10, 10])
+        self.assertIn("Transcript not available", json.dumps(sent))
+
+    async def test_channel_resource_takes_precedence_over_meeting_info(self):
+        transcript = AsyncMock(return_value="WEBVTT\n<v Ada>Channel resource</v>")
+        app = sample_application({
+            "meeting_info": AsyncMock(return_value={
+                "organizer": {"aadObjectId": "organizer-1"},
+                "details": {"msGraphResourceId": "fallback-resource"},
+            }),
+            "transcript": transcript,
+            "wait": AsyncMock(),
+        })
+        sent = await dispatch(app, event("End", {}, {
+            "meeting": {"id": "meeting-1", "details": {"msGraphResourceId": "channel-resource"}},
+        }))
+
+        transcript.assert_awaited_once()
+        self.assertEqual(transcript.await_args.args[1:], ("channel-resource", "organizer-1"))
+        self.assertIn("Ada: Channel resource", json.dumps(sent))
+
+    async def test_missing_graph_resource_returns_fallback_without_requesting_transcript(self):
+        transcript = AsyncMock()
+        app = sample_application({
+            "meeting_info": AsyncMock(return_value={"organizer": {"aadObjectId": "organizer-1"}}),
+            "transcript": transcript,
+            "wait": AsyncMock(),
+        })
+        sent = await dispatch(app, event("End", {}, {"meeting": {"id": "meeting-1"}}))
+
+        transcript.assert_not_awaited()
         self.assertIn("Transcript not available", json.dumps(sent))
 
     async def test_missing_meeting_metadata_does_not_call_graph(self):
@@ -104,7 +136,9 @@ class MeetingContracts(unittest.IsolatedAsyncioTestCase):
                          "Ada has joined the meeting as Presenter.")
         left = await dispatch(app, event("ParticipantLeave", participant))
         self.assertEqual(left[0]["attachments"][0]["content"]["body"][0]["text"], "Ada has left the meeting.")
-        ignored = await dispatch(app, event("ParticipantLeave", {
-            "members": [{"user": {"name": "Agent"}, "meeting": {}}],
-        }))
-        self.assertEqual(ignored, [])
+        for operation in ("ParticipantJoin", "ParticipantLeave"):
+            with self.subTest(operation=operation):
+                ignored = await dispatch(app, event(operation, {
+                    "members": [{"user": {"name": "Agent"}, "meeting": {}}],
+                }))
+                self.assertEqual(ignored, [])

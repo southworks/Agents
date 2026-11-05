@@ -50,9 +50,13 @@ class DialogContracts(unittest.IsolatedAsyncioTestCase):
         sent, text = await self.task("submit", {"verb": "adaptive_card_submit", "usertext": "Hello"})
         self.assertIn("You submitted: Hello", [item.get("text") for item in sent])
         self.assertEqual(text, {"type": "message", "value": "Thanks for submitting!"})
-        _, custom = await self.task("submit", {
+        sent, custom = await self.task("submit", {
             "verb": "custom_form_submit", "name": "Grace", "email": "grace@example.com",
         })
+        self.assertIn(
+            "Hi Grace, thanks for submitting! Your email is grace@example.com",
+            [item.get("text") for item in sent],
+        )
         self.assertEqual(custom, {"type": "message", "value": "Form submitted successfully"})
 
     async def test_custom_form_route_serves_teams_dialog_page(self):

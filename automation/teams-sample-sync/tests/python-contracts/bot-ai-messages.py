@@ -27,6 +27,8 @@ class AiMessageContracts(unittest.IsolatedAsyncioTestCase):
         claim = sent[0]["entities"][0]["citation"][0]
         self.assertEqual(claim["position"], 1)
         appearance = claim["appearance"]
+        self.assertEqual(appearance["name"], "AI messages agent")
+        self.assertEqual(appearance["abstract"], "Excerpt description")
         self.assertEqual(appearance["url"], "https://example.com/claim-1")
         self.assertEqual(appearance["image"]["name"], "Microsoft Word")
         self.assertEqual(appearance["encodingFormat"], "application/vnd.microsoft.card.adaptive")

@@ -103,9 +103,14 @@ class TargetedContracts(unittest.IsolatedAsyncioTestCase):
         app = sample_application({"schedule": TimerDriver().schedule})
         client = ApiClient("https://example.invalid")
         client.reactions.add = AsyncMock()
+        client.reactions.delete = AsyncMock()
         try:
             await dispatch(app, {"text": "add-reaction like", "conversation": GROUP}, teams_client=client)
             client.reactions.add.assert_awaited_once_with(GROUP["id"], "incoming-activity", "like")
+            await dispatch(app, {
+                "text": "remove-reaction heart", "conversation": GROUP, "replyToId": "reply-1",
+            }, teams_client=client)
+            client.reactions.delete.assert_awaited_once_with(GROUP["id"], "reply-1", "heart")
         finally:
             await app.close_background_tasks()
 
