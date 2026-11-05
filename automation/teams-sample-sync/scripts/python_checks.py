@@ -2,6 +2,7 @@
 
 import importlib
 import importlib.util
+import json
 from pathlib import Path
 import sys
 import unittest
@@ -9,7 +10,8 @@ import os
 import socket
 import subprocess
 import time
-from urllib.request import urlopen
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 
 PROCESS_SPEC = importlib.util.spec_from_file_location("python_process", Path(__file__).with_name("python_process.py"))
@@ -72,12 +74,42 @@ def run_contracts(root, contract):
         raise ValueError("Every protected Python contract must execute and pass")
 
 
-def http_smoke(root):
-    require_fresh_source(root)
+SYNTHETIC_AUTH = {
+    "CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTID": "11111111-1111-4111-8111-111111111111",
+    "CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTSECRET": "local-validation-placeholder",
+    "CONNECTIONS__SERVICE_CONNECTION__SETTINGS__TENANTID": "22222222-2222-4222-8222-222222222222",
+}
+
+
+def reject_anonymous_message(base_url):
+    request = Request(
+        base_url + "/api/messages",
+        data=json.dumps({"type": "message", "text": "authorization probe", "channelId": "msteams"}).encode(),
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    try:
+        with urlopen(request, timeout=5) as response:
+            status = response.status
+    except HTTPError as error:
+        status = error.code
+        error.close()
+
+    if status not in (401, 403):
+        raise ValueError(f"Python HTTP anonymous POST /api/messages returned {status}; expected 401 or 403")
+
+
+def check_http_process(root, authentication=False):
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
-    environment = {**os.environ, "PORT": str(port)}
+    environment = {
+        key: value for key, value in os.environ.items()
+        if not key.upper().startswith(("CONNECTIONS__", "CONNECTIONSMAP__", "AGENTAPPLICATION__"))
+    }
+    environment["PORT"] = str(port)
+    if authentication:
+        # Exercise the configured authorization path without contacting an identity service.
+        environment.update(SYNTHETIC_AUTH)
     child = PROCESS.start_process(
         [sys.executable, "-I", "-B", str(Path(__file__).resolve()), "serve", str(root)],
         cwd=root, env=environment, stdin=subprocess.DEVNULL,
@@ -90,13 +122,24 @@ def http_smoke(root):
             try:
                 with urlopen(f"http://127.0.0.1:{port}/", timeout=0.5) as response:
                     if response.status == 200:
-                        return
+                        break
             except OSError:
                 pass
             time.sleep(0.25)
-        raise ValueError("Python HTTP GET / did not return 200")
+        else:
+            raise ValueError("Python HTTP GET / did not return 200")
+        if authentication:
+            reject_anonymous_message(f"http://127.0.0.1:{port}")
     finally:
         PROCESS.stop_process(child)
+
+
+def http_smoke(root):
+    require_fresh_source(root)
+    # The first host proves missing credentials do not break readiness. The second
+    # proves configured JWT processing rejects anonymous messages, rather than 500.
+    check_http_process(root)
+    check_http_process(root, authentication=True)
 
 
 if __name__ == "__main__":

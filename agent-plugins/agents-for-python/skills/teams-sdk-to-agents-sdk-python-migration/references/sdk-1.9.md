@@ -43,6 +43,17 @@ If wrapping middleware to bypass readiness, match exactly `GET /` and delegate
 every other request to the SDK JWT middleware. Do not catch startup errors and
 silently substitute an unauthenticated message host.
 
+`load_configuration_from_env` returns a nested dictionary, not an
+`AgentAuthConfiguration`. The SDK JWT middleware expects the typed object in
+`http_app["agent_configuration"]`; use the connection manager's
+`get_default_connection_configuration()` result, not the whole environment mapping.
+Passing a dictionary raises `AttributeError` on properties such as
+`ANONYMOUS_ALLOWED` and returns HTTP 500 even for anonymous messages.
+The protected smoke check now starts separate hosts to prove readiness without
+credentials and HTTP 401/403 rejection of anonymous activity with synthetic local
+configuration. Preserve that distinction and correct configuration errors rather
+than accepting HTTP 500 as proof of authorization.
+
 ## Literal feedback invoke registration
 
 Register the AI sample's two protocol names directly inside `create_agent`:

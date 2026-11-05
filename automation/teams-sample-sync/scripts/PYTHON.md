@@ -21,6 +21,11 @@ and DNS lookups to loopback fixtures. Unexpected outbound requests fail even if
 candidate code catches the exception. Spawned HTTP hosts install the same guard
 before importing the application. This is a deterministic test guard, not an OS
 sandbox for hostile native code.
+HTTP smoke uses separate hosts for credential-free readiness and configured
+anonymous-message rejection. The second host receives synthetic connection values;
+`POST /api/messages` must return 401 or 403, with no external identity request.
+HTTP 500 and successful anonymous responses both fail. Ambient connection settings
+are removed before either host starts so the first check actually lacks credentials.
 The SDK policy evaluates markers for Linux x86_64 CPython rather than inheriting
 the developer machine's operating system. Callers must supply an exact runtime
 patch version and release-specific metadata for all five required SDK packages.

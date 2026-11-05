@@ -1,11 +1,14 @@
 """Protected checks fail closed for absent, empty, and skipped suites."""
 
 import importlib.util
+import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
 import subprocess
 import sys
+from unittest.mock import patch
 
 
 SPEC = importlib.util.spec_from_file_location("python_checks", Path(__file__).with_name("python_checks.py"))
@@ -14,6 +17,25 @@ SPEC.loader.exec_module(CHECKS)
 
 
 class ProtectedRunnerTests(unittest.TestCase):
+    def write_http_host(self, root, anonymous_status=401):
+        (root / "src").mkdir()
+        (root / "src/main.py").write_text(
+            "import json, os\nfrom pathlib import Path\n"
+            "from http.server import HTTPServer, BaseHTTPRequestHandler\n"
+            "class Handler(BaseHTTPRequestHandler):\n"
+            "    def record(self):\n"
+            "        with Path('requests.jsonl').open('a') as log:\n"
+            "            log.write(json.dumps({'method': self.command, 'path': self.path,\n"
+            "                'configured': bool(os.environ.get('CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTID')),\n"
+            "                'ambient': sorted(key for key in os.environ if key.endswith('__AMBIENT_SMOKE_TEST'))}) + '\\n')\n"
+            "    def do_GET(self):\n        self.record()\n        self.send_response(200)\n        self.end_headers()\n"
+            "    def do_POST(self):\n"
+            "        self.rfile.read(int(self.headers.get('Content-Length', '0')))\n"
+            f"        self.record()\n        self.send_response({anonymous_status})\n        self.end_headers()\n"
+            "HTTPServer(('127.0.0.1', int(os.environ['PORT'])), Handler).serve_forever()\n",
+            encoding="utf-8",
+        )
+
     def run_check(self, root, mode, *extra):
         return subprocess.run(
             [sys.executable, "-I", "-B", str(Path(CHECKS.__file__)), mode, str(root), *extra],
@@ -74,15 +96,28 @@ class ProtectedRunnerTests(unittest.TestCase):
     def test_http_smoke_uses_configured_port_and_stops_server(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "src").mkdir()
-            (root / "src/main.py").write_text(
-                "import os\nfrom http.server import HTTPServer, BaseHTTPRequestHandler\n"
-                "class Handler(BaseHTTPRequestHandler):\n"
-                "    def do_GET(self):\n        self.send_response(200)\n        self.end_headers()\n"
-                "HTTPServer(('127.0.0.1', int(os.environ['PORT'])), Handler).serve_forever()\n",
-                encoding="utf-8",
-            )
-            CHECKS.http_smoke(root)
+            self.write_http_host(root)
+            with patch.dict(os.environ, {
+                "CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTID": "ambient-identity-not-used",
+                "CONNECTIONS__AMBIENT_SMOKE_TEST": "must-be-stripped",
+                "CONNECTIONSMAP__AMBIENT_SMOKE_TEST": "must-be-stripped",
+                "AGENTAPPLICATION__AMBIENT_SMOKE_TEST": "must-be-stripped",
+            }):
+                CHECKS.http_smoke(root)
+            observed = [json.loads(line) for line in (root / "requests.jsonl").read_text().splitlines()]
+            self.assertEqual(observed, [
+                {"method": "GET", "path": "/", "configured": False, "ambient": []},
+                {"method": "GET", "path": "/", "configured": True, "ambient": []},
+                {"method": "POST", "path": "/api/messages", "configured": True, "ambient": []},
+            ])
+
+    def test_http_smoke_rejects_anonymous_success_and_server_errors(self):
+        for status in (200, 500):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.write_http_host(root, status)
+                with self.assertRaisesRegex(ValueError, f"anonymous POST.*{status}"):
+                    CHECKS.http_smoke(root)
 
     def test_http_smoke_detects_startup_failure(self):
         with tempfile.TemporaryDirectory() as directory:
