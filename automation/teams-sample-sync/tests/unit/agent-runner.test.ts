@@ -98,6 +98,7 @@ describe('Copilot agent runner', () => {
       assert.equal(denied.kind, 'reject')
       assert.match(readFileSync(path.join(repo, 'agent.log'), 'utf8'), /Permission denied.*frozen plan/)
       assert.equal(config?.model, 'auto')
+      assert.ok(config.systemMessage?.content?.includes(`Repository root: ${repo}`))
       const toolOutput = config?.largeOutput?.outputDirectory
       assert.ok(toolOutput)
       assert.equal(path.relative(repo, toolOutput).startsWith('..'), false)

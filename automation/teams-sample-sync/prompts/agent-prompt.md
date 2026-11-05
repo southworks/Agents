@@ -32,6 +32,12 @@ documentation as proof that the JSON already declares it. Produce a concise Mark
 spec. For every relevant source behavior, identify its upstream file and stable symbol or anchor,
 destination change, Agents-specific behavior to preserve, manifest impact, and validation
 expectation. Include each capability mismatch as a required change.
+Read the selected profile's protected contract suite before finalizing the plan.
+For each behavior, name the exact suite path and test method that will verify it;
+record uncovered behavior as a specific supplementary test or manual check.
+Resolve manifest scope decisions from explicit repository and same-family parity
+evidence before freezing the plan; do not call a decision unresolved when that
+evidence supplies it.
 Include SDK package updates to the coordinator-selected target and any API compatibility
 migrations they require; a version-only update that fails compilation is incomplete.
 

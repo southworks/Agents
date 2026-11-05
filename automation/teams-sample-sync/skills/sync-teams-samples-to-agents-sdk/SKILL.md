@@ -53,6 +53,8 @@ Return a concise Markdown specification with an item for each relevant source be
 path and stable symbol, destination change, Agents-specific behavior to preserve, manifest impact,
 and validation expectation. Include every mismatch found during capability reconciliation. The
 coordinator freezes that plan before it grants write access.
+Read the selected profile's protected suite and map every behavior to its exact suite
+path and test method. Identify supplementary or manual checks for coverage gaps.
 
 After write access is granted, implement the frozen plan without editing it. The only CI tool is
 `validate_sample`; use `code` during implementation, `manifest` when editing the package, and

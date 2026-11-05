@@ -43,6 +43,28 @@ If wrapping middleware to bypass readiness, match exactly `GET /` and delegate
 every other request to the SDK JWT middleware. Do not catch startup errors and
 silently substitute an unauthenticated message host.
 
+## Literal feedback invoke registration
+
+Register the AI sample's two protocol names directly inside `create_agent`:
+
+```python
+@app.invoke("message/submitAction")
+async def on_feedback_submit(context, state):
+    await handle_feedback_submit(context, state)
+
+@app.invoke("message/fetchTask")
+async def on_feedback_fetch(context, state):
+    await handle_feedback_fetch(context, state)
+```
+
+The sample supplies these two handler functions and must send the appropriate
+`invokeResponse` activity explicitly from each. Do not replace these literal
+registrations with `app.add_route(predicate, handler, is_invoke=True)`; the trusted
+AST inspector rejects predicate-based dynamic registrations because it cannot
+reconcile their protocol names with manifest capabilities. The generic invoke
+API supports both names in 1.9.0; unavailable feedback-specific namespace helpers
+are not a reason to use dynamic registration or omit the dialogs.
+
 ## Unknown message-extension commands
 
 The Teams namespace handles configured command IDs. An unregistered ID still

@@ -322,7 +322,11 @@ export class CopilotAgentRunner {
       skillDirectories: this.skillDirectories,
       systemMessage: {
         mode: 'append',
-        content: prompt
+        content: [
+          prompt,
+          `Repository root: ${this.repo}`,
+          'Resolve all .sync/, samples/, automation/ and agent-plugins/ paths from this root, not its parent.',
+        ].join('\n')
       },
       tools,
       availableTools,

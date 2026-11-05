@@ -140,6 +140,10 @@ wheel lock is portable. Include fresh virtual-environment setup before installat
 Reuse the shared `teams-app-manifest` skill for schema/assets/capability reconciliation.
 Check exact command IDs, slash/mention/dialog surfaces, link domains, file support,
 meeting grants and setup instructions. Schema validity alone does not prove parity.
+For these seven repository synchronization targets, read
+[existing installation-scope evidence](references/manifest-scopes.md) before declaring
+scopes unresolved. The same-family .NET and JS manifests provide repository parity
+evidence; a generic handler alone does not establish intended installation scopes.
 
 Within synchronization, follow the shared `sync-teams-samples-to-agents-sdk` skill and its
 read-only planning, frozen plan, selected-sample confinement, self-audit, and bounded repair
