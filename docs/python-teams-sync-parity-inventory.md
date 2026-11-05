@@ -91,6 +91,7 @@ Suite: `bot-ai-messages.py`.
 Suite: `bot-message-extensions.py`.
 
 - `MessageExtensionContracts.test_search_cards_sanitize_snippets_and_preserve_previews`
+- `MessageExtensionContracts.test_default_search_handles_malformed_responses_and_http_failures`: default HTTP helper parsing and request encoding, using mocked HTTPX transport rather than an injected search function.
 - `MessageExtensionContracts.test_empty_results_and_unknown_commands_return_no_results`
 - `MessageExtensionContracts.test_unfurl_preserves_requested_url`
 - `MessageExtensionContracts.test_help_explains_compose_search_and_echo_remains_useful`

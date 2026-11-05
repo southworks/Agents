@@ -62,6 +62,10 @@ Message-extension samples accept an async `search_wikipedia(query)` dependency; 
 implementation performs the real Wikipedia request. Keep SDK query dispatch and response
 serialization active when injecting the external search service. Register an explicit
 unknown-command fallback that returns the no-results envelope.
+Keep the default helper as `src.wikipedia.search_wikipedia(query)` using `httpx`.
+Validate JSON root/query/search shapes and handle HTTP/JSON failures by returning
+an empty list, preserving upstream's no-results behavior. Protected tests exercise
+the real helper through an HTTPX mock transport, alongside injected route tests.
 Attachment samples accept async `download(url)` and `upload(url, content)` dependencies.
 Keep default HTTP helpers in `src/files.py` as async `download_attachment(url)` and
 `upload_to_onedrive(url, content)`. Preserve byte content, Content-Type, Content-Length,

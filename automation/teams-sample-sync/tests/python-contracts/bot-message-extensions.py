@@ -2,7 +2,9 @@
 
 import json
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
+
+import httpx
 
 from harness import dispatch, invoke_response, sample_application
 
@@ -19,6 +21,35 @@ async def query(app, command="wikipediaSearch", text="computers"):
 
 
 class MessageExtensionContracts(unittest.IsolatedAsyncioTestCase):
+    async def test_default_search_handles_malformed_responses_and_http_failures(self):
+        from src.wikipedia import search_wikipedia
+
+        client_type = httpx.AsyncClient
+        cases = [
+            (200, None, []),
+            (200, [], []),
+            (200, {"query": None}, []),
+            (200, {"query": []}, []),
+            (200, {"query": {"search": None}}, []),
+            (500, {"error": "unavailable"}, []),
+            (200, {"query": {"search": [{"title": "Computer science"}]}}, [{"title": "Computer science"}]),
+        ]
+
+        for status, payload, expected in cases:
+            with self.subTest(status=status, payload=payload):
+                def response(request):
+                    self.assertEqual(request.url.params["srsearch"], "C# & search")
+                    return httpx.Response(
+                        status, content=json.dumps(payload),
+                        headers={"Content-Type": "application/json"}, request=request,
+                    )
+
+                def create_client(*args, **kwargs):
+                    return client_type(*args, transport=httpx.MockTransport(response), **kwargs)
+
+                with patch("src.wikipedia.httpx.AsyncClient", side_effect=create_client):
+                    self.assertEqual(await search_wikipedia("C# & search"), expected)
+
     async def test_search_cards_sanitize_snippets_and_preserve_previews(self):
         search = AsyncMock(return_value=[{
             "title": "Computer science", "snippet": "<b>Computing</b> history",
