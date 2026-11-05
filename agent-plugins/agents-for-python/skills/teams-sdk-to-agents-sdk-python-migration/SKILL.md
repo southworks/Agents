@@ -131,6 +131,12 @@ for the sample families present in the source.
 
 Keep each sample independently runnable with dependency declarations, resolver-produced
 hash locks, environment template, README, manifest, icons, and required web assets.
+The README's reproducible setup must install the validated lock with
+`python -m pip install --require-hashes -r requirements.lock`, not install floating
+declarations from `requirements.txt`. Explain the Python runtime and platform used
+to produce the lock; wheel hashes can be platform-specific. A different environment
+needs its own trusted resolution and validation rather than a claim that the same
+wheel lock is portable. Include fresh virtual-environment setup before installation.
 Reuse the shared `teams-app-manifest` skill for schema/assets/capability reconciliation.
 Check exact command IDs, slash/mention/dialog surfaces, link domains, file support,
 meeting grants and setup instructions. Schema validity alone does not prove parity.
@@ -141,6 +147,8 @@ protocol. Use the supplied `validate_sample` tool; trusted tooling owns dependen
 and environment preparation. Never fabricate hashes, installed evidence, or successful checks.
 Require current full validation after the last edit, including dependencies, compilation,
 import, protected routing contracts, manifest, and HTTP readiness.
+Call `validate_sample` sequentially and wait for each result before starting another
+validation or editing files. Concurrent calls are rejected and edits make evidence stale.
 
 Outside synchronization, use the project's documented environment setup, compile/import
 checks, and behavior tests. Run each application in its own environment. Separate local
