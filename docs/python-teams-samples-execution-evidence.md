@@ -1,36 +1,110 @@
 # Python Teams samples execution evidence
 
-Execution began on 2026-11-05 under `python-teams-samples-execution-plan.md`. PR #118 and its generated outputs are excluded from all implementation inputs.
+All seven Python Teams samples are implemented under `samples/python/teams` from
+pinned OfficeDev source through the synchronization coordinator. Their exact
+verified patches and coordinator-generated state are integrated in this worktree.
+PR #118, its code and its evidence were excluded throughout.
 
-## Prepared inputs
+Local validation is complete for the seven-sample baseline. Live tenant validation
+belongs to the user and has not been executed or reported. The isolated changed-input migration also passed; its output is excluded from the baseline.
 
-- Original automation baseline: `122ad7abebc6b357286dab3a5e06c21374a033c3`.
-- Fresh upstream fetch: `OfficeDev/Microsoft-Teams-Samples@b9aedfea98e3505acbcf68a3931be05a780d6149`. The source pin matches the historical inventory, but was fetched and inspected again for this execution.
-- Coordinator-selected SDK map: all five required Microsoft Agents distributions at `1.9.0`, selection identity `pypi:03ba6a68119c7b9232642474a7018b555cfca042848645bb1dfd98c25a0f482a`.
-- Trusted Python: CPython 3.11.14, pip 26.1.1, packaging 26.2.
-- Source-to-test reconciliation: `docs/python-teams-sync-parity-inventory.md`, including new assertions for citations, dialog acknowledgements, meeting metadata/retry behavior and reaction-delete transport.
+## Frozen inputs
 
-Prerequisite changes corrected the message-extension no-results guidance, synchronized Python plugin versions, and made readability an explicit runtime requirement. A read-only independent review found no blockers in preparation commits `f6d2e49` and `e88f0bd`.
+| Input | Identity |
+| --- | --- |
+| Integrated sample revision | `623c82dcff583c9bb35588bc15ce10ee20b78ea5` |
+| Generation base | `50e0594eb292cc9479a6588242d96c0966ba7b35` |
+| OfficeDev source | `b9aedfea98e3505acbcf68a3931be05a780d6149` |
+| Upstream source directories | `samples/TeamsSDK/<sample>/python/<sample>` |
+| Agents SDK | All five required packages at `1.9.0` |
+| Python | CPython `3.11.14`, Linux x86_64 |
+| Node | `24.22.2` |
+| Copilot SDK / CLI | `1.0.7` / `1.0.83` |
 
-## Preparation checks
+The package selection identity and per-sample input, output, plan and artifact hashes
+are recorded in [execution results](python-teams-samples-execution-results.json).
+Each sample includes the trusted resolver's hash lock, README, environment template,
+manifest and icons. Setup uses a fresh environment and `--require-hashes`; the locks
+are specific to the documented runtime/platform.
 
-- Initial automation suite: 114 passed, zero failed, one opt-in live test skipped; build and lint passed.
-- Python helper suite before the long-path regression: 60 passed.
-- Explicit live Copilot SDK smoke: one passed; planning and implementation remained in the same session with skill access.
-- Fresh dependency resolution and hash-verified wheel installation succeeded for the selected SDK, including Graph dependencies. These checks establish local tool availability, not sample parity.
+## Sample results
 
-## First cards attempt
+Every row passed the full coordinator validator, independent patch verification in
+a clean checkout at the generation base, and the fresh-environment sample CI check
+in the combined seven-sample checkout.
 
-The synchronization runtime at base `e88f0bdce1b485e32120aa0e862bba9ccdc17fc7` froze a cards migration plan and created sample source, configuration, documentation and manifest files. No sample was accepted, no verified state was written, and no publication occurred.
+| Sample | Reviewed behavior |
+| --- | --- |
+| `bot-cards` | Both commands, nested forms, submitted names, precedence and visibility |
+| `bot-ai-messages` | Keyword priority, AI/sensitivity metadata, complete citations and both feedback invokes |
+| `bot-message-extensions` | Search results, sanitized snippets, malformed/default HTTP responses, no results and link previews |
+| `bot-task-modules` | All three dialogs, name/email carry-forward and the hosted custom page |
+| `bot-attachments` | File consent, early acknowledgement, real transfer helpers, failure fallback and background cleanup |
+| `bot-meetings` | Meeting events, supported default metadata API, resource-ID precedence, organizer-scoped join-URL recovery, VTT and retries |
+| `agent-targeted-messages` | Private delivery, real timer delay, ownership, cancellation/snooze, reactions and task cleanup |
 
-Validation exposed a Windows infrastructure failure: installation used extended paths, but environment fingerprinting used ordinary paths and failed on long generated Graph SDK directories with `WinError 3`. Reproducing `preparePythonEnvironment` outside the agent confirmed the failure. The coordinator and its Copilot child were stopped after that diagnosis. Diagnostic files and the incomplete frozen plan remain under `.sync/output/python--bot-cards`; the incomplete sample is not an accepted baseline.
+Full validation covers project layout, dependency restoration and installed packages,
+compilation, import, protected behavior contracts, HTTP smoke and manifest checks.
+HTTP smoke verifies credential-free readiness and rejection of anonymous messages
+with synthetic configured credentials; HTTP 200 and HTTP 500 both fail the latter.
+The additional recorded probes returned readiness 200 and anonymous POST 401.
 
-The fingerprint helper now uses extended paths on Windows. A regression test creates an installed-package path longer than `MAX_PATH`, compares prefixed and unprefixed roots, and verifies that changing a file changes the fingerprint. Both digest tests pass, and the complete freshly installed Graph environment was successfully fingerprinted.
+Independent review compared source, behavior requirements, actual SDK APIs, manifests,
+README setup and frozen plans. It exposed defects that injected happy-path tests
+missed. Corrections went back through the coordinator, followed by full validation
+and renewed patch verification; generated code and synchronization state were not
+hand-edited to make evidence pass.
 
-The custom validation tool now returns the underlying redacted failure message and retains it in the agent log. Two tests cover actionable errors without credential disclosure and preservation of structured candidate-check failures. Independent review found no blocking issues in these changes. The updated automation suite passed 116 tests, with zero failures and one opt-in skip.
+The main corrections were typed authentication configuration, literal feedback invoke
+routes, malformed Wikipedia response handling, reminder delay/cleanup/ownership,
+and the actual Agents SDK `TeamsTurnContext.api_client` meeting metadata API.
+Supplementary tests exercise default timer and metadata paths, transfer failures,
+join-URL Graph requests and anonymous HTTP rejection.
 
-## Remaining execution
+## Shared automation checks
 
-The cards pilot must be rerun and pass full validation, independent review and patch verification before the remaining samples proceed. Ubuntu 24.04 is available through WSL; execution tools are being prepared there to match the preferred platform and avoid Windows filesystem overhead. The Node 24.22.2 Linux download was checked against the official SHA-256 manifest.
+- Ubuntu automation build, lint and tests passed: 116 tests passed, one opt-in skip.
+- Python helper checks passed on Windows: 62 tests.
+- Python helper checks passed on Ubuntu: 62 tests, one Windows-only skip.
+- The live Copilot SDK planning/implementation smoke passed during preparation.
+- The exact integrated sample bytes and state match their verified patches; Git's
+  whitespace check passes.
 
-Live Teams installation, Azure Bot delivery, Graph transcript access, file transfer, targeted delivery and incremental operation have not yet been verified. The live test environment has been requested. No hosted workflow, issue, PR or merge was created by this execution.
+Windows path-length handling and actionable validator errors were repaired before
+freezing generation inputs. Later authentication checks strengthened the validator
+before the final baseline was generated. Superseded attempts remain archived in the
+local execution workspace and do not count as accepted results.
+
+## Integration and synchronization
+
+The CLI `prepare-handoff` accepted the coordinated seven-sample result set at the
+common base and packaged its patches, plans, audits, source context and results.
+Complete output directories and combined test logs are retained in
+`.sync/current50-evidence`; the machine-readable report above pins their hashes.
+The native execution workspace is `/home/joelmut/teams-sync-execution-20261105` in
+Ubuntu WSL. No hosted workflow, issue, PR, push or merge was created by this execution.
+
+A new plan against the combined baseline and identical upstream, SDK and automation
+inputs marks all seven samples unchanged and produces an empty migration matrix.
+
+An isolated copy of upstream contains a real local documentation commit affecting
+only the cards README (`7bc84c6`). Planning selects only `bot-cards`, while the other
+six remain unchanged. This is a controlled changed-input experiment, not a claimed
+OfficeDev release. The selected coordinator migration and independent patch verification passed in a separate checkout. Its patch changes only the cards README and generated cards state; it is excluded from the baseline.
+
+
+Identical inputs were skipped during planning. The changed-input experiment was a
+selected, fully revalidated documentation update, rather than a no-code-change,
+state-only migration. No synchronization state was fabricated for either check.
+
+## Tenant test handoff
+
+Follow the [tenant checklist](python-teams-samples-tenant-test-checklist.md) from the
+exact final baseline revision. Record each scenario as passed, failed or blocked,
+including the tested revision and sanitized observations. Local mocks and synthetic
+credentials do not prove Teams delivery, Entra consent, Graph access, file transfer
+or client behavior.
+
+The meetings setup preserves the existing .NET sample's Graph application permission
+and organizer-access-policy requirements. No tenant permissions or credentials were
+changed. Remaining live results are explicitly pending with the user.
