@@ -34,11 +34,12 @@ def _targeted_payload(
     sender = _read(activity, "from_property")
     recipient_id = _read(sender, "id", "")
     recipient_name = _read(sender, "name", "")
-    entities: list[dict[str, Any]] = [
-        {"type": "activityTreatment", "treatment": "targeted"}
-    ]
+    shared = _read(_read(activity, "conversation"), "conversation_type", "") != "personal"
+    entities: list[dict[str, Any]] = (
+        [{"type": "activityTreatment", "treatment": "targeted"}] if shared else []
+    )
     incoming_id = _read(activity, "id")
-    if _read(_read(activity, "recipient"), "is_targeted", False) and incoming_id:
+    if shared and _read(_read(activity, "recipient"), "is_targeted", False) and incoming_id:
         entities.append(
             {"type": "targetedMessageInfo", "targetedMessageId": incoming_id}
         )
