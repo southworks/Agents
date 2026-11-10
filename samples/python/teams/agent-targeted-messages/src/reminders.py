@@ -16,6 +16,7 @@ class Reminder:
     cancel: Callable[[], None] | None = None
     service_url: str = ""
     channel_id: str = "msteams"
+    conversation_type: str = ""
 
 
 @dataclass
