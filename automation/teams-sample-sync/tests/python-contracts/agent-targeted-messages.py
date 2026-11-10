@@ -45,6 +45,16 @@ class TargetedContracts(unittest.IsolatedAsyncioTestCase):
             for entity in activity.get("entities", [])
         ))
 
+    async def test_personal_reminder_confirms_and_delivers_without_targeting(self):
+        sent = await dispatch(self.app, {
+            "text": "remind me in 2 mins to review PR",
+            "conversation": {"id": "personal-chat", "isGroup": False, "conversationType": "personal"},
+        })
+        self.assertFalse(any(e.get("treatment") == "targeted" for e in sent[0].get("entities", [])))
+        await self.driver.timers[0]["run"]()
+        adapter = APPLICATION_ADAPTERS[self.app]
+        self.assertFalse(any(e.get("treatment") == "targeted" for e in adapter.sent[-1].get("entities", [])))
+
     async def test_mentioned_reminder_confirms_privately_and_delivers_to_recipient(self):
         sent = await dispatch(self.app, {
             "conversation": GROUP,
