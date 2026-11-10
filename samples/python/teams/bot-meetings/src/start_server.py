@@ -1,5 +1,6 @@
 """HTTP hosting with public readiness and authenticated message processing."""
 
+import logging
 from os import environ
 
 from aiohttp.web import Application, Request, Response, run_app
@@ -36,6 +37,11 @@ def start_server() -> None:
             )
 
         async def process_message(authorized_request: Request) -> Response:
+            payload = await authorized_request.json()
+            logging.getLogger(__name__).info(
+                "Received Teams activity: type=%s name=%s",
+                payload.get("type"), payload.get("name"),
+            )
             current_agent: AgentApplication = authorized_request.app["agent_app"]
             adapter: CloudAdapter = authorized_request.app["adapter"]
             return await start_agent_process(
