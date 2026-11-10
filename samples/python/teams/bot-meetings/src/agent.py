@@ -241,8 +241,12 @@ def create_agent(dependencies: Mapping[str, Any] | None = None) -> AgentApplicat
 
     @app.activity("event")
     async def on_meeting_event(context: Any, state: Any) -> None:
+        logger.info("Meeting event received: %s", context.activity.name)
         handler = handlers.get(context.activity.name or "")
         if handler is not None:
             await handler(context, state)
+            logger.info("Meeting event handled: %s", context.activity.name)
+        else:
+            logger.warning("No handler for meeting event: %s", context.activity.name)
 
     return app

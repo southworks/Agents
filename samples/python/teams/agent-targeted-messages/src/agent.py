@@ -98,23 +98,13 @@ def create_agent(dependencies: dict[str, Any] | None = None) -> AgentApplication
                     "type": "message",
                     "channelId": reminder.channel_id,
                     "serviceUrl": reminder.service_url,
-                    "conversation": {"id": reminder.conversation_id},
+                    "conversation": {"id": reminder.conversation_id, "conversationType": reminder.conversation_type},
                     "from": {"id": reminder.target_id, "name": reminder.target_name},
                     "recipient": {"id": agent_id or "agent"},
                 }
             )
-            outgoing = _activity(
-                {
-                    "type": "message",
-                    "entities": [{"type": "activityTreatment", "treatment": "targeted"}],
-                    "attachments": [
-                        {"contentType": "application/vnd.microsoft.card.adaptive", "content": card}
-                    ],
-                }
-            )
-
             async def deliver(turn_context: Any) -> None:
-                await turn_context.send_activity(outgoing)
+                await turn_context.send_activity(_activity(_targeted_payload(turn_context, card=card)))
 
             await adapter.continue_conversation(agent_id, continuation, deliver)
         except Exception as error:
@@ -160,6 +150,7 @@ def create_agent(dependencies: dict[str, Any] | None = None) -> AgentApplication
             sender_name, reminder_text, now() + delay,
             service_url=_read(activity, "service_url", "") or "",
             channel_id=_read(activity, "channel_id", "msteams") or "msteams",
+            conversation_type=_read(_read(activity, "conversation"), "conversation_type", "") or "",
         )
         state.reminders[identifier] = reminder
         reminder.cancel = scheduler.schedule(
@@ -412,6 +403,7 @@ def create_agent(dependencies: dict[str, Any] | None = None) -> AgentApplication
                         now() + minutes * 60,
                         service_url=_read(activity, "service_url", "") or "",
                         channel_id=_read(activity, "channel_id", "msteams") or "msteams",
+                        conversation_type=_read(activity_conversation, "conversation_type", "") or "",
                     )
                     state.reminders[new_reminder.identifier] = new_reminder
                     new_reminder.cancel = scheduler.schedule(
