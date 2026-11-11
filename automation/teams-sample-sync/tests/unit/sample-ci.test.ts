@@ -29,7 +29,7 @@ describe('sample-ci', () => {
     const workflow = parse(readFileSync(path.join(repo, '.github/workflows/cd-samples.yml'), 'utf8'))
     assert.deepEqual(workflow.jobs['build-python'].strategy.matrix['python-version'], ['3.10', '3.x'])
     const teams = workflow.jobs['build-python-teams']
-    assert.deepEqual(teams.strategy.matrix['python-version'], ['3.11.14', '3.x'])
+    assert.deepEqual(teams.strategy.matrix['python-version'], ['3.11.14', '3.12'])
     const script = teams.steps.find((step: { name: string }) => step.name === 'Validate nested Python Teams samples').run as string
     assert.match(script, /samples\/python\/teams\/\*\//)
     assert.match(script, /python_sample_ci\.py/)
